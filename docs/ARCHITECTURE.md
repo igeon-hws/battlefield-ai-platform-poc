@@ -4,7 +4,7 @@
 - 작성일: 2026-10-15
 - 기준: [PRD](./PRD.md), [UI 가이드](./UI_GUIDE.md)
 - Agent 상세: [단일 Agent 설계](./AGENT_DESIGN.md)
-- SDD 단계: Design. 실행 코드·설치·환경 구성은 수행하지 않는다.
+- SDD 단계: docs/STEP.md 참조. 2026-10-15 Review 후속 구현값을 반영했다.
 
 ## 1. 핵심 원칙
 
@@ -160,15 +160,15 @@ var/                                 # 로컬 DB·로그, Git 제외
 
 | 모델 | 주요 필드 |
 | --- | --- |
-| Scenario | scenarioId, epochId, simulationTime, running, revision |
-| Entity | entityId, kind, label, affiliation, availability, availabilityReason?, position{longitude,latitude}, velocity{eastMps,northMps}, status, revision, updatedAt |
-| Snapshot | snapshotId, epochId, revision, simulationTime, sourceTime, entities |
+| Scenario metadata | scenarioId, version, name, bounds, initialBounds, zones{id,name,domain,bounds}, synthetic |
+| Entity | entityId, kind, label, affiliation, availability, availabilityReason?, subtype?, unitId?, zoneId?, maintenanceStatus, observedAt?, source?, position{longitude,latitude}, velocity{eastMps,northMps}, status, revision, updatedAt |
+| Snapshot | snapshotId, scenarioId, scenario(metadata), epochId, revision, simulationTime, running, sourceTime, entities |
 | C4IEvent | eventId, epochId, sequence, type, entityId?, revision, snapshotId, occurredAt, payload |
 
 - 원천 좌표는 WGS84 경도·위도(도)로 저장한다. GeoJSON·지도 전달은 `[longitude, latitude]` 순서다. 경도 [-180,180], 위도 [-90,90]와 렌더러의 표시 가능 범위를 검증한다.
 - Entity 공개 표현에는 서버가 계산한 displayVector{horizonSeconds,endPosition}를 포함할 수 있다. 이는 position·velocity에서 파생된 표시 정보이며 원천 위치를 대체하지 않는다.
 - affiliation은 friendly(아군), hostile(적군)를 필수 지원한다. 미분류 unknown은 방어적 기본값으로 제안한다. 소속과 운용 상태를 분리하며 초기 status는 active / inactive / unknown을 제안한다. 이동 여부는 속도에서 파생하고 AI 위험 평가는 별도 분석 결과다.
-- kind는 객체 이름과 별개인 유형 코드다. tank(탱크), naval_vessel(함정)을 초기 필수 유형으로 두고 unknown(미분류)을 지원한다. 장갑차·항공기 등의 추가 유형은 계약 버전과 시나리오에 따라 확장한다. 문자열 이름 검색으로 유형을 추측하지 않는다.
+- kind는 이름과 별개인 유형 코드로 tank(탱크), naval_vessel(함정), armored_vehicle(장갑차), support_vehicle(지원 차량), uav(무인기), unknown(미분류)을 지원한다. 문자열 이름 검색으로 유형을 추측하지 않는다. maintenanceStatus는 serviceable/maintenance/unknown이며 가용성·운용 상태와 독립적이다. 추가 속성의 기존 데이터 기본값은 null 또는 unknown이다. 기존 snapshot은 변경하지 않고 새 관측부터 추가 필드를 기록한다.
 - availability는 available(가용) / unavailable(가용 불가) / unknown(미확인)으로 제안한다. Mock C4I가 명시적으로 제공하는 모의 상태이며 availabilityReason으로 사유를 덧붙일 수 있다. active·이동 중·아군이라는 이유만으로 가용을 추정하지 않는다.
 - 소속·유형·운용 상태·가용 상태는 독립 필드다. inactive의 이동 정지 규칙은 가용성 판정이 아니며, 가용 불가 객체도 active와 속도 설정에 따라 움직일 수 있다.
 - 초기 count의 단위는 모의 장비 객체 1개다. 하나의 Entity를 여러 대를 포함한 부대·편성으로 해석하거나 수량을 중복 합산하지 않는다.
@@ -176,7 +176,15 @@ var/                                 # 로컬 DB·로그, Git 제외
 - C4I 서버가 매초 `distanceMeters = speed × 1s`와 bearing으로 다음 지리 위치를 계산한다. 경도·위도에 미터 값을 직접 더하지 않는다. Python pyproj.Geod(ellps="WGS84").fwd의 타원체 계산을 제안한다. 원천 이동 계산은 Python 서버가 소유한다.
 - active 객체만 이동하며 inactive·속도 0은 위치를 유지한다. 초기 상태 의미와 전이는 시나리오 검토 후 확정한다. 브라우저는 원천 위치를 계산하지 않는다.
 - 타이머 지연은 누적 시간을 기준으로 고정 간격을 따라잡되, 과도한 지연 시 시뮬레이션 지연 상태를 드러낸다. 실제 시각과 시뮬레이션 시각을 혼동하지 않는다.
-- 경계 도달 시 정지, 모의 객체 20개 이내·30분 세션을 초기 검증 규모로 제안한다. 객체 종류·경계·규모는 사용자 검토 대상이다.
+- R7 기본 시나리오는 border-demo v1, 남북 접경의 서부·중부·동부·양쪽 연안에 합성 객체 120개다. zoneId의 시연 구역 또는 시나리오 bounds를 벗어나면 경계에 고정하고 속도를 0으로 한다. 시연 구역은 실제 접경선이 아니다. 실제 지형·항로 추종은 모사하지 않는다.
+- 현재 상태와 과거 snapshot이 시나리오 메타데이터를 소유한다. 기본 설정을 바꾸어 재시작해도 기존 DB의 경계는 유지하며 초기화 때 설정된 새 시나리오·seed·epoch를 적용한다. metadata 없는 이전 snapshot은 해당 scenarioId의 메타데이터를 응답에 보완하되 원본 저장 기록은 바꾸지 않는다.
+- 플랫폼의 이전 cursor에 metadata가 없으면 같은 snapshot을 다시 읽어 보완하고 그 cursor 이후 이벤트를 재생한다. 최신 snapshot으로 조용히 건너뛰어 상태 이벤트를 유실하지 않는다.
+
+### MCP 도구 정의 소유권 (R6)
+
+MCP 서버의 typed 함수·description이 도구 계약의 기준이다. 플랫폼 MCPClient는 tools/list의 이름·설명·inputSchema를 전체 페이지 수집하고, run별 ToolRunner는 이름 허용 목록을 적용한 뒤 native strict schema로 변환한다. C4I 설명·호출 모델은 플랫폼이나 공통 도메인 패키지에 복사하지 않는다. 원천 EntityFilter 같은 순수 도메인 계약은 C4I와 MCP에서 공유한다.
+
+발견과 호출은 같은 run의 MCP 세션을 사용한다. run 사이에는 재발견하며 실행 중 정의는 고정한다. 플랫폼은 schema 검증·snapshot/epoch/sequence 정책·실행 예산·근거 발급을 담당한다. 내부 read_evidence·geo_measure는 플랫폼이 정의한다. 발견 실패 시 C4I capability를 노출하지 않고 한계를 기록한다. discovery 성공 후 schema 변환 실패는 fail closed로 처리한다.
 - 한 tick의 객체 갱신, revision, snapshot, 이벤트를 한 트랜잭션으로 저장한 뒤 발행한다.
 - 시간은 UTC ISO 8601로 저장하고 UI에서 KST로 표시한다. 시뮬레이션 시각은 별도 필드다.
 
@@ -210,9 +218,10 @@ var/                                 # 로컬 DB·로그, Git 제외
 
 ### 객체 필터·집계 계약
 
-- 목록과 집계는 같은 Pydantic EntityFilter를 사용한다. affiliation, kind, availability, status, bbox를 선택적으로 AND 조합하며 필터 미지정은 해당 속성의 전체 값이다. 목록은 limit·cursor를 별도로 지원한다.
+- 목록과 집계는 같은 Pydantic EntityFilter를 사용한다. affiliation, kind, availability, status, maintenanceStatus, unitId, bbox를 선택적으로 AND 조합하며 필터 미지정은 해당 속성의 전체 값이다. 목록은 limit·cursor를 별도로 지원한다.
 - c4i_list_entities는 items, matchedCount, nextCursor, appliedFilter, snapshotId를 반환한다. matchedCount는 모든 페이지에 걸친 일치 수이며 items.length와 구분한다.
-- 집계는 같은 snapshot·filter를 적용한 전체 집합에서 Python 서버가 계산한다. matchedCount, groups, appliedFilter, snapshotId, sourceTime, countUnit=entity를 반환하고 groupBy는 kind / affiliation / availability / status의 허용 조합만 받는다.
+- 집계는 같은 snapshot·filter를 적용한 전체 집합에서 Python 서버가 계산한다. matchedCount, groups, appliedFilter, snapshotId, sourceTime, countUnit=entity를 반환하고 groupBy는 kind / affiliation / availability / status / maintenanceStatus / unitId / zoneId의 허용 조합만 받는다.
+- 객체 이력 공개 API `GET /api/v1/entities/{entityId}/history`는 epochId·after·throughSequence·limit을 받아 원천 snapshot을 최대 limit개씩 스캔한다. items에는 해당 객체의 관측만 포함하고 nextAfter로 후속 페이지를 안내한다. MCP `c4i_list_entity_history`는 이 API만 호출하며 Agent는 고정 epoch·sequence 상한을 검증한다.
 - 데이터 범위는 시나리오·원천에 등록된 관측 객체다. bbox가 있으면 해당 영역으로 제한한다. 적 탱크 집계는 전체 실제 적 전력이 아닌 해당 범위의 등록된 적 탱크 수다.
 - 가용 미확인과 가용 불가를 구분하고, 가용 상태 필터를 지정하지 않으면 unknown도 포함한다. unknown을 0·가용·가용 불가로 바꾸지 않는다.
 - /entities/summary 정적 경로는 /entities/:id 동적 경로보다 먼저 등록한다. API·MCP·UI가 같은 필터 의미와 서버 집계 기준을 사용한다.
@@ -291,7 +300,7 @@ flowchart TD
 
 ### 최소 멀티턴
 
-- conversationId 아래 사용자 질문·완료 답변·runId를 저장하고 최근 완료 6개 턴, 최대 8k 입력 토큰의 대화 맥락을 제안한다.
+- conversationId 아래 질문·답변·runId·선택한 방책을 저장한다. 모델 입력은 최근 완료 6개 턴, 최대 UTF-8 8,000바이트다. 선택한 방책의 ID·내용도 맥락에 포함한다. 대화 복원 API는 전역 실행 이력 200개 제한과 별도로 전체 턴을 시간순 반환한다. UI는 현재 대화 ID를 sessionStorage에 저장하고 방책 비교 대상 runId를 활성 run과 분리한다.
 - 새 질문은 새 run이다. 이전 대화는 지시 대상 이해에 사용하고 최신 C4I 사실은 새 MCP 조회로 확보한다. 장기 메모리·벡터 DB·별도 요약 Agent는 만들지 않는다.
 - 현재 run의 미처리 Tool 호출·응답 쌍은 자르지 않는다. 같은 대화에는 사용자 실행 하나만 허용한다.
 - 자동 이벤트는 독립 run으로 처리하며 사용자 대화에 자동 삽입하지 않는다.

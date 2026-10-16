@@ -1,0 +1,11 @@
+[project]
+name = "c4i-mcp"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["mcp>=1.20,<2", "httpx>=0.28", "uvicorn>=0.34", "c4i-contracts==0.1.0", "python-dotenv>=1.0"]
+[project.scripts]
+c4i-mcp = "c4i_mcp.server:main"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+

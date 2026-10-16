@@ -1,0 +1,36 @@
+[project]
+name = "battlefield-poc"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["mock-c4i", "c4i-mcp", "platform-api"]
+
+[tool.uv.workspace]
+members = ["services/*", "packages/*"]
+
+[tool.uv.sources]
+mock-c4i = { workspace = true }
+c4i-mcp = { workspace = true }
+platform-api = { workspace = true }
+c4i-contracts = { workspace = true }
+platform-contracts = { workspace = true }
+battlefield-geo = { workspace = true }
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.25", "httpx>=0.28", "ruff>=0.11", "mypy>=1.15", "playwright>=1.50", "build>=1.2", "hatchling>=1.27"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = ["ui: browser integration requiring built static UI and Playwright Chromium", "live: explicit opt-in billable real OpenAI integration", "performance: opt-in 60-second scale test"]
+addopts = "-m 'not live and not performance'"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = true
+ignore_missing_imports = true
+exclude = [".venv", "frontend"]
+

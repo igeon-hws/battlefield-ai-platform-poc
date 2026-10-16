@@ -4,7 +4,8 @@
 
 ## 현재 단계와 설계 기준
 
-- 현재 SDD 단계는 Implement이다. (SDD 단계는 STEP.md를 따름)
+- **현재 STEP: 4. Review (Human), R6–R7 구현 완료·사용자 검토 대기** — docs/STEP.md의 `Now` 기준.
+- CRITICAL: 작업 시작 시 docs/STEP.md를 먼저 읽고 현재 단계와 수행 주체를 확인한다. 단계 상태의 기준은 docs/STEP.md이며, 이 문서의 현재 STEP 표시와 다르면 docs/STEP.md를 따른다.
 - 요구사항은 docs/PRD.md, 화면은 docs/UI_GUIDE.md, 서비스 경계는 docs/ARCHITECTURE.md를 따른다.
 - Agent 실행은 docs/AGENT_DESIGN.md가 기준이다. 주요 변경의 이유는 docs/ADR.md에 남긴다.
 
@@ -19,6 +20,12 @@
 ## 개발 프로세스
 
 - CRITICAL: 새 기능 구현 시 반드시 테스트를 먼저 작성하고, 테스트가 통과하는 구현을 작성할 것(TDD).
-- docs/STEP.md의 Design → Implement → Review → Reflect 흐름을 따른다.
+- CRITICAL: docs/STEP.md의 순서와 역할을 따른다. 초기 Design 후에는 Plan → Implement → Review → Reflect 루프를 반복한다.
+  1. Design (Human+AI): 요구사항과 설계 명세를 함께 작성한다.
+  2. Plan (AI+Human): 구현 계획을 세워 docs/IMPLEMENTATION_PLAN.md에 반영한다.
+  3. Implement (AI): 구현 계획에 따라 테스트를 먼저 작성하고, 구현 후 테스트 통과까지 완료하여 docs/IMPLEMENTATION_REPORT.md에 기록한다.
+  4. Review (Human): 사용자가 검토하고 docs/REVIEW.md에 결과를 남긴다. AI가 사용자 Review를 대신하거나 임의로 완료 처리하지 않는다.
+  5. Reflect (AI, into plan): 완료된 사용자 Review를 바탕으로 docs/IMPLEMENTATION_PLAN.md에 피드백과 후속 계획을 반영한다.
+- 단계가 전환되면 docs/STEP.md의 상태와 AGENTS.md의 현재 STEP 표시를 함께 갱신한다. 다음 단계 작업을 임의로 시작하지 않는다.
 - 커밋 메시지는 conventional commits 형식을 따른다(feat:, fix:, docs:, refactor:).
 

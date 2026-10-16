@@ -1,8 +1,9 @@
 ﻿# 단일 동적 분석 Agent 설계
 
 - 문서 상태: 설계 초안 v0.4 — Python 단일 Agent·native tool calling
+- 2026-10-16 R6: 시스템 instructions는 정체성·앱 역할·동적 실행 원칙, 도구 description/schema는 개별 사용 계약을 담당한다. C4I 설명은 MCP 서비스 내부 c4i_mcp/tool_instructions.py에, 인수 schema는 서버의 typed 함수에 둔다. 플랫폼은 공유 설명 파일을 import하지 않고 실제 tools/list를 통해 정의를 발견한다.
 - 기준: [PRD](./PRD.md), [아키텍처](./ARCHITECTURE.md)
-- 단계: Design. 코드 구현은 이후 Implement 단계에서 진행한다.
+- 단계: docs/STEP.md 참조. R1–R5 후속 구현은 docs/IMPLEMENTATION_REPORT.md에 기록한다.
 - 사용자 확정 방향: 프론트엔드 외 Python 구현, 단일 동적 분석 Agent, OpenAI native tool calling, Agent loop, 간단한 멀티턴·하네스.
 
 ## 1. 정체성과 범위
@@ -24,6 +25,9 @@ OpenAI 공식 Python SDK의 AsyncOpenAI와 Responses API를 사용한다. Agent 
 - 실제 실행 대상은 API 응답의 `function_call` 항목이다. 본문에서 JSON 행동 명령을 파싱하거나 텍스트의 도구명을 추출하지 않는다.
 - Runtime은 허용된 함수 이름·인수·snapshot·예산을 확인한 뒤 실행한다.
 - C4I 함수는 공식 MCP Python SDK의 비동기 Client를 통해 tools/call로 연결한다. OpenAI 서버가 localhost MCP에 접속하지 않아도 된다.
+- run 시작 시 tools/list의 전체 페이지를 읽어 허용된 C4I 정의를 native strict 함수로 변환한다. 정의·schema는 run 내 고정되고 다음 run에서 다시 발견한다. 로컬 정의는 read_evidence·geo_measure뿐이다.
+- 변환은 명시된 object 필드·참조·enum·nullable·기본값·범위를 보존한다. optional 필드는 모델 입력에서는 required+nullable, 호출 시에는 원천 schema의 생략/기본값으로 정규화하고 다시 검증한다. open object·외부 참조·지원하지 않는 schema는 명시적으로 거부한다.
+- 발견은 최대 5초이며 연결 실패 시 C4I 정의를 로컬 복사로 대체하지 않는다. 조회 불가를 컨텍스트에 알리고 내부 도구만 노출해 일반 설명을 허용한다. 잘못된 발견 schema·이름 충돌은 실행 실패로 기록한다.
 - 도구 결과는 원래 call_id에 연결한 function_call_output으로 반환한다. 모델 응답에 포함된 후속 입력용 output 항목도 공식 SDK 규칙에 맞게 유지한다.
 - native function calling은 LLM→Runtime 구간, MCP는 Runtime→C4I 어댑터 구간이다. 일반 함수에서 C4I REST를 직접 호출해 MCP를 우회하지 않는다.
 - 별도 update_plan·delegate_*·finish_run 같은 제어 Tool은 두지 않는다. 호출할 도구가 없고 유효한 최종 응답이 있으면 종료한다.
@@ -61,6 +65,7 @@ flowchart TD
 | c4i_get_entity | MCP | 동일 snapshot의 특정 객체 상세 조회 |
 | c4i_get_changes | MCP | 명시된 비교 snapshot과 현재 분석 snapshot 간 변화 조회 |
 | c4i_list_events | MCP | epoch·sequence 상한·개수를 제한한 이벤트 조회 |
+| c4i_list_entity_history | MCP | 고정 epoch·상한 sequence 안에서 한 객체의 snapshot별 위치·상태 이력 조회; nextAfter로 페이지 이동 |
 | read_evidence | 로컬 | 현재 run에서 MCP로 확보한 근거의 필요한 부분 재열람 |
 | geo_measure | 로컬 | 근거 좌표의 거리·방위 계산, 입력 근거와 단위 기록 |
 
@@ -99,7 +104,7 @@ flowchart TD
 Conversation은 사용자 후속 질의의 맥락을 유지하는 단위, run은 한 번의 질의 또는 이벤트 분석 단위다. 한 run 안의 Tool loop와 사용자 멀티턴을 구분한다.
 
 - conversationId 아래 사용자 질문·완료 답변·runId·분석 시각을 순서대로 저장한다.
-- 후속 질의에는 최근 완료된 6개 턴(사용자 질문+답변), 최대 8k 입력 토큰의 이력을 초기 제안으로 사용한다. 요청·instructions·현재 run의 Tool 결과 공간을 우선 확보한다.
+- 후속 질의에는 최근 완료된 6개 턴(사용자 질문+답변), 최대 UTF-8 8,000바이트의 간단한 이력을 사용한다. runId·선택한 courseId·방책 내용을 포함하며 과거 분석임을 명시한다. 요청·instructions·현재 run의 Tool 결과 공간을 우선 확보한다. UI 대화 이력은 이 모델 입력 제한 및 전역 실행 이력 200개 제한과 별개로 복원한다.
 - 길이를 초과하면 가장 오래된 완료 턴부터 제외한다. 별도 요약 LLM·장기 메모리·벡터 DB·메모리 Agent는 만들지 않는다.
 - 제외된 대화가 꼭 필요하면 범위를 다시 묻거나 사용자가 분석 이력을 명시적으로 참조하도록 한다. 필요한 맥락이 복구됐다고 가정하지 않는다.
 - 실행 중인 Tool 호출과 대응 결과는 자르지 않는다. 현재 run이 예산을 넘으면 명시적으로 종료하고 새 질의를 받는다.

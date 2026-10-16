@@ -1,0 +1,630 @@
+{
+  "Entity": {
+    "$defs": {
+      "Affiliation": {
+        "enum": [
+          "friendly",
+          "hostile",
+          "unknown"
+        ],
+        "title": "Affiliation",
+        "type": "string"
+      },
+      "Availability": {
+        "enum": [
+          "available",
+          "unavailable",
+          "unknown"
+        ],
+        "title": "Availability",
+        "type": "string"
+      },
+      "Kind": {
+        "enum": [
+          "tank",
+          "naval_vessel",
+          "armored_vehicle",
+          "support_vehicle",
+          "uav",
+          "unknown"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "Position": {
+        "additionalProperties": false,
+        "properties": {
+          "longitude": {
+            "maximum": 180,
+            "minimum": -180,
+            "title": "Longitude",
+            "type": "number"
+          },
+          "latitude": {
+            "maximum": 85,
+            "minimum": -85,
+            "title": "Latitude",
+            "type": "number"
+          }
+        },
+        "required": [
+          "longitude",
+          "latitude"
+        ],
+        "title": "Position",
+        "type": "object"
+      },
+      "Velocity": {
+        "additionalProperties": false,
+        "properties": {
+          "eastMps": {
+            "default": 0,
+            "maximum": 200,
+            "minimum": -200,
+            "title": "Eastmps",
+            "type": "number"
+          },
+          "northMps": {
+            "default": 0,
+            "maximum": 200,
+            "minimum": -200,
+            "title": "Northmps",
+            "type": "number"
+          }
+        },
+        "title": "Velocity",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "entityId": {
+        "maxLength": 64,
+        "minLength": 1,
+        "title": "Entityid",
+        "type": "string"
+      },
+      "kind": {
+        "$ref": "#/$defs/Kind",
+        "default": "unknown"
+      },
+      "label": {
+        "maxLength": 120,
+        "title": "Label",
+        "type": "string"
+      },
+      "affiliation": {
+        "$ref": "#/$defs/Affiliation",
+        "default": "unknown"
+      },
+      "availability": {
+        "$ref": "#/$defs/Availability",
+        "default": "unknown"
+      },
+      "availabilityReason": {
+        "anyOf": [
+          {
+            "maxLength": 300,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Availabilityreason"
+      },
+      "subtype": {
+        "anyOf": [
+          {
+            "maxLength": 80,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Subtype"
+      },
+      "unitId": {
+        "anyOf": [
+          {
+            "maxLength": 64,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Unitid"
+      },
+      "zoneId": {
+        "anyOf": [
+          {
+            "maxLength": 64,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Zoneid"
+      },
+      "maintenanceStatus": {
+        "default": "unknown",
+        "enum": [
+          "serviceable",
+          "maintenance",
+          "unknown"
+        ],
+        "title": "Maintenancestatus",
+        "type": "string"
+      },
+      "observedAt": {
+        "anyOf": [
+          {
+            "maxLength": 64,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Observedat"
+      },
+      "source": {
+        "anyOf": [
+          {
+            "maxLength": 120,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Source"
+      },
+      "position": {
+        "$ref": "#/$defs/Position"
+      },
+      "velocity": {
+        "$ref": "#/$defs/Velocity"
+      },
+      "status": {
+        "default": "active",
+        "enum": [
+          "active",
+          "inactive",
+          "unknown"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "revision": {
+        "default": 0,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "updatedAt": {
+        "default": "",
+        "title": "Updatedat",
+        "type": "string"
+      }
+    },
+    "required": [
+      "entityId",
+      "label",
+      "position"
+    ],
+    "title": "Entity",
+    "type": "object"
+  },
+  "EntityFilter": {
+    "$defs": {
+      "Affiliation": {
+        "enum": [
+          "friendly",
+          "hostile",
+          "unknown"
+        ],
+        "title": "Affiliation",
+        "type": "string"
+      },
+      "Availability": {
+        "enum": [
+          "available",
+          "unavailable",
+          "unknown"
+        ],
+        "title": "Availability",
+        "type": "string"
+      },
+      "Kind": {
+        "enum": [
+          "tank",
+          "naval_vessel",
+          "armored_vehicle",
+          "support_vehicle",
+          "uav",
+          "unknown"
+        ],
+        "title": "Kind",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "kind": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Kind"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "affiliation": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Affiliation"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "availability": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Availability"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "status": {
+        "anyOf": [
+          {
+            "enum": [
+              "active",
+              "inactive",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Status"
+      },
+      "maintenanceStatus": {
+        "anyOf": [
+          {
+            "enum": [
+              "serviceable",
+              "maintenance",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Maintenancestatus"
+      },
+      "unitId": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Unitid"
+      },
+      "zoneId": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Zoneid"
+      },
+      "bbox": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bbox"
+      }
+    },
+    "title": "EntityFilter",
+    "type": "object"
+  },
+  "EntityPatch": {
+    "$defs": {
+      "Availability": {
+        "enum": [
+          "available",
+          "unavailable",
+          "unknown"
+        ],
+        "title": "Availability",
+        "type": "string"
+      },
+      "Velocity": {
+        "additionalProperties": false,
+        "properties": {
+          "eastMps": {
+            "default": 0,
+            "maximum": 200,
+            "minimum": -200,
+            "title": "Eastmps",
+            "type": "number"
+          },
+          "northMps": {
+            "default": 0,
+            "maximum": 200,
+            "minimum": -200,
+            "title": "Northmps",
+            "type": "number"
+          }
+        },
+        "title": "Velocity",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "velocity": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Velocity"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "availability": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Availability"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "availabilityReason": {
+        "anyOf": [
+          {
+            "maxLength": 300,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Availabilityreason"
+      },
+      "status": {
+        "anyOf": [
+          {
+            "enum": [
+              "active",
+              "inactive",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Status"
+      },
+      "maintenanceStatus": {
+        "anyOf": [
+          {
+            "enum": [
+              "serviceable",
+              "maintenance",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Maintenancestatus"
+      }
+    },
+    "title": "EntityPatch",
+    "type": "object"
+  },
+  "AnalysisResult": {
+    "$defs": {
+      "Course": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "evidenceIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidenceids",
+            "type": "array"
+          },
+          "expectedEffects": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Expectedeffects",
+            "type": "array"
+          },
+          "risksAndConstraints": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Risksandconstraints",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "evidenceIds",
+          "expectedEffects",
+          "risksAndConstraints"
+        ],
+        "title": "Course",
+        "type": "object"
+      },
+      "Finding": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "category": {
+            "enum": [
+              "fact",
+              "inference",
+              "assumption"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "evidenceIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidenceids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "text",
+          "category",
+          "evidenceIds"
+        ],
+        "title": "Finding",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "outcome": {
+        "enum": [
+          "answer",
+          "partial",
+          "clarification"
+        ],
+        "title": "Outcome",
+        "type": "string"
+      },
+      "answer": {
+        "minLength": 1,
+        "title": "Answer",
+        "type": "string"
+      },
+      "findings": {
+        "items": {
+          "$ref": "#/$defs/Finding"
+        },
+        "title": "Findings",
+        "type": "array"
+      },
+      "evidenceIds": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Evidenceids",
+        "type": "array"
+      },
+      "limitations": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Limitations",
+        "type": "array"
+      },
+      "courses": {
+        "anyOf": [
+          {
+            "items": {
+              "$ref": "#/$defs/Course"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Courses"
+      }
+    },
+    "required": [
+      "outcome",
+      "answer",
+      "findings",
+      "evidenceIds",
+      "limitations",
+      "courses"
+    ],
+    "title": "AnalysisResult",
+    "type": "object"
+  }
+}
