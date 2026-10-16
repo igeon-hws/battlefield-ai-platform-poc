@@ -1,10 +1,42 @@
-﻿# PRD: Agentic Battlefield Intelligence Platform
+# PRD: Agentic Battlefield Intelligence Platform
 
 - 한국어 명칭: 전장의 분석형 AI 플랫폼
-- 구성: Mock C4I + MCP Server + Analytical AI Platform
-- 문서 상태: 요구사항 v0.4 — Python 프로젝트·단일 동적 분석 Agent
+- 구성: Mock ATCIS + Mock KNCCS + 원천별 MCP + Ontology/Semantic Layer + Neo4j + Analytical AI Platform
+- 문서 상태: 요구사항 v0.6 S8 — Semantic 실행 경계·일관된 v2 데이터 (2026-10-16)
 - 작성일: 2026-10-15
-- SDD 단계: docs/STEP.md 참조. 아래 명세에 2026-10-15 Review 후속 구현을 반영했다.
+- SDD 단계: [STEP](./STEP.md)를 따른다. v0.6 수용 기준의 실제 검증은 IMPLEMENTATION_REPORT.md에 기록한다.
+
+## 고도화 요구사항 — v0.6 우선 적용
+
+기존 PoC의 목적을 유지하면서, 서로 다른 원천 데이터를 **조직이 사용하는 개념과 관계로 일관되게 해석하는 Semantic Layer의 효용**을 검증한다. Ontology는 개념·관계·매핑 규칙, Knowledge Graph는 검증된 관계의 저장·탐색, MCP는 Agent 접근 인터페이스다. 세 가지를 같은 기능으로 취급하지 않는다.
+
+| ID | 요구사항 | 수용 기준 |
+| --- | --- | --- |
+| FR-10 | Mock ATCIS(지상), Mock KNCCS(해상)의 독립 제공 | 각각 UI·API·DB·시뮬레이터·시나리오와 별도 MCP를 갖는다. 상대 체계·Graph·플랫폼 없이 실행된다. 실제 체계 내부 구조를 재현하지 않는다. |
+| FR-11 | 이종 원천 계약과 통합 상황판 | ID·조직·유형·상태·좌표/속도 표현이 다른 가상 스키마를 제공한다. 플랫폼은 명시적 어댑터로 표시 형식을 정규화하고 출처·원천 ID를 보존한다. |
+| FR-12 | Ontology와 근거 기반 관계 | Unit, Equipment, System, Observation, SourceRecord 및 SUBORDINATE_TO·ASSIGNED_TO·REFERS_TO를 정의한다. 모든 관계에 원천 참조·매핑 규칙·버전을 연결한다. |
+| FR-13 | Python Graph Builder와 Neo4j | 공식 Python 드라이버로 초기 구축·안정적 관계 변경 동기화를 수행한다. 재실행 중복, 중간 실패, 원천 reset·이벤트 공백을 처리하고 검증된 build만 공개한다. 매초 이동은 Graph에 복제하지 않는다. |
+| FR-14 | 재사용 가능한 Semantic API/MCP | Agent 외 서비스도 동일한 Python 도메인 로직을 HTTP API로 사용한다. MCP는 읽기 어댑터이며 임의 Cypher·Graph 쓰기 도구를 제공하지 않는다. |
+| FR-15 | 결정론적 Entity Resolution·불일치 설명 | 원천 복합 ID, 명시적 공통 식별자 또는 검증된 crosswalk로 연결한다. 이름 유사성만으로 병합하지 않는다. 상충하는 원천 값·관측 시각·판별 근거를 보존한다. |
+| FR-16 | Semantic OFF/ON 실행 격리 | OFF는 원천 MCP와 일반 계산만 사용하며 Semantic 해석·관계 해소·동일성 판정 helper의 간접 호출도 금지한다. ON은 Semantic MCP의 검증된 해석을 추가 사용한다. 공유 집계/도구 설명/표시 projection/이전 정책 대화를 통한 해석 유입도 차단한다. 단일 native loop와 discovery를 유지한다. |
+| FR-17 | 재현 가능한 쌍 비교 | 동일 질문·두 원천의 고정 snapshot 집합·모델 설정으로 두 run을 생성한다. Graph도 해당 snapshot의 안정 정보로 구축한 버전을 고정한다. 답변·도구·근거·오류·비용/시간을 비교한다. |
+| FR-18 | 시연과 평가 | semantic-demo-v2의 조직 탐색·이종 통합·동일 객체 연결/중복 방지 세 시나리오를 제공한다. 같은 객체의 기본 상태·배속은 상충하지 않는다. 충돌/동명/누락은 별도 negative fixture에서만 검증한다. 독립 gold와 모드별 평가를 사용하며 OFF의 근거 있는 모델 추론 성공도 허용한다. |
+
+### 고도화 범위와 성공 기준
+
+- “모의 1사단의 가용한 탱크”: 예하 조직을 포함한 소속 장비 범위를 관계로 확인하고, 고정 원천 snapshot의 명시적 가용 상태로 목록·수를 산출한다.
+- “모의 1사단과 모의 1함대의 가용 전력”: 두 체계의 조직 범위를 통합하되 유형별 수와 원천 레코드 수/중복 제거 객체 수를 구분한다. 전투력 점수로 환산하지 않는다.
+- 동일 객체: 서로 다른 원천 ID를 명시적 근거로 연결하고 중복 집계를 방지한다. 기본 UAV는 양쪽 가용이며 B11/S11의 비전속 공동지원 역할을 원천에 명시한다. 기본 통합값은 raw 8/unique 7/가용 4/불가 2/미확인 1/충돌 0이다. 실제 오류 상태를 숨기거나 임의로 한 원천을 정답으로 선택하지 않는다.
+- ON/OFF 결과를 나란히 열고, 같은 기준 데이터인지 확인한 뒤 조직 경로·동일성 근거·원천 조회·집계의 차이를 설명할 수 있다.
+- Graph 또는 한 원천 장애가 나머지 체계의 독립 실행을 막지 않는다. 불완전한 비교는 완료된 비교나 ON의 우수성으로 표시하지 않는다.
+
+단일 원천의 FR-01~FR-09 기능은 두 체계 및 플랫폼에 재사용한다. 아래의 `Mock C4I`/`MCP Server` 단수 표현은 기존 구현 기준이다. v0.6에서는 원천별로 적용한다. 기존 120개 분포는 회귀용 기준 시나리오이며 두 체계의 새 기본 분포를 확정하는 수치가 아니다. 소규모 비교 fixture와 지도 규모 검증 fixture는 분리한다.
+
+설계: [서비스 경계](./SEMANTIC_ARCHITECTURE.md), [Ontology·매핑](./ONTOLOGY_DESIGN.md), [시연·평가](./SEMANTIC_DEMO.md). 이번 범위에서 RDF/OWL 추론 엔진, 벡터 DB/RAG, LLM Graph 생성, 새로운 Agent 프레임워크·Multi-Agent는 도입하지 않는다.
+
+---
+
+아래는 유지하는 v0.4 기본 요구사항이다. 고도화에 따른 변경은 위 v0.6 요구사항이 우선한다.
 
 ## 1. 목표
 

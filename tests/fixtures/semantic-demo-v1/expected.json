@@ -1,0 +1,5 @@
+{
+  "s1": {"allTankIds": ["EX-T01", "EX-T02", "EX-T03", "EX-T04"], "availableIds": ["EX-T01", "EX-T02"]},
+  "s2": {"rawCount": 8, "uniqueCount": 7, "availableCount": 3, "unavailableCount": 2, "unknownCount": 1, "conflictCount": 1},
+  "s3": {"canonicalId": "EX-U01", "nativeIds": ["U-A01", "C-K77"], "availabilityConflict": true, "assignmentConflict": true}
+}

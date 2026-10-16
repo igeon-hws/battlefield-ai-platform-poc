@@ -1,0 +1,112 @@
+{
+  "datasetId": "semantic-demo-v2",
+  "units": [
+    {
+      "unitCode": "D1",
+      "name": "모의 1사단",
+      "parentCode": null
+    },
+    {
+      "unitCode": "B11",
+      "name": "모의 11여단",
+      "parentCode": "D1"
+    },
+    {
+      "unitCode": "C111",
+      "name": "모의 111중대",
+      "parentCode": "B11"
+    },
+    {
+      "unitCode": "D2",
+      "name": "모의 2사단",
+      "parentCode": null
+    }
+  ],
+  "tracks": [
+    {
+      "trackKey": "T-A01",
+      "ownerUnitCode": "B11",
+      "classCode": "TANK",
+      "readyCode": "R",
+      "sideCode": "F",
+      "exerciseAssetRef": "EX-T01",
+      "pos": {
+        "lon": 127.1,
+        "lat": 38.1
+      },
+      "velocity": {
+        "eastMps": 3,
+        "northMps": 0
+      }
+    },
+    {
+      "trackKey": "T-A02",
+      "ownerUnitCode": "C111",
+      "classCode": "TANK",
+      "readyCode": "R",
+      "sideCode": "F",
+      "exerciseAssetRef": "EX-T02",
+      "pos": {
+        "lon": 127.12,
+        "lat": 38.12
+      },
+      "velocity": {
+        "eastMps": 2,
+        "northMps": 1
+      }
+    },
+    {
+      "trackKey": "T-A03",
+      "ownerUnitCode": "C111",
+      "classCode": "TANK",
+      "readyCode": "N",
+      "sideCode": "F",
+      "exerciseAssetRef": "EX-T03",
+      "pos": {
+        "lon": 127.14,
+        "lat": 38.14
+      }
+    },
+    {
+      "trackKey": "T-A04",
+      "ownerUnitCode": "B11",
+      "classCode": "TANK",
+      "readyCode": "U",
+      "sideCode": "F",
+      "exerciseAssetRef": "EX-T04",
+      "pos": {
+        "lon": 127.16,
+        "lat": 38.16
+      }
+    },
+    {
+      "trackKey": "T-A05",
+      "ownerUnitCode": "D2",
+      "classCode": "TANK",
+      "readyCode": "R",
+      "sideCode": "H",
+      "exerciseAssetRef": "EX-T05",
+      "pos": {
+        "lon": 127.2,
+        "lat": 38.2
+      }
+    },
+    {
+      "trackKey": "U-A01",
+      "ownerUnitCode": "B11",
+      "classCode": "UAV",
+      "readyCode": "R",
+      "sideCode": "F",
+      "exerciseAssetRef": "EX-U01",
+      "pos": {
+        "lon": 126.3,
+        "lat": 37.7
+      },
+      "velocity": {
+        "eastMps": 15,
+        "northMps": 2
+      },
+      "assignmentRole": "shared_support"
+    }
+  ]
+}

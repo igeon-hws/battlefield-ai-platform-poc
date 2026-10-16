@@ -1,0 +1,10 @@
+[project]
+name = "mock-atcis"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["battlefield-source-runtime==0.1.0"]
+[project.scripts]
+mock-atcis = "mock_atcis.app:main"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

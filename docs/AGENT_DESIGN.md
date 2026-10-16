@@ -1,10 +1,61 @@
-﻿# 단일 동적 분석 Agent 설계
+# 단일 동적 분석 Agent 설계
 
-- 문서 상태: 설계 초안 v0.4 — Python 단일 Agent·native tool calling
+- 문서 상태: v0.6 S8 — native OFF / Semantic 근거 ON (2026-10-16)
 - 2026-10-16 R6: 시스템 instructions는 정체성·앱 역할·동적 실행 원칙, 도구 description/schema는 개별 사용 계약을 담당한다. C4I 설명은 MCP 서비스 내부 c4i_mcp/tool_instructions.py에, 인수 schema는 서버의 typed 함수에 둔다. 플랫폼은 공유 설명 파일을 import하지 않고 실제 tools/list를 통해 정의를 발견한다.
 - 기준: [PRD](./PRD.md), [아키텍처](./ARCHITECTURE.md)
 - 단계: docs/STEP.md 참조. R1–R5 후속 구현은 docs/IMPLEMENTATION_REPORT.md에 기록한다.
 - 사용자 확정 방향: 프론트엔드 외 Python 구현, 단일 동적 분석 Agent, OpenAI native tool calling, Agent loop, 간단한 멀티턴·하네스.
+
+## v0.6 실행 설계 — 우선 적용
+
+### 역할과 도구 계약의 분리
+
+정체성은 기존 `battlefield_analyst` 하나다. 시스템 instructions에는 앱의 상황 분석 역할, 필요 도구 선택→관측→추가 조회/최종 답변의 반복, 근거/한계 표기 원칙을 둔다. 조직 계층·코드표·ER crosswalk를 거대한 시스템 프롬프트에 넣지 않는다. 개별 도구의 사용 조건·필터·해석·오류는 해당 MCP 서버 description/schema가 소유한다.
+
+두 모드의 역할 프롬프트와 loop는 동일하다. Runtime이 실행 메타데이터(모드·기준 snapshot·사용 가능 원천·Graph 버전)를 제공하고 모드별 capability를 서버 측에서 제한한다. “처음에 무조건 Semantic Tool” 같은 고정 워크플로를 만들지 않는다. 일반 설명은 직접 답할 수 있고 source/semantic 도구의 선택과 반복은 모델이 관측에 따라 결정한다.
+
+### 다중 MCP discovery와 허용 범위
+
+| 모드 | discovery / 호출 가능한 서버 | 로컬 도구 |
+| --- | --- | --- |
+| OFF | atcis, knccs | read_evidence, geo_measure, aggregate_evidence |
+| ON | atcis, knccs, semantic | 같은 로컬 도구 |
+
+원천별 실제 MCP에서 tools/list 전체 페이지를 발견하고 `(trustedServerId, originalToolName)`별 allowlist를 적용한다. 서버 ID와 URL은 앱 설정이며 모델·Tool 응답이 추가하지 못한다. native 함수 이름은 `atcis__<name>`, `knccs__<name>`, `semantic__<name>`으로 바인딩한다. 이름 길이/문자 제한을 검증하고, 축약이 필요하면 고정 hash를 포함해 run registry에 원래 바인딩을 저장한다. 같은 원래 이름이 다른 서버에 있어도 충돌하지 않아야 한다.
+
+원천 MCP는 snapshot·객체 목록/상세/집계·변경/이벤트/이력이라는 기존 7종 기능을 재사용하고 원시 조직 목록·조직 관계·배속·식별 정보 조회를 추가한다. 구체 native schema는 이종 체계 필드를 반영한다. 아래 v0.4의 `c4i_*` 7개 고정 목록은 baseline이며 전체 목표 목록이 아니다. Semantic Tool 계약은 [Semantic API/MCP 표](./SEMANTIC_ARCHITECTURE.md)의 5종 조회를 따른다.
+
+각 서버의 발견/호출은 같은 run 세션, strict 변환과 원래 schema 재검증을 유지한다. 발견은 서버별 최대 5초를 초기값으로 하되 전체 준비 예산도 제한한다. 독립 발견 요청은 병렬 가능하지만 발견 완료 뒤 registry를 고정한다. 연결 실패는 해당 capability 부재로 기록하고 나머지 조회는 허용한다. 잘못된 schema/바인딩은 노출하지 않고 진단한다. 부분 capability 상태의 결과는 coverage를 밝히며 완전한 쌍 비교로 평가하지 않는다. 로컬 C4I 정의 복사·직접 REST fallback은 없다.
+
+OFF는 Semantic MCP 세션/discovery뿐 아니라 Semantic helper의 간접 호출도 금지한다. 원천 MCP의 typeCode/statusCode는 native 값만 비교하며 조직 예하 확장·코드 의미 해석·동일성 확정을 하지 않는다. 원시 공통 식별참조/조직 관계는 제공한다. Semantic 규칙을 원천 description이나 시스템 프롬프트로 옮겨 OFF를 보강하지 않는다.
+
+### 컨텍스트·시점·근거
+
+RunContext에 `semanticMode, SourceSnapshotSet, graphVersion?, registryBindings, evidenceStore, budgets`를 둔다. source snapshot은 serverId별로 검증하고, Semantic 응답은 고정 graphVersion/규칙 버전과 비교한다. ToolRunner가 필수 기준 인수를 주입/검증하며 모델이 최신 snapshot으로 교체하지 못한다. Graph build가 snapshot의 안정 정보와 일치하는지는 실행 준비에서 검증한다.
+
+컨텍스트는 질문/최근 대화 → 실행 기준 → model output(function_call) → 검증된 tool output → 다음 model output 순서로 누적된다. 관측은 source/semantic/computed evidence를 구분하며 원문·호출 인수·시점·버전·call_id를 보관한다. Semantic 근거는 조직/동일성 주장에, source 근거는 현재 상태 주장에 사용한다. 근거 ID가 있다는 것만으로 해당 주장을 뒷받침한다고 간주하지 않는다.
+
+`aggregate_evidence`의 native 계산은 완결된 현재 run 목록의 rawRecordCount와 native 필드값 빈도(groupBy)/동등 필터(filters)만 제공한다. 체계 내 중복 페이지는 native 키로 제거하지만 서로 다른 체계 레코드를 병합하지 않는다. OFF는 identityEvidenceIds/scopeEvidenceIds/conceptEvidenceIds 및 공통 kind/unitIds 해석 인자를 거부한다. canonical ID/공통 가용 상태를 출력하지 않는다.
+
+ON의 Semantic 집계는 실제 Semantic MCP의 find_equipment_refs/resolve_entity 근거, interpret_concept의 sourceMappings·규칙 버전, 필요 시 resolve_unit_scope 근거를 요구한다. 로컬 계산 모듈은 검증된 canonical 그룹/코드 대응을 적용할 뿐 normalize_equipment·resolve_identity를 호출하거나 Graph/원천을 직접 조회하지 않는다. 해당 그룹의 모든 원천 관측과 전체 페이지가 있어야 한다. 누락·미해결은 오류/한계로 반환하며 숨은 해석 helper로 fallback하지 않는다. 산출 근거는 입력 evidence에 연결한다.
+
+OFF/ON 일반 대화는 모드별 conversation으로 분리한다. 모드 또는 semanticPolicyVersion이 바뀌면 새 대화를 시작한다. 과거 공유 helper 정책의 OFF 답변도 새 정책 대화의 history로 읽지 않는다. 비교는 동일 질문의 빈 대화 2개와 별도 근거를 사용한다. 지도 projection·Graph canonical ID는 OFF 컨텍스트에 넣지 않으며 read_evidence는 현재 run의 근거만 읽는다. 최근 6쌍/8,000 UTF-8 bytes 정책은 같은 모드·정책 내부에만 적용한다.
+
+### 동적 실행 예시 (고정 순서가 아님)
+
+ON에서 조직 범위/장비 refs·개념/코드 해석 → 고정 원천 관측 → 근거 적용 집계 → 답변이 가능하다. OFF는 native 조직/관계/장비/식별참조를 조회하고 일반 계산 또는 모델 추론으로 답한다. 서버가 조직이나 동일성을 대신 확정하지 않으며 모델 추론은 원천 근거와 구분한다. 사실이 부족하면 명확화/부분 답변으로 남기고 Graph에 추정 관계를 만들지 않는다. 이 예시는 호출 순서를 강제하지 않는다.
+
+기존 model 12회/tool 20회/120초를 최초 측정 기준으로 사용했다. Implement의 실제 GPT 평가에서 S2 OFF의 정상 원시 관계 조회가 12회 한도에 걸려, 고도화 기본값은 model 24회/tool 20회/120초로 조정한다. AGENT_MAX_ITERATIONS·AGENT_MAX_TOOLS·AGENT_DEADLINE_SECONDS로 설정하고 양 모드에 같은 값과 기록을 적용한다. 세 서버 탐색과 Graph 준비는 별도 상태/지표로 남긴다. 비교는 독립 single-Agent run 두 개이며 Multi-Agent가 아니다. 오류가 ON/OFF 모드를 변경하지 않는다.
+
+### 결과와 검증 추가
+
+기존 outcome/answer/findings/limitations/courses 계약을 유지하고 run metadata에 모드·source snapshot 집합·Graph/규칙 버전·coverage를 추가한다. courses는 요청 때만 유효한 3개다. ON/OFF 분석 비교 두 열은 세 방책 비교/선택과 별개다.
+
+검증: 서버별 namespace 충돌, 실제 다중 MCP discovery/call, OFF Semantic 미연결, 과거 ON 근거 차단, source/Graph 시점 불일치 거부, 부분 페이지 집계 거부, 충돌/미확인 집계, 동명 조직 명확화, 동적 추가 조회와 loop 종료를 포함한다. fake model tests와 실제 GPT 효용 평가를 구분한다. [SEMANTIC_DEMO](./SEMANTIC_DEMO.md)를 수용 기준으로 삼는다.
+
+---
+
+아래 1~9절은 유지하는 v0.4 Agent 기본/회귀 설계다. 단일 원천 registry·고정 7개 MCP·로컬 2개 도구·단일 snapshot 표현은 위 v0.6 절로 대체한다. 그 외 native loop·결과 검증·최소 하네스 정책은 유지한다.
 
 ## 1. 정체성과 범위
 

@@ -1,0 +1,28 @@
+{
+  "atcis": {
+    "systemId": "atcis", "datasetId": "semantic-demo-v1", "epochId": "atcis-epoch-1",
+    "units": [
+      {"unitId": "D1", "name": "모의 1사단", "parentId": null},
+      {"unitId": "B11", "name": "모의 11여단", "parentId": "D1"},
+      {"unitId": "C111", "name": "모의 111중대", "parentId": "B11"},
+      {"unitId": "D2", "name": "모의 2사단", "parentId": null}
+    ],
+    "equipment": [
+      {"nativeId": "T-A01", "unitId": "B11", "kind": "tank", "availability": "available", "exerciseAssetRef": "EX-T01"},
+      {"nativeId": "T-A02", "unitId": "C111", "kind": "tank", "availability": "available", "exerciseAssetRef": "EX-T02"},
+      {"nativeId": "T-A03", "unitId": "C111", "kind": "tank", "availability": "unavailable", "exerciseAssetRef": "EX-T03"},
+      {"nativeId": "T-A04", "unitId": "B11", "kind": "tank", "availability": "unknown", "exerciseAssetRef": "EX-T04"},
+      {"nativeId": "T-A05", "unitId": "D2", "kind": "tank", "availability": "available", "exerciseAssetRef": "EX-T05"},
+      {"nativeId": "U-A01", "unitId": "B11", "kind": "uav", "availability": "available", "exerciseAssetRef": "EX-U01"}
+    ]
+  },
+  "knccs": {
+    "systemId": "knccs", "datasetId": "semantic-demo-v1", "epochId": "knccs-epoch-1",
+    "units": [{"unitId": "F1", "name": "모의 1함대", "parentId": null}, {"unitId": "S11", "name": "모의 11전대", "parentId": "F1"}],
+    "equipment": [
+      {"nativeId": "V-K01", "unitId": "S11", "kind": "naval_vessel", "availability": "available", "exerciseAssetRef": "EX-S01"},
+      {"nativeId": "V-K02", "unitId": "S11", "kind": "naval_vessel", "availability": "unavailable", "exerciseAssetRef": "EX-S02"},
+      {"nativeId": "C-K77", "unitId": "S11", "kind": "uav", "availability": "unavailable", "exerciseAssetRef": "EX-U01"}
+    ]
+  }
+}

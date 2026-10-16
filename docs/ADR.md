@@ -4,6 +4,62 @@
 - 작성일: 2026-10-15
 - 상태는 사용자 요구사항에 따른 확정 원칙과 검토 전 설계 제안을 구분한다.
 
+## 2026-10-16 고도화 결정 — ADR-017~022
+
+아래는 v0.5 Design 입력에 대한 결정/제안이다. ADR-001~016은 이전 baseline의 이력이며 상충하는 단일 원천·단일 snapshot·전체 SQLite 한정 전제는 아래 범위에서 대체한다. 단일 Python Agent/native loop 원칙은 유지한다.
+
+### ADR-017: 두 개의 독립 합성 C4I
+
+- 상태: 사용자 확정 요구사항.
+- 결정: Mock ATCIS/KNCCS를 각각 UI·Python API·DB·시뮬레이터·MCP 경계로 제공한다. 실제 내부 구조를 모사하지 않고 가상 스키마를 사용한다.
+- 이유/영향: 이종 연동과 원천 독립성을 시연한다. 실행 단위는 늘어나지만 기존 C4I/지도/SDK 코드를 재사용한다. ADR-001/002를 원천별로 확장한다.
+- 검증: 다른 원천·플랫폼·Neo4j·LLM 없는 독립 배포 실행 및 실제 MCP HTTP 조회.
+
+### ADR-018: Ontology·Builder·Graph·Semantic 서비스 분리
+
+- 상태: 분리·Neo4j/Python 공식 driver는 사용자 확정 요구사항. Python core + API + 별도 thin MCP 프로세스는 설계 제안.
+- 결정: Git 관리 의미 규칙 → Python Builder → Neo4j → Semantic API → Semantic MCP로 책임을 나눈다. MCP를 Ontology 정의/저장 자체로 취급하지 않는다.
+- 이유/영향: Agent 밖에서도 의미 해석을 재사용하고 도구 설명과 지식 규칙을 분리한다. 기존 SQLite는 원천/플랫폼에 유지하며 관계 저장용 Neo4j를 추가한다(ADR-007 범위 확장).
+- 검증: API/MCP 같은 결과, 원천 live 상태의 Graph 비복제, 무제한 Cypher/Graph 쓰기 도구 부재.
+
+### ADR-019: 검증된 매핑과 결정론적 ER
+
+- 상태: 근거 기반 관계·LLM 관계 생성 금지는 사용자 확정 요구사항. 구체 규칙은 설계 제안.
+- 결정: 원천 조직/배속 데이터 및 검증된 연습 식별자/crosswalk로 관계를 생성한다. 이름 유사성은 확정 동일성으로 쓰지 않는다. unresolved/conflict와 모든 출처를 보존한다.
+- 이유/영향: 설명 가능한 의미 연결을 얻는 대신 모호한 사례는 답을 유보한다.
+- 검증: 중복 ID·동명·타입 충돌·누락 식별자 반례, 원천 근거 없는 edge 0건.
+
+### ADR-020: 불변 Graph build와 원천 snapshot 집합
+
+- 상태: 설계 제안. ADR-005의 불변 근거 원칙을 확장한다.
+- 결정: graphVersion별 materialization, 검증 후 공개, 안정 관계 변경에만 rebuild한다. run은 원천별 snapshot 및 대응 Graph 버전을 고정한다.
+- 이유/영향: 실시간 최신 Graph와 과거 상태를 섞지 않고 재현한다. 작은 PoC에는 단순하지만 build 저장량이 늘어 참조 기반 보관/정리가 필요하다.
+- 검증: 중간 실패 비공개·재구축 중복 없음·reset/gap 복구·참조 build 보존·미래 관계 유입 0.
+
+### ADR-023: Semantic 코드 실행 경계와 무충돌 v2 데이터 (S8)
+
+- 상태: 사용자 Review 반영. ADR-021의 로컬 집계 동일 권한 정의 중 공유 의미 해석/ER 부분을 대체한다.
+- 결정: OFF=원천 native 도구+일반 계산. Semantic 개념·상태/유형 해석·조직 해소·동일성 판정 helper의 간접 호출도 금지한다. ON은 실제 Semantic 근거의 sourceMappings·조직 범위·canonical 연결을 적용한다. 로컬 계산은 해석 규칙을 소유하지 않는다.
+- 계약: 원천 목록/집계는 typeCode/statusCode native 필터, 일반 계산은 필드 빈도/동등 비교·합계. Semantic 집계는 identityEvidenceIds/conceptEvidenceIds 및 필요한 scopeEvidenceIds를 요구한다. 과거 정책 대화는 새 대화로 전환한다. run/manifest에 정책 2-native-off·원천 도구 계약 2를 기록한다.
+- 데이터: semantic-demo-v2는 공유 UAV의 가용 상태·초기 위치/벡터·유형/소속을 일치시키고 비전속 공동지원 배속을 명시한다. S2 raw 8/unique 7/available 4/unavailable 2/unknown 1/conflicting 0. v1 DB/Graph/평가는 보존한다.
+- 검증: 의미 helper를 예외로 막은 실제 source MCP 11종 조회와 OFF 계산/좌표, 정책별 history 격리, ON 실제 Semantic 근거·모든 관측/페이지 검사, 기본 seed 일관성. OFF 모델 추론 성공을 금지하지 않는다.
+
+### ADR-021: 하나의 Agent와 실행별 Semantic capability (S8 이전 기록)
+
+- 상태: 단일 native loop/모드별 도구는 사용자 확정 요구사항. namespace와 새 집계 도구는 설계 제안.
+- 결정: OFF=원천 MCP만, ON=원천+Semantic MCP. 런타임이 신뢰 서버별 discovery/allowlist/bindings를 고정하고 단일 loop가 도구를 동적으로 선택한다. 원천 데이터를 다루는 로컬 read/geo/집계는 양 모드 동일 권한이다.
+- 이유/영향: Semantic 기능을 Agent 수 증가와 혼동하지 않는다. 다중 MCP 이름 충돌과 과거 ON 컨텍스트 유출을 방지해야 한다.
+- 검증: OFF Semantic 세션/근거 0, 실제 다중 MCP, 명시적 identity evidence 없는 중복 제거 거부.
+
+### ADR-022: 같은 원시 정보·시점의 쌍 비교
+
+- 상태: 같은 질문/snapshot 비교는 사용자 확정 요구사항. 빈 대화·소규모 fixture·반복 방식은 설계 제안.
+- 결정: 공통 manifest로 두 격리된 run을 만들고 원시 조직/식별 정보는 OFF에도 공개한다. 원천/관계 근거·효율·정확성을 비교하며 OFF 실패를 전제하지 않는다.
+- 이유/영향: 추가 비공개 데이터 효과와 의미 구조화 효과를 구분한다. LLM 변동성 때문에 단일 화면만으로 우수성을 일반화하지 않는다.
+- 검증: 독립 gold, 동일 snapshot 집합, Graph hash/버전 일치, 반례 및 반복 측정. Graph 준비 시간과 모델 실행 시간을 분리한다.
+
+상세 규칙은 [고도화 아키텍처](./SEMANTIC_ARCHITECTURE.md), [Ontology](./ONTOLOGY_DESIGN.md), [시연·평가](./SEMANTIC_DEMO.md)를 따른다.
+
 ## ADR-001: Mock C4I의 독립 제공
 
 - 상태: 확정 요구사항
@@ -145,6 +201,10 @@
 - 검증: seed·구역·페이지/집계·이전 DB/epoch·원천/플랫폼 일치·브라우저·독립 wheel·60초 실행.
 
 ## 후속 확정 항목
+
+### 고도화 실행 예산 조정 — 2026-10-16
+
+초기 15쌍 비교에서 이종 체계 원시 관계를 조회하는 OFF가 12회 모델 호출 한도에 4회 걸렸다. 고도화 프로필은 model 24회/tool 20회/120초를 양 모드에 동일 적용하며 설정과 run/manifest에 기록한다. legacy loop 기본값은 유지한다. 예산 변경 전·후 평가를 별도 산출물로 보존하고, 조정 후 1쌍의 성공을 반복 안정성이나 Semantic 우위로 일반화하지 않는다. 실제 호출 경로의 동적 선택은 유지하고 특정 도구 순서를 강제하지 않는다.
 
 정확한 패키지 버전, GPT 모델 ID, 지도 공급자·초기 지역, 상태 전이·시나리오·객체 규모, 자동 이벤트 범위, 제안된 실행 예산의 튜닝, 이력 보관과 선택 변경 정책은 아키텍처 13절에 따라 후속 Design에서 결정한다. 실제 지리 지도·적아 객체·OpenAI Provider는 미정 항목에서 제외한다.
 

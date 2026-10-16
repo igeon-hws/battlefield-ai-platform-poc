@@ -10,6 +10,17 @@
   --border: #303c47;
   --accent: #8cb9d9;
 }
+.source-shell { height: 100vh; display: flex; flex-direction: column; }
+.source-shell header { padding: 16px 24px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); }
+.source-shell h1 { font-size: 18px; margin: 0 0 4px; }
+.source-shell main { flex: 1; min-height: 0; display: grid; grid-template-columns: 220px minmax(320px,1fr) 280px; }
+.source-shell aside { padding: 18px; overflow: auto; background: #182027; }
+.source-shell aside button { display: block; width: 100%; margin: 8px 0; }
+.source-shell button, .source-shell input, .source-shell select { padding: 8px 12px; border: 1px solid var(--border); background: #202c35; color: inherit; }
+.source-shell .selected { border-color: var(--accent); }
+.source-status { display: flex; flex-wrap: wrap; gap: 20px; padding: 8px 24px; border-bottom: 1px solid var(--border); }
+.source-shell label { display: block; }
+@media(max-width:900px) { .source-shell main { grid-template-columns: 140px minmax(200px,1fr); } .source-shell aside:last-child { grid-column: 1 / -1; max-height: 220px; } }
 * {
   box-sizing: border-box;
 }

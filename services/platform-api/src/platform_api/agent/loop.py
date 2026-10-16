@@ -36,8 +36,7 @@ class AgentLoop:
             inputs.append(
                 {
                     "role": "developer",
-                    "content": "이 실행의 원인 snapshot 메타데이터: "
-                    + json.dumps(self.runner.snapshot),
+                    "content": "이 실행의 고정 기준 컨텍스트: " + json.dumps(self.runner.snapshot),
                 }
             )
         corrected = False

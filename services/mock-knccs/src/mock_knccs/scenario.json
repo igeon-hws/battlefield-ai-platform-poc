@@ -1,0 +1,63 @@
+{
+  "datasetId": "semantic-demo-v2",
+  "formations": [
+    {
+      "orgRef": "F1",
+      "name": "모의 1함대",
+      "superiorRef": null
+    },
+    {
+      "orgRef": "S11",
+      "name": "모의 11전대",
+      "superiorRef": "F1"
+    }
+  ],
+  "contacts": [
+    {
+      "contactNo": "V-K01",
+      "orgRef": "S11",
+      "platformCategory": "SURFACE",
+      "serviceability": "READY",
+      "identity": "FRIEND",
+      "exerciseAssetRef": "EX-S01",
+      "geo": {
+        "latitude": 37.6,
+        "longitude": 125.7
+      },
+      "motion": {
+        "courseDeg": 45,
+        "speedKnots": 8
+      }
+    },
+    {
+      "contactNo": "V-K02",
+      "orgRef": "S11",
+      "platformCategory": "SURFACE",
+      "serviceability": "NOT_READY",
+      "identity": "FRIEND",
+      "exerciseAssetRef": "EX-S02",
+      "geo": {
+        "latitude": 37.55,
+        "longitude": 125.75
+      }
+    },
+    {
+      "contactNo": "C-K77",
+      "orgRef": "S11",
+      "platformCategory": "AIR",
+      "aircraftType": "UNMANNED",
+      "serviceability": "READY",
+      "identity": "FRIEND",
+      "exerciseAssetRef": "EX-U01",
+      "geo": {
+        "latitude": 37.7,
+        "longitude": 126.3
+      },
+      "motion": {
+        "courseDeg": 82.40535663140857,
+        "speedKnots": 29.415704871229806
+      },
+      "assignmentRole": "shared_support"
+    }
+  ]
+}

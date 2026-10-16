@@ -35,8 +35,18 @@ def create_app(
     c4i_token=None,
     mcp_token=None,
     provider=None,
+    profile=None,
+    sources=None,
+    semantic_config=None,
 ):
     load_dotenv()
+    selected_profile = profile or os.getenv("PLATFORM_PROFILE", "legacy")
+    if selected_profile == "heterogeneous":
+        from platform_api.multi_app import create_multi_app
+
+        return create_multi_app(path, provider, sources, semantic_config)
+    if selected_profile != "legacy":
+        raise ValueError("unknown platform profile")
     repo = Repository(path or Path(os.getenv("PLATFORM_DB", "var/platform.db")))
     runtime = Runtime(
         repo,

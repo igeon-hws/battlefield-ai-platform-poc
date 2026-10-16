@@ -1,0 +1,10 @@
+[project]
+name = "battlefield-semantic-core"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["battlefield-ontology==0.1.0", "neo4j==6.4.0", "httpx>=0.28"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/semantic_core"]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,0 +1,25 @@
+{
+  "S1": {
+    "rawRecordCount": 4,
+    "confirmedAvailable": 2,
+    "confirmedUnavailable": 1,
+    "unknown": 1
+  },
+  "S2": {
+    "rawRecordCount": 8,
+    "resolvedUniqueCount": 7,
+    "confirmedAvailable": 4,
+    "confirmedUnavailable": 2,
+    "unknown": 1,
+    "conflicting": 0
+  },
+  "S3": {
+    "canonicalId": "EX-U01",
+    "sourceIds": [
+      "U-A01",
+      "C-K77"
+    ],
+    "availability": "available",
+    "assignmentRole": "shared_support"
+  }
+}

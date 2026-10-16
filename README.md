@@ -1,6 +1,65 @@
 ﻿# Agentic Battlefield Intelligence Platform
 
-Python 기반 전장의 분석형 AI 플랫폼 PoC. 독립 Mock C4I → MCP Server → 단일 동적 분석 Agent로 연결한다. 두 UI는 React·TypeScript 정적 앱이며 Python 서버가 제공한다.
+Python 기반 전장의 분석형 AI 플랫폼 PoC. 독립 Mock C4I → MCP Server → 단일 동적 분석 Agent로 연결한다. UI는 React·TypeScript 정적 앱이며 각 Python 서버가 제공한다.
+
+**Mock ATCIS + Mock KNCCS + Neo4j/Ontology 기반 Semantic Layer** 고도화를 구현·검증했고 현재 사용자 Review 단계다. [구현 계획](docs/IMPLEMENTATION_PLAN.md), [검증 보고서](docs/IMPLEMENTATION_REPORT.md), [Ontology·매핑](docs/ONTOLOGY_DESIGN.md), [현재 STEP](docs/STEP.md)을 참고한다. 기존 단일 C4I는 legacy 프로필로 유지한다.
+
+## 이종 C4I·Semantic 데모 실행
+
+S8 정책은 OFF의 Semantic helper 간접 호출까지 차단한다. OFF는 native 필드/코드와 일반 수량 계산만 사용하고, ON은 Semantic 도구의 개념·조직·동일성·코드 대응 근거를 추가 사용한다. 기본 dataset은 충돌 없는 `semantic-demo-v2`이며 통합 기대값은 원천 8건/고유 7개/가용 4·불가 2·미확인 1이다. OFF의 모델 추론은 서버가 검증한 공통 집계와 구분한다.
+
+기존 `.env`가 v1 DB 경로를 지정했다면 기존 개발 서버를 Ctrl+C로 종료하고 다음처럼 **새 DB**를 지정해 실행한다. 과거 DB를 지우거나 자동 reset하지 않는다. 원천 UI와 비교 manifest에서 dataset이 v2인지 확인한다.
+
+```powershell
+$env:ATCIS_DB='var/atcis-v2.db'
+$env:KNCCS_DB='var/knccs-v2.db'
+$env:PLATFORM_VNEXT_DB='var/platform-vnext-v2.db'
+docker compose up -d neo4j
+uv run python scripts/dev.py --profile full
+```
+
+기존 DB를 명시적으로 계속 사용할 수도 있지만 새 정책과 다른 대화는 이어 쓰지 않으며, v1 원천 데이터가 자동으로 v2가 되는 것은 아니다. 이전 비교는 UI에 `이전 정책`으로 표시한다. 원천 API/MCP 목록·집계 필터는 공통 kind/availability 대신 **native typeCode/statusCode**를 사용한다. 기존 통합 Client도 해당 인자를 갱신해야 한다.
+
+아래 빠른 시작의 의존성 설치·계약 export·UI 빌드를 먼저 수행한다. `.env`에 `OPENAI_API_KEY`, `OPENAI_MODEL`, `NEO4J_PASSWORD`를 설정한다. API 키/비밀번호를 Git에 추가하지 않는다. Neo4j 전용 비밀번호는 비어 있으면 안 되며 최초 volume 생성에 사용한 값을 유지한다.
+
+```powershell
+docker compose up -d neo4j
+uv run python scripts/dev.py --profile full
+```
+
+- Mock ATCIS: http://127.0.0.1:4100 / MCP :4200/mcp
+- Mock KNCCS: http://127.0.0.1:4110 / MCP :4210/mcp
+- 분석 플랫폼: http://127.0.0.1:4300
+- Semantic API: :4400 / MCP :4410/mcp / Builder 내부 관리 :4420
+- Neo4j Browser: http://127.0.0.1:7474
+
+기존 데모가 실행 중이면 `--port-offset 1000`을 추가해 Python 서비스만 5100/5110/5300 등의 포트로 실행할 수 있다. 시작 스크립트는 이미 실행 중인 프로세스를 종료하지 않는다. Ctrl+C는 해당 스크립트가 시작한 child만 종료하며 Neo4j volume/기존 DB를 삭제하지 않는다. Docker 중지는 `docker compose stop neo4j`로 별도 수행한다.
+
+Graph 없이 두 원천과 플랫폼 OFF만 실행하려면 `uv run python scripts/dev.py --profile off`를 사용한다. 단독 원천은 `uv run --package mock-atcis mock-atcis`, `uv run --package mock-knccs mock-knccs`로 실행한다. 각 서비스의 README에 공개 API와 설정을 설명했다.
+
+원천 두 개는 처음에 일시 정지다. 플랫폼에서 질문을 입력하고 `동일 기준으로 비교`를 누르면 같은 질문·원천 snapshot 집합과 대응 Graph 버전으로 OFF/ON을 실행한다. 두 모드의 도구·근거는 분리한다. ON/OFF 비교 두 열과 한 run의 세 방책 비교·선택은 별도 기능이다. 모드 변경은 새 대화를 시작한다.
+
+질문 예시:
+
+- 모의 1사단의 가용한 탱크를 보여줘.
+- 모의 1사단과 모의 1함대의 가용 전력을 통합해서 보여줘.
+- U-A01과 C-K77은 같은 객체야? 상태·배속 차이와 출처를 설명해줘.
+
+새 기본 DB는 var/atcis-v2.db·var/knccs-v2.db 및 var/platform-vnext-v2.db다. 개별 Builder/Platform 실행에는 같은 `BUILDER_ADMIN_TOKEN`을 설정해야 한다. full 스크립트는 비어 있을 때 child 사이에 공유할 임시 토큰을 생성하고 출력하지 않는다. 자동 이벤트 분석은 기본 OFF이며 `AUTO_SEMANTIC_MODE=on`으로 바꿀 수 있다.
+
+고도화 Agent 기본 예산은 model 24회·tool 20회·120초다. AGENT_MAX_ITERATIONS, AGENT_MAX_TOOLS, AGENT_DEADLINE_SECONDS로 변경하며 양 모드에 동일하게 적용한다. 초기 12회 예산의 반복 측정과 조정 후 검증을 보고서에서 구분한다.
+
+검증/반복 평가(실제 GPT 호출에는 API 비용 발생):
+
+```powershell
+docker compose --profile test up -d neo4j-test
+uv run pytest
+uv run pytest -m "neo4j and not live" -q
+uv run pytest -m "live and neo4j" tests/test_semantic_live.py -q
+uv run python scripts/evaluate_semantic.py --base-url http://127.0.0.1:4300 --repetitions 1 --output artifacts/semantic-evaluation-v2.json
+```
+
+실제 Neo4j 테스트는 데모와 다른 17687/17474 포트 및 volume을 사용한다. S8 기본 검증은 v2 원천을 연결·일시 정지한 상태의 S1~S3 각 1쌍이며 결과·trace·manifest·usage는 새 v2 출력 경로에 저장한다. 같은 출력 파일의 기존 repetition은 재호출하지 않는다. 새 평가에는 새 `--output` 경로를 사용하고 과거 v1 파일을 재사용하지 않는다. 자동 점수는 모드별 근거·수량 검사이며 자연어 설명·모델 추론 품질은 사용자 검토가 필요하다.
 
 ## 빠른 시작
 
@@ -9,8 +68,8 @@ Python 3.12와 uv가 필요하다. Node 20.19+/22.12+는 UI 빌드 시에만 사
 ```powershell
 uv sync --all-packages
 uv run python scripts/export_contracts.py
-npm --prefix frontend ci
-npm --prefix frontend run build
+npm.cmd --prefix frontend ci
+npm.cmd --prefix frontend run build
 uv run python scripts/build_ui.py
 ```
 
@@ -56,8 +115,8 @@ uv run pytest
 uv run ruff check services packages scripts tests
 uv run ruff format --check services packages scripts tests
 uv run mypy services packages
-npm --prefix frontend run lint
-npm --prefix frontend audit
+npm.cmd --prefix frontend run lint
+npm.cmd --prefix frontend audit
 ```
 
 일반 테스트는 실제 OpenAI를 호출하지 않는다. 실제 MCP HTTP 서버·브라우저를 사용하고 모델만 테스트 어댑터로 주입한다. UI 테스트에는 선행 빌드와 온라인 지도 접속이 필요하다.

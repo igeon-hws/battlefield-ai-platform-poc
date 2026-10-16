@@ -4,17 +4,20 @@
 
 ## 현재 단계와 설계 기준
 
-- **현재 STEP: 4. Review (Human), R6–R7 구현 완료·사용자 검토 대기** — docs/STEP.md의 `Now` 기준.
+- **현재 STEP: 4. Review (Human), S8 구현·검증 완료·사용자 검토 대기** — S8-1~5와 일반 97개·Neo4j 9개·실제 GPT 검증/한계를 구현 보고서에 기록했다. docs/STEP.md의 `Now`가 기준이다. 사용자 Review를 대신하거나 다음 Reflect를 임의로 시작하지 않는다.
 - CRITICAL: 작업 시작 시 docs/STEP.md를 먼저 읽고 현재 단계와 수행 주체를 확인한다. 단계 상태의 기준은 docs/STEP.md이며, 이 문서의 현재 STEP 표시와 다르면 docs/STEP.md를 따른다.
 - 요구사항은 docs/PRD.md, 화면은 docs/UI_GUIDE.md, 서비스 경계는 docs/ARCHITECTURE.md를 따른다.
 - Agent 실행은 docs/AGENT_DESIGN.md가 기준이다. 주요 변경의 이유는 docs/ADR.md에 남긴다.
+- 고도화 경계는 docs/SEMANTIC_ARCHITECTURE.md, 의미·매핑은 docs/ONTOLOGY_DESIGN.md, 비교·평가는 docs/SEMANTIC_DEMO.md를 따른다. 기존 단일 C4I 구현 기록과 목표 설계를 구분한다.
 
 
 ## 아키텍처 규칙
 
-- CRITICAL: Mock C4I는 자체 UI·Python 서버·시뮬레이터·저장소를 포함해 플랫폼·MCP·LLM·Node 없이 단독 제공·실행 가능해야 한다. UI 빌드는 배포 전에 수행한다.
+- CRITICAL: Mock ATCIS와 Mock KNCCS는 각각 자체 UI·Python 서버·시뮬레이터·DB·공개 API를 가지며 상대 체계·플랫폼·MCP·Neo4j·LLM·Node 없이 단독 실행 가능해야 한다. 합성 데이터와 가상 스키마만 사용한다. UI 빌드는 배포 전에 수행한다. 프론트엔드 외 실행 로직은 Python이다.
 - CRITICAL: 현재 Agent는 Python 단일 동적 분석 Agent다. OpenAI native tool calling과 하나의 loop를 사용한다. 별도 Orchestrator·전문 Agent·위임·계획 워크플로를 구현하지 않는다.
 - CRITICAL: Agent의 C4I 조회는 실제 MCP Python Client→MCP Python Server→공개 C4I API를 통한다. 원천 DB·내부 모듈·직접 REST로 우회하지 않는다.
+- CRITICAL: Graph는 검증된 의미·관계·동일성 및 근거를 소유하고, 실시간 위치·상태는 원천 체계가 소유한다. 관계·동일성을 LLM 추측으로 Graph에 생성하지 않는다. OFF는 원천 native 도구와 일반 계산만 사용하며 Semantic 해석·관계 해소·동일성 판정 helper의 간접 호출도 금지한다. ON은 Semantic 근거의 해석을 추가 사용한다. ON/OFF 비교는 동일한 질문·원천 snapshot 집합을 사용한다. 정책이 다른 과거 대화/대기 run을 새 정책에 자동 재사용하지 않는다.
+- 기본 데모의 동일 객체 상태·배속 데이터는 상충하지 않아야 한다. S8의 v2 데이터/기대값을 따르며 과거 v1 충돌 시연과 평가 기록은 역사적 기록으로 보존한다.
 
 
 ## 개발 프로세스

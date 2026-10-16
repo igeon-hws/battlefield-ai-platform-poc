@@ -626,5 +626,559 @@
     ],
     "title": "AnalysisResult",
     "type": "object"
+  },
+  "Equipment": {
+    "additionalProperties": false,
+    "properties": {
+      "nativeId": {
+        "minLength": 1,
+        "title": "Nativeid",
+        "type": "string"
+      },
+      "unitId": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Unitid"
+      },
+      "assignmentRole": {
+        "default": "assigned",
+        "enum": [
+          "assigned",
+          "shared_support"
+        ],
+        "title": "Assignmentrole",
+        "type": "string"
+      },
+      "kind": {
+        "default": "unknown",
+        "enum": [
+          "tank",
+          "armored_vehicle",
+          "support_vehicle",
+          "uav",
+          "naval_vessel",
+          "unknown"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "availability": {
+        "default": "unknown",
+        "enum": [
+          "available",
+          "unavailable",
+          "unknown"
+        ],
+        "title": "Availability",
+        "type": "string"
+      },
+      "affiliation": {
+        "default": "unknown",
+        "enum": [
+          "friendly",
+          "hostile",
+          "unknown"
+        ],
+        "title": "Affiliation",
+        "type": "string"
+      },
+      "exerciseAssetRef": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Exerciseassetref"
+      },
+      "position": {
+        "anyOf": [
+          {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Position"
+      },
+      "velocity": {
+        "additionalProperties": {
+          "type": "number"
+        },
+        "title": "Velocity",
+        "type": "object"
+      },
+      "observedAt": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Observedat"
+      },
+      "warnings": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Warnings",
+        "type": "array"
+      }
+    },
+    "required": [
+      "nativeId"
+    ],
+    "title": "Equipment",
+    "type": "object"
+  },
+  "Unit": {
+    "$defs": {
+      "SourceRef": {
+        "additionalProperties": false,
+        "properties": {
+          "systemId": {
+            "enum": [
+              "atcis",
+              "knccs"
+            ],
+            "title": "Systemid",
+            "type": "string"
+          },
+          "datasetId": {
+            "minLength": 1,
+            "title": "Datasetid",
+            "type": "string"
+          },
+          "epochId": {
+            "minLength": 1,
+            "title": "Epochid",
+            "type": "string"
+          },
+          "recordType": {
+            "enum": [
+              "unit",
+              "equipment"
+            ],
+            "title": "Recordtype",
+            "type": "string"
+          },
+          "nativeId": {
+            "minLength": 1,
+            "title": "Nativeid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "systemId",
+          "datasetId",
+          "epochId",
+          "recordType",
+          "nativeId"
+        ],
+        "title": "SourceRef",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "canonicalId": {
+        "minLength": 1,
+        "title": "Canonicalid",
+        "type": "string"
+      },
+      "name": {
+        "minLength": 1,
+        "title": "Name",
+        "type": "string"
+      },
+      "sourceRef": {
+        "$ref": "#/$defs/SourceRef"
+      },
+      "parentId": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Parentid"
+      }
+    },
+    "required": [
+      "canonicalId",
+      "name",
+      "sourceRef"
+    ],
+    "title": "Unit",
+    "type": "object"
+  },
+  "System": {
+    "additionalProperties": false,
+    "properties": {
+      "systemId": {
+        "enum": [
+          "atcis",
+          "knccs"
+        ],
+        "title": "Systemid",
+        "type": "string"
+      },
+      "name": {
+        "minLength": 1,
+        "title": "Name",
+        "type": "string"
+      },
+      "synthetic": {
+        "const": true,
+        "default": true,
+        "title": "Synthetic",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "systemId",
+      "name"
+    ],
+    "title": "System",
+    "type": "object"
+  },
+  "Observation": {
+    "$defs": {
+      "RelationType": {
+        "enum": [
+          "SUBORDINATE_TO",
+          "ASSIGNED_TO",
+          "REFERS_TO",
+          "FROM_SYSTEM",
+          "OBSERVES"
+        ],
+        "title": "RelationType",
+        "type": "string"
+      },
+      "SourceRef": {
+        "additionalProperties": false,
+        "properties": {
+          "systemId": {
+            "enum": [
+              "atcis",
+              "knccs"
+            ],
+            "title": "Systemid",
+            "type": "string"
+          },
+          "datasetId": {
+            "minLength": 1,
+            "title": "Datasetid",
+            "type": "string"
+          },
+          "epochId": {
+            "minLength": 1,
+            "title": "Epochid",
+            "type": "string"
+          },
+          "recordType": {
+            "enum": [
+              "unit",
+              "equipment"
+            ],
+            "title": "Recordtype",
+            "type": "string"
+          },
+          "nativeId": {
+            "minLength": 1,
+            "title": "Nativeid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "systemId",
+          "datasetId",
+          "epochId",
+          "recordType",
+          "nativeId"
+        ],
+        "title": "SourceRef",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "observationId": {
+        "minLength": 1,
+        "title": "Observationid",
+        "type": "string"
+      },
+      "assertionType": {
+        "$ref": "#/$defs/RelationType"
+      },
+      "sourceRefs": {
+        "items": {
+          "$ref": "#/$defs/SourceRef"
+        },
+        "minItems": 1,
+        "title": "Sourcerefs",
+        "type": "array"
+      },
+      "ruleId": {
+        "minLength": 1,
+        "title": "Ruleid",
+        "type": "string"
+      },
+      "ruleVersion": {
+        "minLength": 1,
+        "title": "Ruleversion",
+        "type": "string"
+      },
+      "payloadHash": {
+        "minLength": 1,
+        "title": "Payloadhash",
+        "type": "string"
+      }
+    },
+    "required": [
+      "observationId",
+      "assertionType",
+      "sourceRefs",
+      "ruleId",
+      "ruleVersion",
+      "payloadHash"
+    ],
+    "title": "Observation",
+    "type": "object"
+  },
+  "SourceRef": {
+    "additionalProperties": false,
+    "properties": {
+      "systemId": {
+        "enum": [
+          "atcis",
+          "knccs"
+        ],
+        "title": "Systemid",
+        "type": "string"
+      },
+      "datasetId": {
+        "minLength": 1,
+        "title": "Datasetid",
+        "type": "string"
+      },
+      "epochId": {
+        "minLength": 1,
+        "title": "Epochid",
+        "type": "string"
+      },
+      "recordType": {
+        "enum": [
+          "unit",
+          "equipment"
+        ],
+        "title": "Recordtype",
+        "type": "string"
+      },
+      "nativeId": {
+        "minLength": 1,
+        "title": "Nativeid",
+        "type": "string"
+      }
+    },
+    "required": [
+      "systemId",
+      "datasetId",
+      "epochId",
+      "recordType",
+      "nativeId"
+    ],
+    "title": "SourceRef",
+    "type": "object"
+  },
+  "SnapshotRef": {
+    "additionalProperties": false,
+    "properties": {
+      "datasetId": {
+        "minLength": 1,
+        "title": "Datasetid",
+        "type": "string"
+      },
+      "epochId": {
+        "minLength": 1,
+        "title": "Epochid",
+        "type": "string"
+      },
+      "snapshotId": {
+        "minLength": 1,
+        "title": "Snapshotid",
+        "type": "string"
+      },
+      "sequence": {
+        "minimum": 0,
+        "title": "Sequence",
+        "type": "integer"
+      },
+      "sourceTime": {
+        "title": "Sourcetime",
+        "type": "string"
+      },
+      "stableDataHash": {
+        "minLength": 1,
+        "title": "Stabledatahash",
+        "type": "string"
+      }
+    },
+    "required": [
+      "datasetId",
+      "epochId",
+      "snapshotId",
+      "sequence",
+      "sourceTime",
+      "stableDataHash"
+    ],
+    "title": "SnapshotRef",
+    "type": "object"
+  },
+  "SourceSnapshotSet": {
+    "$defs": {
+      "SnapshotRef": {
+        "additionalProperties": false,
+        "properties": {
+          "datasetId": {
+            "minLength": 1,
+            "title": "Datasetid",
+            "type": "string"
+          },
+          "epochId": {
+            "minLength": 1,
+            "title": "Epochid",
+            "type": "string"
+          },
+          "snapshotId": {
+            "minLength": 1,
+            "title": "Snapshotid",
+            "type": "string"
+          },
+          "sequence": {
+            "minimum": 0,
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "sourceTime": {
+            "title": "Sourcetime",
+            "type": "string"
+          },
+          "stableDataHash": {
+            "minLength": 1,
+            "title": "Stabledatahash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "datasetId",
+          "epochId",
+          "snapshotId",
+          "sequence",
+          "sourceTime",
+          "stableDataHash"
+        ],
+        "title": "SnapshotRef",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "atcis": {
+        "$ref": "#/$defs/SnapshotRef"
+      },
+      "knccs": {
+        "$ref": "#/$defs/SnapshotRef"
+      }
+    },
+    "required": [
+      "atcis",
+      "knccs"
+    ],
+    "title": "SourceSnapshotSet",
+    "type": "object"
+  },
+  "Question": {
+    "additionalProperties": false,
+    "properties": {
+      "question": {
+        "maxLength": 12000,
+        "minLength": 1,
+        "title": "Question",
+        "type": "string"
+      },
+      "semanticMode": {
+        "default": "off",
+        "enum": [
+          "off",
+          "on"
+        ],
+        "title": "Semanticmode",
+        "type": "string"
+      },
+      "conversationId": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Conversationid"
+      }
+    },
+    "required": [
+      "question"
+    ],
+    "title": "Question",
+    "type": "object"
+  },
+  "ComparisonInput": {
+    "additionalProperties": false,
+    "properties": {
+      "question": {
+        "maxLength": 12000,
+        "minLength": 1,
+        "title": "Question",
+        "type": "string"
+      },
+      "firstMode": {
+        "default": "off",
+        "enum": [
+          "off",
+          "on"
+        ],
+        "title": "Firstmode",
+        "type": "string"
+      }
+    },
+    "required": [
+      "question"
+    ],
+    "title": "ComparisonInput",
+    "type": "object"
   }
 }

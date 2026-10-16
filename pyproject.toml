@@ -2,7 +2,7 @@
 name = "battlefield-poc"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
-dependencies = ["mock-c4i", "c4i-mcp", "platform-api"]
+dependencies = ["mock-c4i", "c4i-mcp", "platform-api", "battlefield-ontology", "mock-atcis", "mock-knccs", "atcis-mcp", "knccs-mcp", "battlefield-semantic-core", "graph-builder", "semantic-api", "semantic-mcp"]
 
 [tool.uv.workspace]
 members = ["services/*", "packages/*"]
@@ -14,6 +14,16 @@ platform-api = { workspace = true }
 c4i-contracts = { workspace = true }
 platform-contracts = { workspace = true }
 battlefield-geo = { workspace = true }
+battlefield-ontology = { workspace = true }
+battlefield-source-runtime = { workspace = true }
+mock-atcis = { workspace = true }
+mock-knccs = { workspace = true }
+atcis-mcp = { workspace = true }
+knccs-mcp = { workspace = true }
+battlefield-semantic-core = { workspace = true }
+graph-builder = { workspace = true }
+semantic-api = { workspace = true }
+semantic-mcp = { workspace = true }
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-asyncio>=0.25", "httpx>=0.28", "ruff>=0.11", "mypy>=1.15", "playwright>=1.50", "build>=1.2", "hatchling>=1.27"]
@@ -21,8 +31,8 @@ dev = ["pytest>=8", "pytest-asyncio>=0.25", "httpx>=0.28", "ruff>=0.11", "mypy>=
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-markers = ["ui: browser integration requiring built static UI and Playwright Chromium", "live: explicit opt-in billable real OpenAI integration", "performance: opt-in 60-second scale test"]
-addopts = "-m 'not live and not performance'"
+markers = ["ui: browser integration requiring built static UI and Playwright Chromium", "live: explicit opt-in billable real OpenAI integration", "performance: opt-in 60-second scale test", "neo4j: integration requiring the dedicated Neo4j test container"]
+addopts = "-m 'not live and not performance and not neo4j'"
 
 [tool.ruff]
 target-version = "py312"

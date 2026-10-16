@@ -1,0 +1,1 @@
+"""Reusable semantic HTTP service."""

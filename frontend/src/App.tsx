@@ -29,7 +29,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Entity } from '../generated/contracts';
 maplibregl.setWorkerUrl(workerUrl);
 
-type EntityView = Required<Omit<Entity, 'velocity'>> & {
+export type EntityView = Required<Omit<Entity, 'velocity'>> & {
   velocity: { eastMps: number; northMps: number };
   speedMps: number;
   bearingDegrees: number | null;
@@ -210,7 +210,7 @@ function icon(side: string, kind: string): ImageData {
   return c.getImageData(0, 0, 48, 48);
 }
 
-function SituationMap({
+export function SituationMap({
   entities,
   selected,
   onSelect,

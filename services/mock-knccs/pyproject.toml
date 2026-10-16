@@ -1,0 +1,10 @@
+[project]
+name = "mock-knccs"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["battlefield-source-runtime==0.1.0"]
+[project.scripts]
+mock-knccs = "mock_knccs.app:main"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

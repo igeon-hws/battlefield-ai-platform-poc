@@ -3,13 +3,37 @@
 import json
 from pathlib import Path
 
+from battlefield_ontology import (
+    Equipment,
+    Observation,
+    SnapshotRef,
+    SourceRef,
+    SourceSnapshotSet,
+    System,
+    Unit,
+)
 from c4i_contracts import Entity, EntityFilter, EntityPatch
+from platform_api.multi_app import ComparisonInput, Question
 from platform_contracts.models import AnalysisResult
 
 root = Path(__file__).resolve().parents[1]
 schemas = {
     model.__name__: model.model_json_schema(by_alias=True)
-    for model in [Entity, EntityFilter, EntityPatch, AnalysisResult]
+    for model in [
+        Entity,
+        EntityFilter,
+        EntityPatch,
+        AnalysisResult,
+        Equipment,
+        Unit,
+        System,
+        Observation,
+        SourceRef,
+        SnapshotRef,
+        SourceSnapshotSet,
+        Question,
+        ComparisonInput,
+    ]
 }
 definitions = {}
 for schema in schemas.values():
@@ -18,6 +42,8 @@ definitions.update(schemas)
 
 
 def ts(schema):
+    if "const" in schema:
+        return json.dumps(schema["const"])
     if "$ref" in schema:
         return schema["$ref"].split("/")[-1]
     if "enum" in schema:
@@ -26,6 +52,8 @@ def ts(schema):
         return " | ".join(ts(part) for part in schema["anyOf"])
     kind = schema.get("type")
     if kind == "object":
+        if not schema.get("properties") and isinstance(schema.get("additionalProperties"), dict):
+            return f"Record<string, {ts(schema['additionalProperties'])}>"
         required = schema.get("required", [])
         return (
             "{ "

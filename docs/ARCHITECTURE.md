@@ -1,10 +1,29 @@
-﻿# 아키텍처: Agentic Battlefield Intelligence Platform
+# 아키텍처: Agentic Battlefield Intelligence Platform
 
-- 문서 상태: 설계 초안 v0.4 — Python 백엔드·단일 Agent·프론트엔드 분리
+- 문서 상태: v0.6 S8 — 이종 C4I·Semantic 실행 경계 (2026-10-16)
 - 작성일: 2026-10-15
 - 기준: [PRD](./PRD.md), [UI 가이드](./UI_GUIDE.md)
 - Agent 상세: [단일 Agent 설계](./AGENT_DESIGN.md)
-- SDD 단계: docs/STEP.md 참조. 2026-10-15 Review 후속 구현값을 반영했다.
+- SDD 단계: [STEP](./STEP.md)를 따른다. 고도화 검증은 IMPLEMENTATION_REPORT.md에 기록한다.
+
+## v0.6 아키텍처 변경 — 우선 적용
+
+이번 목표 구성·서비스 책임·시점·Graph 동기화·API·장애 정책은 **[SEMANTIC_ARCHITECTURE](./SEMANTIC_ARCHITECTURE.md)**가 기준이다. [ONTOLOGY_DESIGN](./ONTOLOGY_DESIGN.md)은 개념/매핑/동일성, [SEMANTIC_DEMO](./SEMANTIC_DEMO.md)는 비교 fixture·평가를 정의한다.
+
+S8에서는 OFF의 원천 MCP/계산 경로에서 의미 매핑·조직 해소·ER helper를 제거했다. ON만 Semantic API/MCP의 버전 있는 해석·연결 근거를 추가 사용하며 플랫폼은 그 결과를 계산에 적용한다. source-runtime의 지도/시뮬레이션/안정 export 변환은 별도 경로이며 OFF 분석 근거로 제공하지 않는다. 기본은 무충돌 semantic-demo-v2이고 이전 DB/Graph/대화/평가를 보존한다. 다른 정책의 대화는 이어 쓰지 않는다.
+
+| 기존 v0.4 | v0.6 목표 | 재사용 |
+| --- | --- | --- |
+| Mock C4I 1개 | 독립 Mock ATCIS + Mock KNCCS | Python FastAPI·SQLite·시뮬레이터·정적 UI·원천 snapshot/SSE |
+| C4I MCP 1개 | ATCIS MCP + KNCCS MCP + Semantic MCP | 실제 HTTP MCP·typed 서버 계약·discovery/strict 변환 |
+| 원천 snapshot 1개 | 원천별 snapshot 집합 + 안정 정보에 대응하는 Graph build | 불변 근거·run 고정·epoch 검증 |
+| 원천 조회와 로컬 지리 도구 | 모드별 registry, Semantic scope/동일성 조회 | 단일 Agent·native loop·얇은 하네스 |
+| 두 UI·Python 서비스 3개 | 원천 UI 2개 + 플랫폼 UI, 별도 의미 서비스/Builder/Neo4j | UI 시각 언어·지도·대화·방책 선택 |
+| 원천/플랫폼 SQLite | 원천별/플랫폼 SQLite 유지 + 관계용 Neo4j | 원천 live 데이터의 소유권 유지 |
+
+독립 제공·Python 경계·MCP 경유 조회·단일 Agent 원칙은 유지한다. Graph Builder만 공개 원천 API에서 안정 정보를 읽어 Graph를 작성한다. Semantic API는 공통 Python 서비스 계층으로 재사용하며 MCP는 해당 API의 읽기 어댑터다. Graph를 원천 live 상태의 새 master DB로 사용하지 않는다.
+
+아래 1~14절은 **v0.4 기존 구현/회귀 기준**으로 보존한다. 단일 원천·3프로세스·고정 7개 도구·단일 snapshot 및 기존 미결 항목은 고도화 구성에 적용하지 않는다. 충돌 시 위 연결 문서의 v0.6 설계가 우선한다. 기존 동작 회귀와 전환 근거를 잃지 않기 위한 기록이다.
 
 ## 1. 핵심 원칙
 

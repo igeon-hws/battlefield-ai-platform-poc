@@ -1,8 +1,164 @@
 # Implement 검증 보고서
 
+## 2026-10-16 Review 중 질의 404 수정
+
+질의 시 `404: {"error":"not_found"}`가 발생한다는 사용자 제보를 확인했다. 브라우저 sessionStorage의 이전 conversationId가 현재 플랫폼 DB에 없으면 enqueue의 KeyError가 일반 not_found로 반환됐다. v2 DB 전환 후에도 브라우저 대화 ID는 유지되어 같은 오류가 재현된다. 실행 중 서버는 분석 이력이 비어 있었으며 사용자 브라우저 저장소는 직접 조사하지 않았다.
+
+- 누락 대화를 전용 ConversationNotFound 예외와 `404 conversation_not_found` 응답으로 구분했다. 서버에서 임의로 기존 대화를 재생성하지 않는다.
+- UI는 해당 응답에 한해서 이전 ID를 해제하고 질문·Semantic 모드를 유지한 새 대화로 한 번만 요청한다. 새 대화 시작 안내를 표시한다. 일반 404·500은 자동 재요청하지 않는다.
+- TDD: 기존 API의 일반 not_found 응답과 기존 배포 UI의 복구 실패를 먼저 확인했다. 수정 후 `tests/test_conversation_recovery.py`의 API 1개·실제 Chromium 3개 및 multi_source/semantic_boundary 회귀를 합쳐 **21 passed (24.75초)**. API 테스트는 거절된 요청이 run을 생성하지 않는 것도 검사한다. 브라우저 API 응답은 제어하며 실제 GPT를 호출하지 않는다.
+- TypeScript/4개 Vite 앱 빌드·Python 정적 자산 반영, 수정 Python 파일 Ruff 및 mypy 2개 소스 검사 통과. 기존 MapLibre bundle 크기 경고는 유지된다. 현재 STEP은 Review로 유지하며 사용자 서버·DB는 종료하거나 초기화하지 않았다. 적용에는 실행 중 Python 서버 재시작과 브라우저 새로고침이 필요하다.
+
+## 2026-10-16 S8 — Semantic 실행 경계와 무충돌 v2
+
+사용자의 REVIEW와 채팅 설명에 따라 구현했다. 이전 P0~P7의 “OFF 차단”은 MCP 연결만 검사한 결론이었다. 공통 집계에서 상태 정규화/ER를 실행한 누락을 이번 S8에서 수정했으며 이전 15쌍의 효용 평가는 새 격리 정책의 증거로 재사용하지 않는다.
+
+### 변경 내용
+
+- 원천 API/MCP 목록·집계는 native typeCode/statusCode만 비교한다. 도구 설명에서 체계 간 동일성 판정 규칙을 제거했다. OFF Agent 조회 경로는 공통 의미 정규화를 호출하지 않는다.
+- `agent/calculation.py`의 일반 계산은 native 필드 빈도·동등 필터·raw 수량만 제공한다. OFF는 Semantic 집계 인자를 거부하며 canonical ID/공통 가용 상태를 생성하지 않는다. 좌표 계산도 native 좌표를 직접 읽는다.
+- ON은 Semantic MCP의 scope/identity/reference 및 interpret_concept의 sourceMappings·mappingRule 근거를 계산에 적용한다. 로컬 계산에 원천 매핑표·ER 규칙·직접 Graph 접근을 두지 않았다. 모든 sourceRef의 관측과 전체 페이지가 필요하며 빈 결과와 누락/미해결을 구분한다.
+- Semantic 해석의 Ontology/매핑 버전은 2.0.0이다. 이전 Graph 근거는 읽을 수 있지만 새 코드 해석을 과거 규칙 버전으로 표시하지 않는다. 다른 정책 대화·대기 run·준비된 비교는 새 정책으로 자동 전환하지 않는다.
+- 새 기본 semantic-demo-v2의 UAV는 양쪽 가용·아군·동일 초기 위치/벡터이며 B11/S11에 명시적인 비전속 공동지원 관계다. 기본 통합값은 raw 8/unique 7/가용 4/불가 2/미확인 1/충돌 0. production seed와 독립 gold를 분리했다. 충돌 방어는 negative fixture에 남겼다.
+- 기본 DB 경로는 atcis-v2.db·knccs-v2.db·platform-vnext-v2.db로 분리했다. 기존 .env 경로가 있으면 유지하므로 README의 명시적 v2 실행 명령을 사용한다. 과거 v1 stable hash에 새 기본 역할 필드를 끼워 넣지 않는 호환성을 검사했다. 기존 DB·Graph·실행 중인 사용자 서버는 reset/종료하지 않았다.
+- UI는 native 계산을 “의미 해석 없음”으로 표시하고 공통 수량을 채워 넣지 않는다. 정책/데이터셋 버전·이전 정책을 표시한다. PRD/아키텍처/Ontology/Agent/시연/UI/README/ADR-023을 같은 경계로 정렬했다.
+
+### TDD와 검증
+
+`tests/test_semantic_boundary.py`에서 OFF helper 호출·원천 조회 정규화·v1 seed·과거 대화 재사용·구버전 혼용 등의 실제 실패를 확인한 뒤 구현했다. 실제 source MCP 테스트는 startup 이후 원천 normalize_equipment를 예외로 차단한 서버에 11개 도구를 호출하며 양 원천에서 통과했다. ON은 Semantic 근거·모든 관측·완결 페이지·미해결/유형 근거 누락·빈 결과를 검증한다.
+
+최종 현재 STEP은 **Review (Human)**이다. 커밋/푸시와 사용자 REVIEW 작성은 수행하지 않았다.
+
+| 최종 검증 | 결과 |
+| --- | --- |
+| `uv run pytest -q` | **97 passed, 13 deselected, 149.79초**. 일반 회귀·source wheel/실제 MCP·기존 UI 포함 |
+| `uv run pytest -m "neo4j and not live" -q` | **9 passed, 101 deselected, 142.76초**. 실제 Neo4j/API/MCP·Builder scope/동기화·비교 UI·물리 장애 복구 |
+| Ruff check / format check / mypy | 모두 통과. 91개 파일 형식, 49개 Python 소스 타입 검사 |
+| 계약 export / TypeScript / 4개 앱 Vite 빌드 / build_ui.py | 통과, 각 Python 패키지에 배포 자산 반영. MapLibre 포함 큰 bundle 경고 유지 |
+| UI 시각·동작 | OFF native 집계 안내·v2/정책·ON 관계/근거·모바일 탭/키보드/이력 복원 통과. screenshot을 직접 확인 |
+| 문서 상대 링크 / diff 공백 | 깨진 링크 및 이번 변경의 공백 오류 없음. 사용자 REVIEW 원문은 수정하지 않음 |
+
+이전 전체 94개 통과 후 과거 정책 대기 run/Graph 혼합 및 v1 hash 호환성을 더 검증해 최종 97개가 통과했다. Live/performance는 일반 성공 수에 합산하지 않았으며 실제 GPT 실행은 아래 별도 기록한다. 검증 중 자동 승인 검토의 사용량 한도로 실행되지 못한 호출은 사용자의 재개 지시 후 정상 실행했다. 현재 남은 검증 차단은 없다.
+
+### 실제 GPT 검증 및 한계
+
+설정 모델은 기존 `gpt-6-luna`를 유지했다. 사용자 서비스와 다른 포트(:6300 등), 별도 var/s8-*-v2.db 및 **테스트 Neo4j :17687**로 실행했다. 검증 프로필은 종료했으며 데모 Neo4j :7687과 사용자 :4100/:4300 프로세스는 조작하지 않았다.
+
+| 최초 v2 1쌍씩 | OFF | ON |
+| --- | --- | --- |
+| S1 | completed, native 근거 검사 통과. 7 tools/8 turns/51,578 tokens/63.50초 | completed, 가용 ID 2개·집계 정답. 6/7/52,715/42.48초 |
+| S2 | budget_exceeded. 존재하지 않는 evidenceId를 반복 조회, 6/6/29,916/16.33초 | completed, raw 8/unique 7/available 4·정답 집계. 13/14/141,318/81.39초 |
+| S3 | partial, 원천 관측은 조회하되 검증된 동일성을 확정하지 않음. 4/6/40,501/43.89초 | completed, 명시적 연결/공동지원·일치 상태 확인. 6/7/51,628/44.10초 |
+
+S2 OFF의 도구 오용을 해결하기 위해 read_evidence에 사전 근거 조건과 snapshotId/evidenceId 차이를 명시하고, 없는 ID 오류에 현재 run의 사용 가능한 ID를 반환했다. 추가 1쌍에서 OFF는 원천 8건과 원천 코드 수량을 제공하며 고유 객체 확정을 보류하는 partial로 끝났다(6/7/44,512/59.75초). 이는 Semantic helper를 사용한 확정 결과로 올리지 않았다.
+
+같은 추가 쌍의 ON도 partial이었다(19/20/229,261/116.83초). Semantic 서비스가 availability 등의 질의에 지원 용어를 안내하지 않아 모델이 여러 별칭을 반복 시도했다. 실패 테스트 후 명시적 availability/가용성 별칭과 supportedTerms 응답·도구 계약을 보완했다. 이후 **ON S2 단일 재검증**은 8 tools/9 turns/78,701 tokens/46.26초로 completed 및 모든 자동 집계/ID 검사를 통과했다.
+
+총 실제 검증은 최초 3쌍 6 run + 추가 S2 1쌍 2 run + 최종 ON 1 run이다. 자동 점수는 도구 근거·수량 기준이며 자유 텍스트의 정확성/추론 표시는 Human Review 대상이다. OFF의 partial/모델 추론은 실패한 서버 격리와 구분한다. 유효한 근거 없이 확정 집계를 제공하도록 프롬프트를 강제하지 않았다. 소수 시연의 성공/비용 차이를 성능 우위로 일반화하지 않는다.
+
+원본은 Git 제외 artifacts/semantic-evaluation-s8-v2.json, 추가 semantic-evaluation-s8-v2-retry.json, 최종 semantic-s8-v2-on-concept-recheck.json에 각각 보존했다. run별 시작/종료/usage/registry/정책·source refs를 남겼다. 최종 비교 경로는 preparationStartedAt/preparedAt/preparationSeconds를 추가해 Graph/snapshot 준비 시간과 실행 시간을 분리한다. 초기 S8 두 평가 파일은 이 계측 추가 전이므로 준비 시간은 개별 실측되지 않았고 쌍 전체 경과 시간만 기록돼 있다. 비용 단가는 추정하지 않았다.
+
+### Review 실행 안내
+
+현재 켜져 있는 사용자 프로세스는 자동 reload되지 않는다. 기존 터미널에서 Ctrl+C로 종료하고 README의 ATCIS_DB/KNCCS_DB/PLATFORM_VNEXT_DB v2 경로를 지정한 뒤 `uv run python scripts/dev.py --profile full`로 재시작한다. 각 원천과 비교 manifest의 dataset이 v2인지 확인하고 새 대화로 시연한다. 과거 DB는 삭제하지 않는다. REVIEW.md 작성과 다음 Reflect는 사용자의 검토 후 수행한다.
+
+---
+
+아래는 S8 이전 구현·검증의 역사적 기록이다. 당시 “현재 STEP”이나 효용 결론은 해당 시점의 상태이며 S8 상태를 뜻하지 않는다.
+
+## 2026-10-16 이종 C4I·Semantic 고도화
+
+독립 Mock ATCIS/KNCCS, 실제 Neo4j Graph Builder, 재사용 Semantic API/MCP, native 단일 Agent의 ON/OFF 비교를 구현했다. 사용자 Review는 아직 수행하지 않았다. 이전 R6–R7 결과는 아래에 별도로 보존한다.
+
+현재 STEP은 **Review (Human)**다. 커밋/푸시는 수행하지 않았으며 REVIEW.md를 AI가 작성하지 않았다.
+
+### 사용자 Review 중 발견한 Semantic ON 404 수정
+
+사용자 플랫폼 :4300은 원천 :4100/:4110을 사용했다. AI가 띄워 둔 검증용 :5420 Builder와 사용자 :4420 Builder가 같은 Neo4j의 전역 BuildRequest 큐를 읽어, 검증 Builder가 사용자 snapshot을 자기 원천 :5100에 요청했다. 따라서 실제로 존재하는 원천 snapshot도 잘못된 서버에서 404가 났다. snapshot 삭제나 LLM/프롬프트 문제는 아니었다.
+
+검증용 Python 프로필을 중지했다. 확인된 실패 요청 `build-request-aaefb071c0e9047567a7d78a89360a91` 1건에 이전 오류/복구 이유를 보존하고 QUEUED로 재대기시켰으며, 사용자 Builder가 `graph-74ed47f377c5e062894ff75d` READY로 처리했다. 원래 :4100 stable-export와 :4400 해당 Graph 조회가 각각 HTTP 200임을 확인했다. 과거 실패 run을 성공으로 고치거나 LLM을 재호출하지 않았다.
+
+재발 방지: Builder의 source URL 집합을 정규화한 hash를 요청 ID와 sourceScope에 포함한다. 요청 조회·QUEUED 선택·RUNNING 복구·checkpoint를 이 scope로 제한한다. 서로 다른 source endpoint의 두 worker를 같은 테스트 Neo4j에서 실행해 요청 충돌·외부 작업 인수/재대기화가 없음을 검증한다. 기존 unscoped 요청은 자동 이관/삭제하지 않으며 새 실행은 새 scoped 요청을 만든다. 실행 중 사용자 프로세스에 코드를 적용하려면 `scripts/dev.py --profile full`을 재시작해야 한다. 검증 :5300 프로필은 다시 띄우지 않는다.
+
+검증: 신규 scope 테스트의 요청 ID 충돌 실패를 먼저 확인했다. 수정 후 `uv run pytest tests/test_graph_sync.py tests/test_graph_builder.py tests/test_comparisons.py -m "neo4j or not neo4j" -q` **6 passed, 34.55초**. 다른 Builder의 QUEUED/RUNNING 요청 보존·자기 RUNNING 복구·자기 요청 READY와 기존 원천 동기화·실제 MCP 비교가 통과했다. Ruff check·mypy도 통과했다.
+
+### 최종 검증 명령과 결과
+
+| 명령/검증 | 실제 결과 |
+| --- | --- |
+| `uv run pytest -q` | **85 passed, 12 deselected**, 167.84초. 제외된 live/Neo4j/performance는 성공 수에 합산하지 않음 |
+| `uv run pytest -m "neo4j and not live" -q` | **8 passed, 89 deselected**, 121.92초. 전용 test DB에서 실제 Graph/API/MCP/비교/UI/물리 장애 복구 |
+| 최종 변경 후 `tests/test_comparisons.py` Neo4j 대상 | 1개 통과. 이어 실행한 UI는 병렬 부하로 strict capture 2초를 초과해 준비 실패 |
+| 최종 `uv run pytest tests/test_semantic_ui.py -m neo4j -q` | **1 passed**, 36.70초. 단독 재실행으로 두 열·Graph 원문·모바일·키보드·새로고침 이력 검증. capture 기준을 완화하지 않음 |
+| `uv run pytest -m "live and neo4j" tests/test_semantic_live.py -q` | **1 passed**, 125.42초. 실제 GPT + 원천 MCP + Neo4j/Semantic MCP |
+| `npm.cmd --prefix frontend run build` | TypeScript 검사 및 4개 앱 Vite 빌드 통과. MapLibre 포함 약 1.3MB bundle 경고는 유지 |
+| `uv run python scripts/build_ui.py` | 각 Python 서비스에 소유 UI 배포 자산 복사 완료 |
+| Ruff check / format check / mypy | 모두 통과, 89개 Python 파일 형식·48개 소스 타입 검사 |
+| 계약 export / Markdown 상대 링크 / `git diff --check` | 일치·깨진 링크 없음·공백 오류 없음. Git CRLF 안내만 있음 |
+
+마지막 일반 회귀의 최초 실행은 종료 메타데이터 race 1건이 실패했다. 실패 테스트를 강화하고 최종 progress/종료 저장을 수정한 뒤 전체 85개가 통과했다. 독립 wheel 검증은 일반 회귀에 포함되며 깨끗한 venv에서 상대 체계/LLM/Neo4j/Node 없는 실행을 확인한다. 60초 performance 측정은 기존 baseline 기록을 유지하고 이번에는 재실행하지 않았다.
+
+| 구간 | 실제 검증 결과 |
+| --- | --- |
+| P0 baseline | 기존 `uv run pytest -q`: 39 passed / 3 deselected. 기존 UI 빌드·Ruff·format·mypy 통과. Python 3.12.10, uv 0.12.10 |
+| P1 계약/Ontology | 미구현 import 실패 확인 후 구현. 원천 복합 ID·가상 코드/단위·안정 hash·조직 범위·명시적 ER·독립 gold·잘못된 geometry·중복 ID·타입 계약 검증 |
+| P2 원천 | API 3개, 실제 MCP 2개, 독립 브라우저 UI 2개, 격리 wheel 2개 테스트 통과. 각 원천 MCP의 11개 도구 실제 호출 확인 |
+| P3 Graph/Builder | 실제 Neo4j 저장/불변·실패 build 격리 2개, 공개 HTTP 동기화/reset·관리 요청 인증/중복 2개, 일시 DB 장애 재연결 1개 통과 |
+| P4 Semantic | 실제 Neo4j→Semantic API→Semantic MCP 조직/장비/동일성/근거 통합 통과. 버전·깊이·페이지·모호성·누락·인증·장애 검사 |
+| P5 Agent/수집 | 실제 두 원천 MCP 발견·native 호출, 원천별 고정 snapshot, OFF Semantic 미접속, 모드/대화/근거 격리, 이벤트 자동 실행, 페이지·충돌 집계 검증 |
+| P6 비교/UI | 동일 manifest/격리된 두 run, 한쪽 실패·재시작 정리, 지도·원천 필터·비교 이력·두 열 trace/근거·Graph 원문·모바일 탭·Escape/focus·기존 세 방책 기능 검증 |
+| P7 실제 연동 | 일반 회귀, 전용 Neo4j 통합 8개, 실제 GPT smoke 1개, S1~S3 각 5쌍/30 run 반복 측정. 실패와 예산 조정 후 추가 측정을 아래에 구분 |
+
+TDD: 각 신규 계약/원천/Graph/Agent/비교 테스트의 import·행동 실패를 확인한 후 구현했다. 실제 Neo4j 검증은 `-m "neo4j and not live"`로 별도 실행했다. P2 UI에서 지도 절대 위치가 목록을 덮는 오류, 실제 ON 실행에서 빈 Bearer 헤더의 HTTP 오류, SSE reset 후 epoch 재연결, 비교 재시작 정리, 평가기의 식별 레코드 상태 덮어쓰기 오류를 발견·수정했다. 채점 수정은 실패하는 회귀 테스트를 먼저 확인했다.
+
+원천: 별도 var/atcis.db·var/knccs.db, 독립 wheel/정적 UI. 기존 var/c4i.db·platform.db는 자동 수정/초기화하지 않았다. clean venv wheel 검증은 상대 Mock·platform_api·openai·neo4j·mcp 미설치 및 PATH 비우기로 확인했다.
+
+Neo4j: 공식 Community 2026.09.0, image digest `sha256:6f3f17e72d69bb6f26b03f6186f5afb15a201f8b460bb69b0cd8030717f9f01a`, official driver 6.4.0을 고정했다. 실제 테스트는 localhost 17687/17474 및 전용 named volume에서 수행했다. 로컬 .env에 Neo4j 전용 임의 비밀번호를 추가했고 출력/Git 포함 없이 사용했다. Docker Desktop이 처음에는 중지돼 있었으나 사용자가 실행한 뒤 실제 통합 검증을 진행했다. 공식 근거: [Docker image](https://neo4j.com/docs/operations-manual/current/docker/introduction/), [driver 호환성](https://neo4j.com/docs/python-manual/current/install/).
+
+초기 lock SHA256: uv.lock `C22F935EF7DF55BBCC735776798D6F2D44B206B0E086FF12978C11623AE80CC2`, frontend/package-lock.json `613E1DA323ABC3A7B4666A828225D75BE16A38DAF8A2E66361F1982EA2478DC4`. 새 workspace/의존성 추가로 lock은 변경됐다. Windows에서 npm.ps1 실행 정책은 변경하지 않고 npm.cmd를 사용했다. uv/Python 및 Docker 자격 증명 접근은 승인된 실행 권한으로 처리했다.
+
+### 구현 구조와 설계 구체화
+
+- `packages/ontology`: Python/Pydantic 타입·명시적 코드/단위 매핑·ER. `packages/semantic-core`: 버전별 Neo4j 저장/관계 조회와 재사용 SemanticService. Builder만 Graph를 쓴다.
+- 두 Mock은 별도 seed/SQLite/UI/시뮬레이터를 소유한다. 공통 `source-runtime`은 상태 없는 코드 재사용이며 DB나 원천 정보를 공유하지 않는다. MCP 의존성은 별도 adapter 패키지에만 있다.
+- Graph는 위치/가용 상태를 보관하지 않는다. 원천 공개 export의 안정 정보로 검증된 관계와 Observation 근거를 생성한다. ON은 관계 참조를 얻고 실제 상태는 원천 MCP로 다시 조회한다.
+- Builder 관리 요청은 인증된 :4420 API와 단일 worker를 사용한다. Semantic MCP에는 쓰기·임의 Cypher·build 도구가 없다. OFF는 Semantic 서버에 연결하지 않는다.
+- 기존 단일 C4I 프로필과 loop/provider/schema 변환을 유지했다. 새 플랫폼 런타임은 다중 원천/고정 시점/비교를 담당한다. Multi-Agent·별도 Agent 프레임워크는 없다.
+- Ontology는 별도 YAML DSL 대신 Python 타입/함수와 검토된 개념 사전으로 구현했다. 일반 crosswalk 편집·기간 추론·범용 별칭 관리·fuzzy 병합은 미구현이며 이번 세 시나리오는 공개 연습 ID와 원천 조직 관계만 사용한다.
+
+### 실제 GPT 반복 측정
+
+모델은 로컬 `OPENAI_MODEL=gpt-6-luna`를 그대로 사용했다. [OpenAI 공식 function calling 문서](https://developers.openai.com/api/docs/guides/function-calling)를 확인했고 native 호출·실제 MCP를 사용했다. 자동 평가는 자연어 설명의 완전한 품질 평가가 아니라 **완료 상태·도구 근거·정답 수량/ID** 검사다. 답변 설명과 한계의 타당성은 Human Review 대상이다.
+
+초기 예산은 양 모드 동일 model 12회/tool 20회/120초. S1~S3 각 5쌍을 실행하고 OFF 우선/ON 우선 순서를 교대했다. 각 쌍은 질문·원천 snapshot·Graph 버전·프롬프트/registry hash·모델 설정을 보존한다.
+
+| 시나리오 | OFF 완료·정답 | ON 완료·정답 | 평균 도구 OFF / ON | 평균 토큰 OFF / ON |
+| --- | --- | --- | --- | --- |
+| S1 조직 범위 탱크 | 5/5 | 5/5 | 6.4 / 5.4 | 44,000 / 46,018 |
+| S2 이종 통합 집계 | 1/5, 4회 budget_exceeded | 5/5 | 11.8 / 8.8 | 81,804 / 86,374 |
+| S3 동일 객체·불일치 | 2/5, 3회 partial | 5/5 | 8.8 / 8.0 | 65,377 / 68,781 |
+
+S3의 partial은 도구 실패가 아니라 모델이 원천 간 관측 시각·조직 코드·원인 확인의 한계를 표시한 결과다. OFF의 처음 두 completed 결과도 실제 상태 근거를 확보했다. 초기에 평가기가 뒤이어 조회한 상태 없는 identity 레코드로 상태 레코드를 덮어써 오채점했으므로, 원본을 보존하고 별도 파일에 재채점했다. partial 상태는 정답 성공으로 올리지 않았다.
+
+ON은 조직·동일성을 명시적 근거로 처리하면서 평균 호출을 줄였지만 이 측정에서 평균 토큰은 더 많았다. OFF도 같은 원시 관계로 정답을 낼 수 있다. 적은 합성 fixture/동일 모델의 결과이며 비용·속도·실사용 정확성의 일반적 우위를 주장하지 않는다. 실패한 OFF는 일찍 종료돼 호출/토큰 비교에 편향이 있다.
+
+S2 OFF는 정상적으로 두 체계의 snapshot/조직/상하위/배속/장비/식별 정보를 조회하는 동안 12회 한도에 걸렸다. 고도화 기본값을 **양 모드 동일 model 24회/tool 20회/120초**로 조정하고 run/manifest의 `agentBudget`에 기록했다. 기존 12회 측정을 교체하지 않고 추가 결과를 별도 보존한다.
+
+24회 예산의 추가 S2 **1쌍**은 양쪽 모두 정답 집계로 완료했다. OFF는 10 tools/11 model turns/78,827 tokens/63.46초, ON은 12 tools/13 model turns/129,681 tokens/77.72초였다. 쌍 전체 시간은 준비·두 실행을 포함한 142.60초다. 이 표본에서 ON의 호출·시간·토큰은 더 많았다. 1회 추가 검증으로 안정성 개선이나 평균 성능 우위를 단정하지 않는다. 마지막 종료 메타데이터 검증에서 terminal 상태가 finishedAt보다 먼저 보이는 race를 재현하여, progress는 running으로 유지하고 최종 상태/registry/시각을 함께 저장하도록 수정했다.
+
+검증 산출물은 Git 제외 `artifacts/`에 있다: `semantic-live-smoke.json`, 원본 `semantic-evaluation.json`, 수정 평가기 `semantic-evaluation-regraded.json`, 추가 `semantic-evaluation-budget24.json`, UI `semantic-comparison.png`. 원본 15쌍은 run별 시작/종료 계측 추가 전이므로 정확한 개별 실행 시간은 미기록이다. 쌍 전체 createdAt/finishedAt은 보존했고, 이후 run은 startedAt/finishedAt 및 executionSeconds를 기록한다. 비용은 단가 추정으로 계산하지 않았다.
+
+### 사용자 검토 방법
+
+README의 설치/빌드 후 `docker compose up -d neo4j`, `uv run python scripts/dev.py --profile full`을 실행한다. ATCIS :4100, KNCCS :4110, 플랫폼 :4300이다. 기존 프로세스가 포트를 쓰면 `--port-offset 1000`을 사용한다. 검증 서버는 별도 var/validation-* DB와 플랫폼 :5300을 사용했으며 기존 :4100 서비스/DB를 변경하지 않았다.
+
+두 원천을 정지 상태로 두고 S1~S3 질문을 각각 `동일 기준으로 비교`한다. 두 열에서 답변·호출 인수·근거·조직 경로·Graph 원문과 버전을 확인한다. 이후 원천에서 이동/상태를 변경하여 지도 반영과 자동 분석 이력을 확인한다. 비교를 열었던 과거 run은 고정 snapshot/Graph를 유지한다. 사용자 Review는 docs/REVIEW.md에 사용자가 작성한다.
+
+> 아래는 기존 단일 C4I baseline의 역사적 검증 기록이다. 최신 고도화 결과와 구분한다.
+
 ## 2026-10-16 R6–R7 구현
 
-이 절이 최신 결과다. 2026-10-16 10:03 Review의 두 항목을 구현했으며 다음 사용자 Review는 아직 수행하지 않았다.
+기존 baseline 기록이다. 2026-10-16 10:03 Review의 두 항목을 구현했으며 다음 사용자 Review는 아직 수행하지 않았다.
 
 ### R6: MCP 서버가 도구 정의 소유
 
