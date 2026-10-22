@@ -21,6 +21,7 @@ from platform_api.agent.agent import INSTRUCTIONS
 from platform_api.agent.loop import AgentLoop
 from platform_api.agent.multi_tools import MultiToolRunner
 from platform_api.mcp.client import MCPClient
+from platform_api.run_log import RunLog
 
 
 def snapshot_ref(snapshot):
@@ -226,6 +227,21 @@ class MultiRuntime:
                 await asyncio.sleep(1)
 
     async def execute_run(self, run):
+        """Own file tracing outside preparation; the database remains authoritative."""
+        secrets = [getattr(self.provider, "api_key", "")]
+        for config in [*self.sources.values(), self.semantic]:
+            secrets.extend(config.get(k, "") for k in ("token", "mcpToken", "adminToken"))
+        async with RunLog(
+            run,
+            model=getattr(self.provider, "model", None),
+            budget=self.agent_limits,
+            secrets=secrets,
+        ) as log:
+            await self._execute_run(run, log)
+            await log.finish(await self.repo.get_run(run["runId"]))
+
+    async def _execute_run(self, run, log):
+        preparation_started = time.monotonic()
         rid = run["runId"]
         if run.get("semanticPolicyVersion") != self.policy_version:
             await self.repo.update_run(
@@ -278,6 +294,16 @@ class MultiRuntime:
                     runner.historical_snapshots = historical
                     runner.snapshot["baselineSourceSnapshotSet"] = historical
                     await self.repo.update_run(rid, {"baselineSourceSnapshotSet": historical})
+                await log.emit(
+                    "preparation",
+                    {
+                        "sourceSnapshotSet": pins,
+                        "graphVersion": (info or {}).get("graphVersion"),
+                        "baselineReportRef": run.get("baselineReportRef"),
+                        "baselineSourceSnapshotSet": historical,
+                        "preparationSeconds": round(time.monotonic() - preparation_started, 4),
+                    },
+                )
                 history = (
                     []
                     if run.get("comparisonId")
@@ -287,6 +313,7 @@ class MultiRuntime:
                     self.provider,
                     runner,
                     on_progress=publish_progress,
+                    on_event=log.emit,
                     **self.agent_limits,
                 ).run(run["question"], history)
                 if runner.discovery_error and result["status"] == "completed":
@@ -303,6 +330,14 @@ class MultiRuntime:
                 result["finishedAt"] = datetime.now(UTC).isoformat()
                 await self.repo.update_run(rid, result)
         except asyncio.CancelledError:
+            await self.repo.update_run(
+                rid,
+                {
+                    "status": "interrupted",
+                    "error": "execution cancelled",
+                    "finishedAt": datetime.now(UTC).isoformat(),
+                },
+            )
             raise
         except Exception as exc:  # noqa: BLE001 - durable run boundary records real failures
             await self.repo.update_run(
@@ -333,6 +368,7 @@ class MultiRuntime:
             await self.finish_comparison(comparison["comparisonId"])
 
     async def prepare_comparison(self, comparison):
+        """Persist one shared manifest, then run OFF/ON in separate conversations."""
         cid = comparison["comparisonId"]
         started = time.monotonic()
         preparation_started_at = datetime.now(UTC).isoformat()

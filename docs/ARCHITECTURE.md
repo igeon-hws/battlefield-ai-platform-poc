@@ -2,6 +2,8 @@
 
 ## 현재 실행 구조: v3 Data Fabric (2026-10-22)
 
+실행 관측은 `platform_api/run_log.py`의 표준 라이브러리 기반 writer를 사용한다. 기존 Runtime/AgentLoop/Repository에 이벤트만 연결하며 서비스·DB schema·도구 registry는 추가하지 않는다. 실행별 append-only 파일 기록은 thread offload와 per-run lock으로 직렬화하며 기존 DB evidence가 전체 trace의 기준이다. legacy와 heterogeneous/v3 모두 같은 로그 계약을 사용한다.
+
 `C4I_CONTRACT_VERSION=3`에서 각 Mock의 `native.py`가 자체 모델·SQL 테이블·HTTP 제어·시뮬레이션을 소유한다. 공통 `source-runtime/ledger.py`는 snapshot/event/auth/persistence의 기계 요소만 제공한다. 원천의 v3 실행 의존에는 Ontology·Neo4j·MCP·OpenAI가 없다. 과거 공통 handler는 v2 호환 분기에 남아 있다.
 
 | 영역 | 실행 진입점 | 소유 데이터/역할 |

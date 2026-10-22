@@ -253,6 +253,7 @@ class DomainToolRunner(MultiToolRunner):
         return result
 
     def aggregate_domain(self, args):
+        """Count only complete native pages covered by this run's scope/rule proofs."""
         semantic_ids = (
             args.identity_evidence_ids
             + args.scope_evidence_ids
@@ -262,6 +263,7 @@ class DomainToolRunner(MultiToolRunner):
         if self.mode == "off" and (
             semantic_ids or args.unit_ids is not None or args.kind or args.policy != "P1"
         ):
+            # Block semantic helpers here too: hiding MCP names alone is insufficient.
             raise ValueError("semantic aggregation forbidden in off mode")
         pages = self.require_evidence(args.evidence_ids)
         native: dict[tuple[str, str], dict] = {}

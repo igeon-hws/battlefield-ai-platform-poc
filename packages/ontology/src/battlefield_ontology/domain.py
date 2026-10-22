@@ -24,6 +24,7 @@ def catalog_hash():
 
 
 def build_domain(sources):
+    """Apply reviewed mappings to stable exports; never infer identity from proximity/text."""
     reviewed_documents = json.loads(
         Path(__file__).with_name("domain_documents.json").read_text(encoding="utf-8")
     )

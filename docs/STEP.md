@@ -1,6 +1,6 @@
 ﻿## Current Step in Spec-Driven Development
 
-**Now: 4. Review (Human)** — C0~C7 Data Fabric 구현·검증 보고 완료 (2026-10-22). 일반 회귀 119개, Neo4j 전체 13개, 후속 provenance/통합 8개와 v3 비교 browser 검증을 기록했다. 실제 GPT 14회+F7 추가 2회 및 근거 coverage 한계를 보고서에 남겼다. 사용자 검토 대기이며 Review/Reflect를 대신 수행하지 않는다.
+**Now: 4. Review (Human)** — 실행 파일 로그·핵심 주석 R1~R4 구현·검증 완료 (2026-10-22). 일반 회귀 136개, 실제 MCP/Neo4j 1개, 최종 관련 회귀 37개 통과와 샘플 로그/제약을 IMPLEMENTATION_REPORT에 기록했다. 사용자 검토 대기이며 Review/Reflect는 대신 수행하지 않는다.
 
 ### SDD Step
 

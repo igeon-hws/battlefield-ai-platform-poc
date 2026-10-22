@@ -57,6 +57,7 @@ class MultiRepository(Repository):
         event=None,
         baseline_report_ref=None,
     ):
+        # New modes/policies must not inherit another mode's interpreted conversation.
         if mode not in ("off", "on"):
             raise ValueError("invalid semantic mode")
         async with self.lock:

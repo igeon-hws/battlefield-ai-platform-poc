@@ -4,6 +4,12 @@
 - 작성일: 2026-10-15
 - 상태는 사용자 요구사항에 따른 확정 원칙과 검토 전 설계 제안을 구분한다.
 
+## ADR-024: 실행별 읽기 쉬운 파일 로그 (2026-10-22)
+
+Review의 실행 기록/핵심 주석 요청을 반영하여 표준 라이브러리 기반 RunLog와 선택적 AgentLoop 이벤트 callback을 사용한다. DB progress dump 대신 모델/도구의 시작·종료를 기록하고 Runtime이 준비 실패·최종 상태까지 파일의 생명주기를 소유한다. 모델 요청·응답 수와 미제공 usage를 구분하며 private reasoning/전체 SDK payload는 수집하지 않는다.
+
+기존 파일은 보존·추가 기록하고 재시작 복구는 별도 interruption 이벤트로 남긴다. offload write는 실행별 lock으로 직렬화하고 취소 시 진행 중 쓰기가 끝난 뒤 정리한다. 마스킹 후 출력 길이를 제한하며 I/O 실패는 stderr 경고로 격리한다. 새 로그 서버·관측 프레임워크·자동 retention은 도입하지 않는다. 기존 단일 loop·tool schema·UI/DB trace를 유지하고 핵심 불변 조건은 해당 코드 가까운 주석으로 설명한다.
+
 ## ADR-023: Native C2와 Data Fabric v3 (2026-10-22)
 
 원천별 native 모델·SQL·UI를 분리하고 공유 runtime은 ledger/auth/SSE 등 기계 요소로 한정한다. 과거 v2는 호환 분기에 보존한다. 기존 semantic-api를 독립 Fabric API/콘솔로 확장하며 gateway·브로커를 추가하지 않는다.

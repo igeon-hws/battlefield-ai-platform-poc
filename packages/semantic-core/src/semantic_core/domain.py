@@ -9,6 +9,7 @@ from battlefield_ontology.domain import DOMAIN_VERSION, build_domain, catalog_ha
 
 
 def publish_domain(repo, sources, graph_version=None):
+    """Publish an immutable validated build; READY reuse requires identical semantic inputs."""
     hashes = {
         s: digest(
             {
@@ -19,6 +20,7 @@ def publish_domain(repo, sources, graph_version=None):
         )
         for s, data in sources.items()
     }
+    # Stable data + reviewed catalog identify meaning; position ticks do not force rebuilds.
     fingerprint = digest(
         {"hashes": hashes, "domain": DOMAIN_VERSION, "catalogHash": catalog_hash()}
     )
@@ -200,6 +202,7 @@ class DomainService:
         )
 
     def find_equipment_refs(self, version, unit_ids, kind=None, limit=100, cursor=0):
+        # Live status is deliberately absent: source MCP supplies the run's state snapshot.
         if not 1 <= limit <= 100 or cursor < 0:
             raise ValueError("invalid pagination")
         info, nodes, edges = self.model(version)

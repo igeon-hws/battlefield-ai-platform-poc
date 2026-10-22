@@ -4,7 +4,7 @@
 
 ## 현재 단계와 설계 기준
 
-- **현재 STEP: 4. Review (Human).** 2026-10-22 C0~C7 Data Fabric 구현·검증 보고 완료, 사용자 검토 대기다. docs/STEP.md가 단계 기준이다. 사용자 Review를 대신하거나 다음 Reflect를 임의로 시작하지 않는다.
+- **현재 STEP: 4. Review (Human).** 2026-10-22 실행 로그·핵심 주석 R1~R4 구현·검증 완료, 사용자 검토 대기다. docs/STEP.md가 단계 기준이며 Review/Reflect는 대신 수행하지 않는다.
 - CRITICAL: 작업 시작 시 docs/STEP.md를 먼저 읽고 현재 단계와 수행 주체를 확인한다. 단계 상태의 기준은 docs/STEP.md이며 이 문서와 다르면 STEP.md를 따른다.
 - 요구사항은 docs/PRD.md, 화면은 docs/UI_GUIDE.md, 서비스 경계는 docs/ARCHITECTURE.md를 따른다.
 - Agent 실행은 docs/AGENT_DESIGN.md가 기준이다. 구현에 따른 주요 변경의 이유는 Implement에서 docs/ADR.md에 남긴다.

@@ -9,6 +9,7 @@ from httpx_sse import aconnect_sse
 from platform_api.agent.loop import AgentLoop
 from platform_api.agent.tools import ToolRunner
 from platform_api.mcp.client import MCPClient
+from platform_api.run_log import RunLog
 
 
 class LazyMCP:
@@ -109,31 +110,48 @@ class Runtime:
             if not run:
                 await asyncio.sleep(0.1)
                 continue
-            rid = run["runId"]
-            await self.repo.update_run(rid, {"status": "running"})
-            try:
-                async with AsyncExitStack() as stack:
-                    event = run["sourceEvent"]
-                    snapshot = None
-                    if event:
-                        snapshot = {
-                            "snapshotId": event["snapshotId"],
-                            "epochId": event["epochId"],
-                            "sequence": event["sequence"],
-                            "sourceTime": event.get("occurredAt"),
-                        }
-                    runner = ToolRunner(LazyMCP(self, stack), snapshot)
-                    loop = AgentLoop(
-                        self.provider, runner, on_progress=partial(self.repo.update_run, rid)
-                    )
-                    history = (
-                        await self.repo.history(run["conversationId"], rid)
-                        if run["conversationId"]
-                        else []
-                    )
-                    result = await loop.run(run["question"], history)
-                    await self.repo.update_run(rid, result)
-            except Exception as exc:  # noqa: BLE001 - persist a failed queued run
-                self.mcp_connected = False
-                self.mcp_error = str(exc)[:500]
-                await self.repo.update_run(rid, {"status": "failed", "error": str(exc)[:1000]})
+            await self.execute_run(run)
+
+    async def execute_run(self, run):
+        async with RunLog(
+            run,
+            model=getattr(self.provider, "model", None),
+            budget={"max_iterations": 12, "max_tools": 20, "deadline": 120},
+            secrets=[getattr(self.provider, "api_key", ""), self.c4i_token, self.mcp_token],
+        ) as log:
+            await self._execute_run(run, log)
+            await log.finish(await self.repo.get_run(run["runId"]))
+
+    async def _execute_run(self, run, log):
+        rid = run["runId"]
+        await self.repo.update_run(rid, {"status": "running"})
+        try:
+            async with AsyncExitStack() as stack:
+                event = run["sourceEvent"]
+                snapshot = None
+                if event:
+                    snapshot = {
+                        "snapshotId": event["snapshotId"],
+                        "epochId": event["epochId"],
+                        "sequence": event["sequence"],
+                        "sourceTime": event.get("occurredAt"),
+                    }
+                runner = ToolRunner(LazyMCP(self, stack), snapshot)
+                await log.emit("preparation", {"sourceContext": snapshot})
+                loop = AgentLoop(
+                    self.provider,
+                    runner,
+                    on_progress=partial(self.repo.update_run, rid),
+                    on_event=log.emit,
+                )
+                history = (
+                    await self.repo.history(run["conversationId"], rid)
+                    if run["conversationId"]
+                    else []
+                )
+                result = await loop.run(run["question"], history)
+                await self.repo.update_run(rid, result)
+        except Exception as exc:  # noqa: BLE001 - persist a failed queued run
+            self.mcp_connected = False
+            self.mcp_error = str(exc)[:500]
+            await self.repo.update_run(rid, {"status": "failed", "error": str(exc)[:1000]})

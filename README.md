@@ -2,6 +2,10 @@
 
 ## 현재 실행: Native C2 + Data Fabric v3
 
+Agent 실행 기록은 기본 `var/logs/agent/<runId>.log`에 UTF-8로 저장된다. 질문·모드·기준 snapshot/Graph, MCP discovery, 모델/도구 호출 순서, 결과·근거 ID와 최종 상태를 시간순으로 읽을 수 있다. `runId`는 플랫폼 실행 상세에서 확인한다. `.env`의 `AGENT_LOG_DIR`로 경로를 바꾸거나 `AGENT_LOG_ENABLED=false`로 끌 수 있다. 변경 후 플랫폼을 재시작한다.
+
+긴 필드는 8,000자에서 생략을 표시하며 전체 상세는 기존 DB/UI trace에서 확인한다. 키/토큰은 마스킹하고 모델의 비공개 reasoning이나 SDK 원본 요청은 기록하지 않는다. 토큰 사용량 미제공은 `unavailable`, 일부만 있으면 `partial`로 표시한다. 파일 쓰기 실패는 stderr의 `Agent log failure`로 알리며 분석 결과를 실패로 바꾸지 않는다. 파일은 자동 삭제하지 않으므로 로컬에서 관리한다.
+
 2026-10-22 구현 기준은 `c2-domain-demo-v3`다. 육군·해군의 독립 native 체계, Data Fabric API/콘솔·Ontology/Neo4j·MCP, 기존 단일 동적 분석 Agent를 연결한다. 아래 S8/v2 설명은 과거 호환 기록이다. 현재 상태·검증 한계는 [STEP](docs/STEP.md)과 [구현 보고서](docs/IMPLEMENTATION_REPORT.md)를 따른다.
 
 최초 설치/빌드 후 실행한다. `.env`에 `OPENAI_API_KEY`, `OPENAI_MODEL`, `NEO4J_PASSWORD`를 설정하며 기존 Neo4j volume의 비밀번호는 유지한다.

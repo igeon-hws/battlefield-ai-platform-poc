@@ -1,5 +1,11 @@
 # 단일 동적 분석 Agent 설계
 
+## 실행 파일 로그 (2026-10-22)
+
+Runtime은 실행별 `RunLog`를 소유하고 AgentLoop의 선택적 `on_event`로 discovery·모델·도구·출력 검증/종료 이벤트를 기록한다. 기존 `on_progress`는 DB/UI 상태 저장용으로 유지한다. 별도 Agent나 모델 호출을 추가하지 않는다. 준비 실패·취소는 Runtime 경계에서, 재시작 중단은 Repository 복구에서 기록한다. OFF/ON은 runId별 파일로 분리하고 terminal summary는 한 실행 구간에 한 번 기록한다.
+
+로그는 UTF-8·한글 이벤트 제목·들여쓰기된 필드 형식이며 블록별 8,000자 생략과 비밀값 마스킹을 적용한다. 모델 요청 횟수와 응답 횟수를 구분하고 usage 미제공/부분 집계는 명시한다. 공개 실행 이벤트만 기록하며 비공개 사고 과정·전체 과거 대화·SDK 원본 payload를 덤프하지 않는다. I/O 오류는 분석 실패로 전파하지 않고 runId/오류 종류만 stderr에 남긴다. 설정은 README를 따른다.
+
 ## v3 도구·컨텍스트 구현 (2026-10-22)
 
 기존 Python 단일 `AgentLoop`와 OpenAI Responses native function calling을 유지한다. 새로운 Orchestrator·전문 Agent·고정 시나리오 workflow는 없다. 서버 discovery 설명/입력 schema를 strict 함수로 변환하고 모델이 다음 도구 또는 최종 답변을 선택한다. 시스템 지시는 앱 내 분석 역할·근거 책임·반복 실행 원칙을, MCP 서버는 개별 도구 계약을 소유한다.

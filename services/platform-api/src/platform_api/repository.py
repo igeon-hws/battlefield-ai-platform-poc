@@ -31,6 +31,14 @@ class Repository:
                 await self.update_run(
                     run["runId"], {"status": "interrupted", "error": "server restarted"}
                 )
+                from platform_api.run_log import RunLog
+
+                # Recovery is an observation of an interrupted run, never a replay.
+                log = RunLog(run)
+                await log.emit(
+                    "recovery_interrupted",
+                    {"runId": run["runId"], "status": "interrupted", "reason": "server restarted"},
+                )
 
     async def close(self):
         await self.db.close()

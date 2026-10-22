@@ -34,6 +34,7 @@ const tabs = {
 };
 
 function identity(row: Row) {
+  // An association's documentId is provenance, not its own ID (E1/E2 can share EX-01).
   return String(
     row.equipmentId ||
       row.pennant ||

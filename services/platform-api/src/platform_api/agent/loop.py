@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -9,13 +10,27 @@ from platform_contracts.models import AnalysisResult
 
 class AgentLoop:
     def __init__(
-        self, provider, runner, *, max_iterations=12, max_tools=20, deadline=120, on_progress=None
+        self,
+        provider,
+        runner,
+        *,
+        max_iterations=12,
+        max_tools=20,
+        deadline=120,
+        on_progress=None,
+        on_event=None,
     ):
         self.provider, self.runner = provider, runner
         self.max_iterations, self.max_tools, self.deadline = max_iterations, max_tools, deadline
         self.on_progress = on_progress
+        self.on_event = on_event
+
+    async def event(self, name, data):
+        if self.on_event:
+            await self.on_event(name, data)
 
     async def run(self, question: str, history=None):
+        """Keep assistant calls and their outputs in one context; evidence is run-local."""
         state: dict[str, Any] = {
             "status": "running",
             "result": None,
@@ -49,6 +64,24 @@ class AgentLoop:
                     "tools": [t["name"] for t in self.runner.definitions],
                     "error": self.runner.discovery_error,
                 }
+                servers: dict[str, int] = {}
+                for name in state["toolDiscovery"]["tools"]:
+                    server = (
+                        name.split("__", 1)[0]
+                        if "__" in name
+                        else "c4i"
+                        if name.startswith("c4i_")
+                        else "local"
+                    )
+                    servers[server] = servers.get(server, 0) + 1
+                await self.event(
+                    "discovery",
+                    {
+                        **state["toolDiscovery"],
+                        "registryHash": getattr(self.runner, "registry_hash", None),
+                        "serverToolCounts": servers,
+                    },
+                )
                 if self.runner.discovery_error:
                     inputs.append(
                         {
@@ -58,11 +91,32 @@ class AgentLoop:
                         }
                     )
                 for iteration in range(self.max_iterations):
+                    requested = time.monotonic()
+                    await self.event(
+                        "model_started", {"iteration": iteration + 1, "historyItems": len(inputs)}
+                    )
                     response = await self.provider.respond(
                         inputs,
                         instructions=INSTRUCTIONS,
                         tools=self.runner.definitions,
                         result_format=RESULT_FORMAT,
+                    )
+                    await self.event(
+                        "model_completed",
+                        {
+                            "iteration": iteration + 1,
+                            "responseId": response.get("id"),
+                            "model": response.get("model"),
+                            "status": response.get("status"),
+                            "usage": response.get("usage"),
+                            "durationSeconds": round(time.monotonic() - requested, 4),
+                            "outputKinds": [i.get("type") for i in response.get("output", [])],
+                            "selectedTools": [
+                                i.get("name")
+                                for i in response.get("output", [])
+                                if i.get("type") == "function_call"
+                            ],
+                        },
                     )
                     state["iterations"].append(
                         {
@@ -77,6 +131,7 @@ class AgentLoop:
                         state["status"] = response.get("status", "failed")
                         break
                     output = response.get("output", [])
+                    # Preserve call IDs/order so the next turn consumes exact tool outputs.
                     inputs.extend(output)
                     calls = [item for item in output if item.get("type") == "function_call"]
                     if calls:
@@ -93,6 +148,10 @@ class AgentLoop:
                                 "status": "running",
                             }
                             self.runner.calls.append(record)
+                            tool_started = time.monotonic()
+                            await self.event(
+                                "tool_started", {**record, "arguments": item["arguments"]}
+                            )
                             await publish()
                             try:
                                 args = json.loads(item["arguments"])
@@ -104,6 +163,15 @@ class AgentLoop:
                                 record["status"] = "failed"
                             record["response"] = result
                             record["endedAt"] = datetime.now(UTC).isoformat()
+                            await self.event(
+                                "tool_completed"
+                                if record["status"] == "completed"
+                                else "tool_failed",
+                                {
+                                    **record,
+                                    "durationSeconds": round(time.monotonic() - tool_started, 4),
+                                },
+                            )
                             signature = json.dumps(
                                 [
                                     item["name"],
@@ -186,10 +254,19 @@ class AgentLoop:
                         )
                         break
                     except (ValueError, TypeError) as exc:
+                        await self.event(
+                            "validation_failed",
+                            {
+                                "iteration": iteration + 1,
+                                "error": str(exc),
+                                "correctionAttempted": corrected,
+                            },
+                        )
                         if corrected:
                             state["status"] = "validation_failed"
                             state["error"] = str(exc)[:500]
                             break
+                        # One repair is allowed; repeated invalid output stops the loop.
                         corrected = True
                         inputs.append(
                             {
@@ -199,15 +276,25 @@ class AgentLoop:
                         )
                 else:
                     state["status"] = "budget_exceeded"
+        except asyncio.CancelledError:
+            state["status"] = "interrupted"
+            raise
         except TimeoutError:
             state["status"] = "timeout"
-            for record in self.runner.calls:
-                if record["status"] == "running":
-                    record["status"] = "timeout"
-                    record["endedAt"] = datetime.now(UTC).isoformat()
         except Exception as exc:  # noqa: BLE001 - persist provider/runtime failure, never fabricate success
             state["status"] = "failed"
             state["error"] = str(exc)[:1000]
+            await self.event(
+                "loop_failed", {"error": state["error"], "errorType": type(exc).__name__}
+            )
         finally:
+            for record in self.runner.calls:
+                if record["status"] == "running":
+                    record["status"] = state["status"]
+                    record["endedAt"] = datetime.now(UTC).isoformat()
+                    await self.event("tool_failed", record)
             await publish()
+            await self.event(
+                "loop_stopped", {"status": state["status"], "error": state.get("error")}
+            )
         return state

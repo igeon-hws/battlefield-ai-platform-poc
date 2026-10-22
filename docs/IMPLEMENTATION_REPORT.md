@@ -1,5 +1,35 @@
 # Implement 검증 보고서
 
+## 2026-10-22 Review 반영 R1~R4: 실행 파일 로그·핵심 주석
+
+사용자 REVIEW의 “실행 기록 로그 파일(알아보기 쉽게)”, “중요한 코드 주석”을 구현했다. 기존 단일 Agent/native tool calling, 도구 registry·프롬프트·원천/Graph 데이터와 사용자 REVIEW는 변경하지 않았다. 커밋/푸시는 수행하지 않았다.
+
+### 구현과 사용법
+
+- `platform_api/run_log.py`에 표준 라이브러리 기반 `RunLog`를 추가했다. 기본 `var/logs/agent/<runId>.log`, UTF-8·한글 이벤트 제목·들여쓰기된 필드 형식이다. `AGENT_LOG_ENABLED=false`, `AGENT_LOG_DIR`로 설정하며 README/.env.example에 반영했다. 실행 중인 플랫폼은 재시작해야 새 코드를 사용한다.
+- Runtime이 준비 전부터 writer를 소유하고 AgentLoop의 선택적 `on_event`로 discovery·모델 요청/응답·도구 시작/성공/실패·출력 교정·종료를 연결한다. 기존 `on_progress`와 DB/UI trace는 유지한다. legacy와 heterogeneous/v3 모두 적용한다.
+- run/conversation/comparison 식별자, ON/OFF, 질문·예산, source snapshot·Graph·T0, tool callId/evidenceId, 결과 요약/답변·claims·오류·시간을 기록한다. 모델 요청 시도/응답 수를 분리하고 usage 미제공/부분 합계를 표시한다. 실제 비용을 임의 추정하지 않는다.
+- 실행별 append-only 파일과 lock/thread offload를 사용하고 중요한 이벤트마다 flush한다. 취소 시 진행 중 쓰기를 정리한 뒤 중단을 기록한다. 로그 쓰기/경로 검사 실패는 비밀 payload를 제외한 stderr 경고로 격리하고 Agent 결과를 바꾸지 않는다. 취소된 heterogeneous run도 interrupted로 저장한다. 서버 재시작 복구는 별도 `recovery_interrupted` 이벤트다.
+- 알려진 설정 비밀값·중첩 비밀 필드·JSON 문자열 인자·일반 credential 오류 문자열을 마스킹한 뒤 필드별 8,000자에서 생략 표시한다. 전체 과거 대화·SDK 원본 요청·비공개 reasoning은 수집하지 않는다. 전체 근거는 기존 DB/UI trace에 남는다. 자동 retention은 없으며 기본 로그는 기존 var/ ignore 정책에 포함된다.
+- Agent loop의 컨텍스트/출력 교정·예산, ON/OFF·현재-run 근거/페이지 완결성, Fabric 표시/분석 경계, 비교 대화 격리, 안정 Graph/catalog hash·sourceScope와 UI 자체 ID/문서 참조 차이에 주석/docstring을 보완했다. 프론트 변경은 주석 1개뿐이다.
+
+### TDD·검증
+
+신규 파일/이벤트 계약 테스트 10개가 구현 전 ModuleNotFoundError로 실패함을 확인했다. 이후 JSON 문자열 안의 자격증명 노출, 파일 stat 권한 오류가 분석으로 전파됨, 도구 중 취소 후 응답 수가 0으로 기록되는 반례도 RED 후 수정했다.
+
+| 검증 | 실제 결과 |
+| --- | --- |
+| `pytest -m "not live and not performance and not neo4j and not ui" -q` | **136 passed, 30 deselected (108.99초)**; 새 로그/Runtime/복구·마스킹·취소·usage 테스트 포함 |
+| `pytest tests/test_domain_platform.py -m neo4j -q` | **1 passed (64.71초)**; 실제 원천/MCP/Builder/Neo4j/Fabric에서 OFF/ON 파일의 tool callId·도구명·evidenceId와 DB trace 일치 확인 |
+| 최종 요청/응답 수 수정 후 로그·Agent·ON/OFF·근거 회귀 | **37 passed (10.58초)** |
+| Ruff check/format, mypy, diff check | 모두 통과; **115 Python files** 형식 검사, **64 source files** 타입 검사 |
+
+사용한 환경은 기존 저장소 내부 Python 3.12.10 / `var/implementation-venv/Scripts/python.exe`다. TEMP/TMP=var/test-tmp, UV_CACHE_DIR=var/uv-cache, pytest cache=var/test-cache로 지정했다. Neo4j는 전용 test 17687을 사용했다. 프론트는 주석만 변경하여 UI 빌드/브라우저를 다시 돌리지 않았고, 이번 변경은 모델 프로토콜/도구 계약을 바꾸지 않아 실제 GPT 유료 호출을 추가하지 않았다.
+
+가독성 예시는 `var/logs/agent/sample-fixture-8ed0fa2ea488.log`다. 합성 fixture provider로 생성했으며 실제 GPT 출력이 아니다. 파일을 직접 열어 한글 질문·이벤트 제목·모델 2회/도구 1회·근거 ID·최종 답변·usage unavailable 표시를 확인했다. OFF/ON의 실제 MCP 로그 대조는 위 통합 테스트에서 별도로 수행했다. 키/비밀번호를 포함한 사용자 로그를 예시로 복사하지 않았다.
+
+로그는 요약 관측 수단이며 DB 전체 근거를 대체하지 않는다. 강제 프로세스 종료 시 마지막 이벤트 이후의 usage는 알 수 없고, 다음 시작에서 DB의 running run을 interrupted로 기록한다. 권한/디스크 문제로 파일 기록이 불가능하면 stderr 경고를 확인해야 한다. 기존 불완전한 자연어 근거 coverage를 이번 로그 추가의 정확도 개선으로 주장하지 않는다.
+
 ## 2026-10-22 Review 중 원천 UI의 EX-01 반복 표시 수정
 
 사용자가 관측 4건/함정 2건 목록에 EX-01 버튼이 반복해서 남는 현상을 제보했다. 실행 중 원천 API의 관측 O1~O4, 함정 N-S01/N-S02, 문서 4개는 정상이며 문서 추가 발생이 아니었다. 참조 기록 E1/E2가 동일한 documentId=EX-01을 가지는데 UI identity가 associationId보다 documentId를 먼저 선택하여 React key가 중복됐다. 이 상태에서 탭 전환 시 이전 버튼이 남는 표시 오류였다.

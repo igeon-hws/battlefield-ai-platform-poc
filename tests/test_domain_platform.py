@@ -56,6 +56,7 @@ async def test_platform_comparison_and_ingestion_use_fabric_not_source_rest(
     monkeypatch,
 ):
     env = domain_stack
+    monkeypatch.setenv("AGENT_LOG_DIR", str(tmp_path / "agent-logs"))
     monkeypatch.setenv("C4I_CONTRACT_VERSION", "3")
 
     async def forbidden(*args, **kwargs):
@@ -113,6 +114,14 @@ async def test_platform_comparison_and_ingestion_use_fabric_not_source_rest(
         assert all(r["baselineReportRef"] == "atcis:report:R0" for r in actual)
         assert all(r["semanticPolicyVersion"] == "3-domain-native-off" for r in actual)
         assert not any(t["name"].startswith("semantic__") for t in actual[0]["toolCalls"])
+        for run in actual:
+            trace = (tmp_path / "agent-logs" / (run["runId"] + ".log")).read_text(encoding="utf-8")
+            assert run["runId"] in trace and run["semanticMode"] in trace
+            assert trace.count("[run_finished]") == 1
+            for tool in run["toolCalls"]:
+                assert tool["callId"] in trace and tool["name"] in trace
+            for evidence in run["evidence"]:
+                assert evidence["evidenceId"] in trace
         for _ in range(80):
             situation = (await c.get("/api/v1/situation")).json()
             if len(situation.get("entities", [])) == 10:

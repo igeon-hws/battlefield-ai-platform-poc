@@ -151,6 +151,7 @@ class Fabric:
         return snapshots
 
     async def prepare(self, mode, pins=None, allow_partial=False):
+        """OFF prepares native context without requiring a Graph; ON pins a READY build."""
         if mode not in ("off", "on"):
             raise ValueError("invalid semantic mode")
         if mode == "on" and allow_partial:
@@ -190,6 +191,7 @@ class Fabric:
         }
 
     async def situation(self):
+        # Geometry is a display projection; native codes stay available for independent analysis.
         results = await asyncio.gather(
             *(self.get(s, "/snapshot") for s in self.sources), return_exceptions=True
         )

@@ -32,6 +32,7 @@ class DomainRuntime(MultiRuntime):
             return r.json()
 
     async def capture(self, *, strict=False, overrides=None):
+        """Prepare through Fabric; display projection is never injected as Agent evidence."""
         context = await self.fabric_request(
             "POST",
             "/v1/analysis-contexts",
@@ -74,6 +75,7 @@ class DomainRuntime(MultiRuntime):
         return context["graphInfo"]
 
     async def prepare_run_context(self, snapshots):
+        # Resolve T0 for these exact pins, not the last capture of another queued run.
         context = await self.fabric_request(
             "POST",
             "/v1/analysis-contexts",

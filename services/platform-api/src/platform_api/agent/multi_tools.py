@@ -146,6 +146,7 @@ class MultiToolRunner:
         self.prepared = True
 
     def require_evidence(self, ids):
+        """A snapshot/object ID cannot substitute for evidence fetched in this run."""
         if any(eid not in self.evidence for eid in ids):
             raise ValueError(
                 "evidence_not_found; snapshotId is not evidenceId; availableCurrentRunEvidenceIds="
@@ -155,6 +156,7 @@ class MultiToolRunner:
         return [self.evidence[eid] for eid in ids]
 
     def source_snapshot(self, system, arguments):
+        # Only the pinned current snapshot or explicit T0 is allowed, never latest fallback.
         current = self.snapshots[system]
         requested = arguments.get("snapshotId")
         historical = getattr(self, "historical_snapshots", {}).get(system)

@@ -15,6 +15,7 @@ from battlefield_ontology import (
 class GraphBuilder:
     def __init__(self, repository, sources):
         self.repository, self.sources = repository, sources
+        # Distinct source endpoints must not consume each other's restart checkpoints/jobs.
         self.scope = digest({s: c["url"].rstrip("/") for s, c in sources.items()})
         self.cursors: dict[str, dict] = {}
         self.wake = asyncio.Event()
@@ -51,6 +52,7 @@ class GraphBuilder:
         return dict(await asyncio.gather(*(snapshot(s) for s in self.sources)))
 
     async def ensure_build(self, snapshots):
+        """Read immutable public exports, validate their pins, then publish/reuse a build."""
         async with self.lock:
             exports = {}
             for system, ref in snapshots.items():
