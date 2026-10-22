@@ -1,5 +1,74 @@
 # Implement 검증 보고서
 
+## 2026-10-22 Review 중 원천 UI의 EX-01 반복 표시 수정
+
+사용자가 관측 4건/함정 2건 목록에 EX-01 버튼이 반복해서 남는 현상을 제보했다. 실행 중 원천 API의 관측 O1~O4, 함정 N-S01/N-S02, 문서 4개는 정상이며 문서 추가 발생이 아니었다. 참조 기록 E1/E2가 동일한 documentId=EX-01을 가지는데 UI identity가 associationId보다 documentId를 먼저 선택하여 React key가 중복됐다. 이 상태에서 탭 전환 시 이전 버튼이 남는 표시 오류였다.
+
+TDD: 실제 Chromium에서 참조 기록의 E1 버튼을 찾지 못하는 RED를 확인했다. 자체 observation/receipt/association/entry ID를 문서 참조보다 우선하고 React key에 system/tab을 포함했다. 참조→관측→함정 반복 전환 시 항목 수 2/4/2를 확인하는 테스트를 추가했다. 수정 후 원천/Fabric UI **4 passed, 1 deselected (24.56초)**, TypeScript·Ruff 통과. 두 원천 UI를 재빌드하고 Python static 경로에 반영했다. 이미 열린 브라우저는 새로고침해야 새 코드를 사용한다. DB/seed/Graph는 변경하지 않았고 Review 단계는 유지한다.
+
+## 2026-10-22 C0~C7: Native C2 + Data Fabric v3
+
+사용자가 승인한 현재 계획의 구현·검증을 마무리하고 Human Review로 인계한다. 사용자 REVIEW는 작성하거나 완료 처리하지 않았다. 기존 DB/Graph/대화·평가 artifact를 삭제하지 않았으며 커밋/푸시는 수행하지 않았다. 아래 이전 S8 기록과 v3 결과를 구분한다.
+
+### 구현한 수직 경로
+
+- **C0/C1:** 기존 회귀·환경 제약을 확인했다. 독립 `tests/fixtures/c2-domain-demo-v3`에 원천 입력과 F1~F7 기대값을 고정하고 생산 코드의 gold 참조를 금지했다. T0/T1과 source별 문서 4개씩을 고정했다.
+- **C2:** 육군/해군 native 모델·자체 SQL 테이블·API/제어·UI·시뮬레이터를 분리했다. 육군 offset/items·장비 정비 코드와 해군 envelope/continuation·복합 contact/항적·함정 engineering/mission을 사용한다. 공유 ledger는 snapshot/event/auth/persistence만 담당한다. v2는 legacy 분기에 보존한다.
+- **C3:** 실제 원천 MCP를 확장하고 Fabric API/콘솔을 독립 추가했다. 원천 공개 API를 통해 catalog·표시 projection·SSE·분석 context를 제공한다. OFF는 Graph 없이 동작하며 부분 원천은 coverage로 구분한다. sources/fabric/platform/off/full 프로필을 추가했다.
+- **C4:** 검토된 문서 hash/version·adapter·규칙·Graph 저장/탐색을 분리했다. Ontology 3.0.0/adapter 3.0.2와 catalog hash로 build를 식별한다. 명시적 association만 동일성으로 연결하고 미연결 contact를 남긴다. 위치·실시간 상태·활동 진행·ACK는 Graph에 저장하지 않는다. Semantic MCP 7개와 bounded 관계/절차 조회를 제공한다.
+- **C5:** 기존 단일 native loop에 현재-run 규칙 평가/계산을 추가했다. OFF에는 Semantic 연결/helper가 없고 native 문서·코드표는 동일하게 제공한다. ON 집계는 scope·페이지·동일성·상태 평가·정책의 근거를 요구하며 불완전 조회를 0으로 확정하지 않는다. canonical 지원 중복을 병합하고 유형·상태 교차 집계를 반환한다. claims 참조 검증, 기준보고/T0 고정, Fabric 경유 표시 수집·자동 사건 분석을 연결했다.
+- **C6:** 육군/해군 업무 화면, Fabric 읽기 콘솔, 플랫폼 예시 질문·기준보고·주장 배지·교차 집계 표·비교 조건 상세를 구현했다. 제품 4개와 legacy를 포함한 5개 정적 앱을 각 Python package에 포함했다.
+- **C7:** 일반/실제 MCP·Neo4j·browser·독립 wheel·실제 GPT를 나눠 검증하고 기존 spec의 첫 절에 v3 구현 기준을 반영했다. 자연어 품질을 도구 실행 성공과 분리했다.
+
+### TDD와 수정 근거
+
+새 source/semantic/Fabric/Agent/MCP/Graph/플랫폼/browser 계약 테스트를 먼저 추가했다. 실패를 확인한 항목에는 코드/문서 hash 불일치, 미래 knownAt, 복합 키, ACK/근거 누락, OFF helper 차단, 다른 run 근거, 만료 지원, 불완전 scope 집계가 있다. 최근 scope 일부만 조회한 빈 참조는 기존 코드에서 0으로 집계되는 RED를 확인하고 거부하도록 수정했다.
+
+실제 GPT F7이 `groupBy=kind,status`를 두 번 요청했으나 도구가 거부한 trace를 확인했다. 교차 집계 지원 테스트의 RED 후 구현했고 별도 F7 ON/OFF를 실행했다. 원본 14회 artifact는 덮어쓰지 않았다. 장시간 테스트 서버 stderr PIPE 포화도 재현 테스트 실패 후 drain thread로 수정했다. UI record 버튼의 접근 가능한 이름도 browser 실패로 확인 후 명시했다. 최종 근거 점검에서는 SourceRecord의 기계적 참조가 무관한 REPORT-LINEAGE 규칙으로 표시되는 실패를 추가하고 adapter 3.0.2의 명시적 provenance로 분리했다. 실제 GPT artifact는 이 수정 전 adapter 3.0.1의 결과이며 동일 원천/규칙의 수량 기대값을 새 코드의 실측으로 바꿔 쓰지 않는다.
+
+### 현재 검증 결과
+
+검증 환경: 저장소 내부 Python 3.12.10 / `var/implementation-venv/Scripts/python.exe`. 원래 `.venv`는 존재하지 않는 Python312 경로를 가리켜 보존하고 별도 환경을 만들었다. sandbox 기본 TEMP/캐시 권한 문제는 저장소 `var/test-tmp`, `var/uv-cache`, `var/test-cache`로 우회했다. 독립 wheel의 공개 의존성을 캐시에 준비한 후 offline 설치를 검증했다.
+
+| 명령/검증 | 결과 |
+| --- | --- |
+| pytest -m "not live and not performance and not neo4j and not ui" -q | **119 passed, 28 deselected (120.58초)**; 독립 wheel 2개 포함 |
+| 최신 domain_agent | **5 passed**; 불완전 scope 반례 포함 |
+| 최신 domain_integration + domain_graph -m neo4j | **3 passed (19.99초)**; 실제 MCP/Neo4j, P1/P2·교차 집계 |
+| domain_platform -m neo4j | **1 passed (55.26초)**; 직접 원천 REST poison, Fabric 수집·비교·사건 큐 |
+| Ruff check / mypy | check 통과; **63 source files** mypy 통과 |
+| 계약 export / UI | export 완료; TypeScript 및 **5개 Vite build 통과**, Python 정적 경로 복사 완료 |
+| 전체 Neo4j 최종 회귀 | **13 passed, 134 deselected (198.19초)**; Docker 접근 가능한 환경에서 실제 중단·복구와 비교 UI 포함 |
+| 원천/Fabric UI / 기존 지도 UI | **3 passed (16.08초)** / **2 passed (39.78초)**; 지도는 네트워크 허용 환경에서 통과 |
+| 최종 provenance 수정 회귀 | **8 passed (30.33초)**; ontology 5개·실제 Graph/MCP 통합 3개 |
+| v3 플랫폼 비교 browser | **1 passed (58.16초)**; 기준보고/공통 조건·모바일 ON/OFF 전환; screenshot `artifacts/domain-comparison.png` |
+
+전체 회귀 명령은 위 환경의 python으로 실행했다. 기본 pytest 설정은 neo4j/live/performance를 제외하므로 별도 `-m "neo4j and not live"`가 필요하다. 테스트 Neo4j는 17687/17474의 전용 컨테이너다. 실제 사용자 데모 Neo4j를 테스트 초기화 대상으로 사용하지 않는다. Vite의 지도 bundle 크기 경고는 남아 있으며 build 실패는 아니다. 앞선 sandbox 전체 실행은 Docker 접근 1개·비교 대기 시간 2개가 실패했고, UI 실행은 외부 지도 2개·비교 1개가 실패했다. Docker/네트워크 허용 및 실제 두 run 예산에 맞춘 비교 대기 시간으로 재검증해 위 결과를 얻었다. 앱 실행 예산 자체는 늘리지 않았다.
+
+새 v3 browser 검증에서는 공통 조건을 펼쳤을 때 모바일 전환 버튼이 화면 밖으로 밀리는 실제 RED를 확인했다. metadata 높이/스크롤을 제한해 수정하고 같은 테스트를 통과했다. 플랫폼 UI를 재빌드·복사하고 TypeScript, Ruff check/format, mypy를 재확인했다. 최종 screenshot을 열어 두 비교 열과 접힌 영역의 배치를 확인했다. `git diff --check`는 저장소의 CRLF 정책 기준으로 확인한다. 별도 `core.autocrlf=false` 일회성 검사에서 CR 문자 전체를 공백으로 오인한 출력은 실제 코드 공백 오류와 구분한다.
+
+### 실제 GPT 실행과 평가
+
+모델: 로컬 설정 `gpt-6-luna`, 동일 질문·sourceSnapshotSet·T0·문서·model/tool/time 예산(24/20/120초), 모드별 독립 컨텍스트. 키는 출력하지 않았다.
+
+| artifact | 결과와 보존 이유 |
+| --- | --- |
+| `artifacts/domain-live-20261021T091030Z.json` | 초기 7개 저장 run 중 F1 ON 시간/도구 문제, 이후 F4 ON MCP ReadTimeout으로 중단. 저장되지 않은 중단 호출도 있었으므로 완전한 비용 집계로 취급하지 않는다. 앞선 fixture 단계 실패는 모델 호출 전이었다. |
+| `artifacts/domain-live-20261021T091825Z.json` | F1~F7 OFF/ON **14회 completed**, 테스트 574.83초. 기록된 run 시간 합 561.20초, input 662,627/output 35,686 tokens. 실행 완료를 정답 14개로 표기하지 않는다. |
+| `artifacts/domain-evaluation-20261022.json` | 위 14개 offline 근거 평가. F3 절차와 F6 계산 일치. F2/F4/F5 ON 필수 규칙 조회 coverage 누락. F7 ON 집계 호출 2개 실패 뒤 모델이 수동으로 수량을 작성해 계산 검증 불가(null). |
+| `artifacts/domain-live-20261022T005227Z.json` | 교차 집계 수정 후 **F7 추가 2회 completed**, 테스트 145.96초. OFF 6 tool/37.73초, ON 10 tool/88.27초. 원본과 별도 실험. |
+| `artifacts/domain-evaluation-f7-20261022.json` | F7 ON 계산이 고유 7개·상태 4/1/1/1 gold와 일치. OFF boundary 유효. input/output OFF 35,014/2,297, ON 131,535/3,684 tokens. |
+
+저장된 run은 초기 7 + 완결 14 + 재검증 2 = **23개**이며 중단된 추가 F4 ON은 저장된 완결 run으로 세지 않는다. 실제 API 비용은 token 사용량만 기록하며 검증하지 않은 달러 가격을 적용하지 않았다. 중단된 실험의 누락 usage를 0으로 간주하지 않는다.
+
+L1 형식/페이지·L2 객체/동일성·L3 scope·L4 상태/정책 계산은 deterministic 계약/통합 테스트로 확인했다. L5 lineage/정정·L6 절차는 Graph/규칙 테스트로 확인했지만 실제 F2/F4/F5 답변의 규칙 근거 연결은 불충분했다. L7 복합 질의는 실행 가능하며 F7 계산을 재검증했다. 자연어 핵심 사실·금지 결론·주장 충분성은 자동 채점하지 않았고 **Human Review 필요**로 남긴다. OFF도 코드표를 읽어 올바르게 추론할 수 있다. 소표본 결과로 ON 우위나 군 도메인 정답률을 일반화하지 않는다.
+
+### 실제 범위와 한계
+
+합성 사건 INC-1, 등록 자산 7개·부대 5개·contact 3개, 고정 T0/T1의 최소 데모다. 명칭 이력은 단일 previousName이며 완전한 기간별 조직 변천 모델이 아니다. 관계 유효기간 조회는 build 입력 시점 기준이며, stable 자료 변경 없이 시계만 기간 경계를 넘는 장시간 운용의 시점별 재해석은 이번 실측 범위가 아니다. 일부 공통 정의/절차 노드는 payload로 연결 정보를 보유한다. 임의 SOP/문서 자동 추출·Graph 편집·RDF/OWL/범용 CDC는 구현하지 않았다. 공개 개념 참고와 합성 SOP를 구분하며 실제 군 내부 구조/권한을 주장하지 않는다.
+
+재현은 README의 v3 절을 따른다. REVIEW는 사용자 소유이며 모델 답변 자연어 검토를 AI가 대신 완료하지 않는다.
+
 ## 2026-10-16 Review 중 질의 404 수정
 
 질의 시 `404: {"error":"not_found"}`가 발생한다는 사용자 제보를 확인했다. 브라우저 sessionStorage의 이전 conversationId가 현재 플랫폼 DB에 없으면 enqueue의 KeyError가 일반 not_found로 반환됐다. v2 DB 전환 후에도 브라우저 대화 ID는 유지되어 같은 오류가 재현된다. 실행 중 서버는 분석 이력이 비어 있었으며 사용자 브라우저 저장소는 직접 조사하지 않았다.

@@ -189,6 +189,11 @@ def normalize_equipment(system_id: str, raw: dict) -> Equipment:
 
 def stable_payload(export: dict) -> dict:
     """Whitelist stable fields, never hash observation time or live movement/state."""
+    if export.get("sourceSchemaVersion") == "3.0.0":
+        return {
+            k: export[k]
+            for k in ("systemId", "datasetId", "epochId", "sourceSchemaVersion", "records")
+        }
     units = [{k: u.get(k) for k in ("unitId", "name", "parentId")} for u in export["units"]]
     equipment = [
         {k: e.get(k) for k in ("nativeId", "unitId", "kind", "exerciseAssetRef")}

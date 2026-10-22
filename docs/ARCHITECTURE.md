@@ -1,5 +1,22 @@
 # 아키텍처: Agentic Battlefield Intelligence Platform
 
+## 현재 실행 구조: v3 Data Fabric (2026-10-22)
+
+`C4I_CONTRACT_VERSION=3`에서 각 Mock의 `native.py`가 자체 모델·SQL 테이블·HTTP 제어·시뮬레이션을 소유한다. 공통 `source-runtime/ledger.py`는 snapshot/event/auth/persistence의 기계 요소만 제공한다. 원천의 v3 실행 의존에는 Ontology·Neo4j·MCP·OpenAI가 없다. 과거 공통 handler는 v2 호환 분기에 남아 있다.
+
+| 영역 | 실행 진입점 | 소유 데이터/역할 |
+| --- | --- | --- |
+| 육군 / 해군 | mock_atcis.app / mock_knccs.app | 각자의 native API·SQLite·UI·이동 |
+| Data Fabric 원천 접근 | atcis_mcp.server / knccs_mcp.server | 실제 MCP Python Server → 공개 원천 HTTP |
+| Fabric core·콘솔 | semantic_api.app / fabric.py | 등록 원천, catalog, 표시 projection, SSE, 분석 snapshot 준비 |
+| 의미·저장 | graph_builder.app, semantic_core/domain.py | 검증 adapter·규칙 → immutable READY Neo4j build |
+| 의미 도구 | semantic_mcp.server | Graph 버전에 고정된 7개 Semantic 도구 |
+| 분석 플랫폼 | platform_api.app / domain_runtime.py | Fabric REST/SSE 표시 수집, 단일 Agent·MCP·비교 |
+
+Platform의 표시 수집과 분석 준비는 Fabric API를 통한다. Agent의 사실 조회는 실제 MCP Client→Server→원천 공개 API를 통한다. 표시용 좌표·벡터 projection은 Agent evidence가 아니다. Graph는 안정 의미·관계와 문서/보고 근거를 소유하며 위치·정비/임무 상태·활동 진행·ACK는 원천 snapshot에서 조회한다.
+
+`scripts/dev.py`의 sources/fabric/platform/off/full 프로필은 독립 실행 범위를 나눈다. full은 8개 Python 프로세스(원천2·원천 MCP2·Builder·Fabric API·Semantic MCP·Platform)이며 Neo4j는 Docker다. legacy와 v2는 호환 경로로 보존한다. 아래 기존 아키텍처에서 v3와 다른 부분은 이 절과 [보고서](./IMPLEMENTATION_REPORT.md)를 따른다.
+
 - 문서 상태: v0.6 S8 — 이종 C4I·Semantic 실행 경계 (2026-10-16)
 - 작성일: 2026-10-15
 - 기준: [PRD](./PRD.md), [UI 가이드](./UI_GUIDE.md)

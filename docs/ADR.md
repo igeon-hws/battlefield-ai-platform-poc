@@ -4,6 +4,18 @@
 - 작성일: 2026-10-15
 - 상태는 사용자 요구사항에 따른 확정 원칙과 검토 전 설계 제안을 구분한다.
 
+## ADR-023: Native C2와 Data Fabric v3 (2026-10-22)
+
+원천별 native 모델·SQL·UI를 분리하고 공유 runtime은 ledger/auth/SSE 등 기계 요소로 한정한다. 과거 v2는 호환 분기에 보존한다. 기존 semantic-api를 독립 Fabric API/콘솔로 확장하며 gateway·브로커를 추가하지 않는다.
+
+의미 지식은 검토된 문서 hash/version, 명시적 adapter, JSON 규칙, Neo4j 저장/조회로 책임을 나눈다. source association만 동일성으로 확정하고 LLM은 Graph를 쓰지 않는다. 문서 변경은 명시적인 검토 목록/catalog hash 갱신을 요구한다. 일부 정의/절차 노드는 payload 모델이며 범용 추론 엔진 도입을 유보한다.
+
+기존 단일 native tool loop와 [OpenAI function calling 계약](https://developers.openai.com/api/docs/guides/function-calling)을 재사용한다. OFF는 native+일반 계산, ON은 Semantic 해석/조건 평가를 추가한다. 원천 문서를 OFF에서 숨겨 성능 격차를 만들지 않는다.
+
+집계에는 current-run native 페이지·Semantic 범위/동일성·상태 평가·정책을 요구한다. 범위 일부만 조회한 빈 결과를 전체 0으로 확정하지 않는다. 유형·상태 교차 집계와 중첩 지원 참조 병합을 지원한다. 실제 GPT의 도구 실패 뒤 수동 집계를 발견했으므로 실행 완료와 근거 있는 정답을 별도 평가한다.
+
+v2/v3 호환 분기와 명시적인 fixture/문서 검토가 유지 비용이다. F2/F4/F5 규칙 coverage와 자연어 품질은 사용자 검토 대상으로 기록한다. 실제 결과는 IMPLEMENTATION_REPORT의 v3 절이 기준이다.
+
 ## 2026-10-16 고도화 결정 — ADR-017~022
 
 아래는 v0.5 Design 입력에 대한 결정/제안이다. ADR-001~016은 이전 baseline의 이력이며 상충하는 단일 원천·단일 snapshot·전체 SQLite 한정 전제는 아래 범위에서 대체한다. 단일 Python Agent/native loop 원칙은 유지한다.

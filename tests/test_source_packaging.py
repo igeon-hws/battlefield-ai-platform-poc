@@ -7,11 +7,10 @@ import pytest
 from conftest import server
 
 
-@pytest.mark.parametrize("system,key", [("atcis", "tracks"), ("knccs", "contacts")])
+@pytest.mark.parametrize("system,key", [("atcis", "equipment"), ("knccs", "own-forces")])
 def test_source_wheel_installs_and_runs_without_other_services(tmp_path, system, key):
     wheels = tmp_path / "wheels"
     for package in (
-        "packages/ontology",
         "packages/c4i-contracts",
         "packages/geo",
         "packages/source-runtime",
@@ -51,13 +50,14 @@ def test_source_wheel_installs_and_runs_without_other_services(tmp_path, system,
         check=True,
         capture_output=True,
     )
-    code = f"import importlib.util,uvicorn; from mock_{system}.app import create_app; assert all(importlib.util.find_spec(m) is None for m in ('openai','neo4j','mcp','platform_api','mock_{'knccs' if system == 'atcis' else 'atcis'}')); uvicorn.run(create_app(tick_enabled=False),host='127.0.0.1',port=PORT,log_level='error')"
+    code = f"import importlib.util,uvicorn; from mock_{system}.app import create_app; assert all(importlib.util.find_spec(m) is None for m in ('battlefield_ontology','openai','neo4j','mcp','platform_api','mock_{'knccs' if system == 'atcis' else 'atcis'}')); uvicorn.run(create_app(tick_enabled=False),host='127.0.0.1',port=PORT,log_level='error')"
     with server(
         code,
         {
             "PATH": "",
             "OPENAI_API_KEY": "",
             "OPENAI_MODEL": "",
+            "C4I_CONTRACT_VERSION": "3",
             f"{system.upper()}_DB": str(tmp_path / "standalone.db"),
             f"{system.upper()}_READ_TOKEN": "",
             f"{system.upper()}_CONTROL_TOKEN": "",
@@ -66,5 +66,5 @@ def test_source_wheel_installs_and_runs_without_other_services(tmp_path, system,
     ) as url:
         assert httpx.get(url + "/").status_code == 200
         snapshot = httpx.get(url + "/api/v1/snapshot").json()
-        assert snapshot["systemId"] == system and snapshot[key]
+        assert snapshot["systemId"] == system and snapshot["records"][key]
         assert httpx.post(url + "/api/v1/simulation/start").status_code == 200

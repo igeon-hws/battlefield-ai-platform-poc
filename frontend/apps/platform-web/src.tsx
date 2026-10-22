@@ -6,6 +6,6 @@ const root = createRoot(document.getElementById('root')!);
 fetch('/api/v1/config')
   .then(async (response) => (response.ok ? response.json() : { profile: 'legacy' }))
   .then((config) =>
-    root.render(config.profile === 'heterogeneous' ? <NextApp /> : <App mode="platform" />),
+    root.render(config.profile === 'heterogeneous' ? <NextApp domain={config.sourceToolContractVersion === '3'} /> : <App mode="platform" />),
   )
   .catch(() => root.render(<App mode="platform" />));

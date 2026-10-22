@@ -101,6 +101,37 @@ def create_app():
             "/v1/evidence/" + quote(evidenceId, safe=""), {"graphVersion": graphVersion}
         )
 
+    if os.getenv("C4I_CONTRACT_VERSION") == "3":
+
+        @server.tool(
+            description="Explore verified organization/report/incident/activity relations at graphVersion. subject is a canonical key returned by Semantic tools. relationTypes allowed: SUBORDINATE_TO,ASSIGNED_TO,REFERS_TO,DERIVED_FROM,SUPERSEDES. Bounded traversal returns source/document/rule proofs and partial coverage when truncated. No live state inference."
+        )
+        async def query_relations(
+            graphVersion: str,
+            subject: str,
+            relationTypes: list[str],
+            depth: Annotated[int, Field(ge=0, le=8)] = 2,
+            limit: Annotated[int, Field(ge=1, le=100)] = 100,
+        ) -> dict:
+            return await request(
+                "/v1/relations",
+                {
+                    "graphVersion": graphVersion,
+                    "subject": subject,
+                    "relationTypes": ",".join(relationTypes),
+                    "depth": depth,
+                    "limit": limit,
+                },
+            )
+
+        @server.tool(
+            description="Read versioned synthetic procedure definitions and native evidence selectors at graphVersion. Read required source activities/reports before evaluating completion. Does not fetch live values or treat receipt as completion."
+        )
+        async def get_procedure_definition(graphVersion: str, documentId: str = "SOP-01") -> dict:
+            return await request(
+                "/v1/procedures", {"graphVersion": graphVersion, "documentId": documentId}
+            )
+
     app = server.streamable_http_app()
     app.state.tool_server = server
     app.add_middleware(TokenMiddleware, token=os.getenv("SEMANTIC_MCP_TOKEN", ""))
@@ -113,4 +144,6 @@ def create_app():
 
 
 def main():
+    load_dotenv()
+    os.environ.setdefault("C4I_CONTRACT_VERSION", "3")
     uvicorn.run(create_app(), host="127.0.0.1", port=int(os.getenv("SEMANTIC_MCP_PORT", "4410")))

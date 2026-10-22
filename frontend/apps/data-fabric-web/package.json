@@ -1,0 +1,9 @@
+{
+  "name": "@battlefield/data-fabric-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 3103",
+    "build": "vite build"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "atcis": {
+    "REF-01": {
+      "version": "1",
+      "hash": "c2c09fd1fe27a653f03632f5dc8d376ec5dbbeece6915fe4c640acae282a11ad"
+    },
+    "ORG-01": {
+      "version": "1",
+      "hash": "30c724f48e83815c1d5cb1ff69c7a39df6d8556b7cf63dc6a1f9e83d75a83c96"
+    },
+    "EX-01": {
+      "version": "1",
+      "hash": "0a0515358433659a321d3f13d78f8ba7397d428d1b1e492fb636601038d72d25"
+    },
+    "SOP-01": {
+      "version": "1",
+      "hash": "66921dc117bd470fd4e7c844bb4cb63cf663e41d9ee90ef88d7f368d07600ce0"
+    }
+  },
+  "knccs": {
+    "REF-01": {
+      "version": "1",
+      "hash": "0bcb2e9f92fa9ee7c38853cde66b7813e5bc2eaf90d4083a1b810671f9698859"
+    },
+    "ORG-01": {
+      "version": "1",
+      "hash": "3800c5e2bb89f6585a06c69e34490ef376995e202fc6697fcf2ea3325233e18e"
+    },
+    "EX-01": {
+      "version": "1",
+      "hash": "2ae4f7f07693963fa3075c80d4f14931b59bf77f62da53c5358502979b60fe85"
+    },
+    "SOP-01": {
+      "version": "1",
+      "hash": "d143bac979e9c9ef38850bd41d29382b96d1d21b1e3de153508ed128cec536f9"
+    }
+  }
+}

@@ -2,7 +2,9 @@ import os
 import socket
 import subprocess
 import sys
+import threading
 import time
+from collections import deque
 from contextlib import contextmanager
 
 import httpx
@@ -20,10 +22,20 @@ def server(code: str, env=None, executable=None):
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
     )
+    errors: deque[bytes] = deque(maxlen=100)
+
+    def drain():
+        if process.stderr:
+            while chunk := process.stderr.read(4096):
+                errors.append(chunk)
+
+    reader = threading.Thread(target=drain, daemon=True)
+    reader.start()
     try:
         for _ in range(100):
             if process.poll() is not None:
-                raise RuntimeError(process.stderr.read().decode(errors="replace"))
+                reader.join(timeout=1)
+                raise RuntimeError(b"".join(errors).decode(errors="replace"))
             try:
                 if httpx.get(f"http://127.0.0.1:{port}/health", timeout=0.2).status_code == 200:
                     break
@@ -36,6 +48,7 @@ def server(code: str, env=None, executable=None):
     finally:
         process.terminate()
         process.wait(timeout=10)
+        reader.join(timeout=2)
         if process.stderr:
             process.stderr.close()
 

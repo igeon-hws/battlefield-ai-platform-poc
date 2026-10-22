@@ -146,6 +146,36 @@ class AgentLoop:
                         ids = set(result["evidenceIds"])
                         for finding in result["findings"] + (result["courses"] or []):
                             ids.update(finding["evidenceIds"])
+                        for claim in result["claims"]:
+                            ids.update(claim["evidenceRefs"])
+                            if (
+                                claim["kind"] == "semantic"
+                                and getattr(self.runner, "mode", None) == "off"
+                            ):
+                                raise ValueError(
+                                    "OFF claim must identify interpretation as model inference"
+                                )
+                            if claim["kind"] != "inference" and not claim["evidenceRefs"]:
+                                raise ValueError("grounded claim requires evidence")
+                            allowed_rules: set[str] = set()
+
+                            def collect_rules(value, allowed_rules=allowed_rules):
+                                if isinstance(value, dict):
+                                    if isinstance(value.get("ruleId"), str):
+                                        allowed_rules.add(value["ruleId"])
+                                    for nested in value.values():
+                                        collect_rules(nested)
+                                elif isinstance(value, list):
+                                    for nested in value:
+                                        collect_rules(nested)
+
+                            for ref in claim["evidenceRefs"]:
+                                if ref in self.runner.evidence:
+                                    collect_rules(self.runner.evidence[ref]["data"])
+                            if set(claim["ruleRefs"]) - allowed_rules:
+                                raise ValueError(
+                                    "claim rule reference not present in cited evidence"
+                                )
                         if ids - self.runner.evidence.keys():
                             raise ValueError("invalid evidence reference")
                         if result["courses"] and len({c["id"] for c in result["courses"]}) != 3:

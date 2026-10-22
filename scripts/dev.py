@@ -40,6 +40,7 @@ def start_service(module, env_overrides=None):
     )
 
     def forward_logs():
+        assert process.stdout is not None
         try:
             for line in process.stdout:
                 print(f"[{module}] {line.rstrip()}", flush=True)
@@ -59,7 +60,9 @@ def _service_specs(profile):
             ("c4i_mcp.server", int(os.getenv("MCP_PORT", "4200"))),
             platform,
         ]
-    if profile not in ("off", "full"):
+    if profile == "platform":
+        return [platform]
+    if profile not in ("off", "full", "sources", "fabric"):
         raise ValueError("unknown development profile")
     services = [
         ("mock_atcis.app", int(os.getenv("ATCIS_PORT", "4100"))),
@@ -67,13 +70,17 @@ def _service_specs(profile):
         ("mock_knccs.app", int(os.getenv("KNCCS_PORT", "4110"))),
         ("knccs_mcp.server", int(os.getenv("KNCCS_MCP_PORT", "4210"))),
     ]
-    if profile == "full":
+    if profile == "sources":
+        return [(m, p) for m, p in services if m.startswith("mock_")]
+    if profile == "fabric":
+        services = [(m, p) for m, p in services if not m.startswith("mock_")]
+    services += [("semantic_api.app", int(os.getenv("SEMANTIC_PORT", "4400")))]
+    if profile in ("full", "fabric"):
         services += [
             ("graph_builder.app", int(os.getenv("BUILDER_PORT", "4420"))),
-            ("semantic_api.app", int(os.getenv("SEMANTIC_PORT", "4400"))),
             ("semantic_mcp.server", int(os.getenv("SEMANTIC_MCP_PORT", "4410"))),
         ]
-    return services + [platform]
+    return services if profile == "fabric" else services + [platform]
 
 
 def service_specs(profile, offset=0):
@@ -86,12 +93,25 @@ def service_specs(profile, offset=0):
 def main():
     load_dotenv(ROOT / ".env")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profile", choices=("legacy", "off", "full"), default="legacy")
+    parser.add_argument(
+        "--profile",
+        choices=("legacy", "off", "full", "sources", "fabric", "platform"),
+        default="legacy",
+    )
+    parser.add_argument("--contract-version", choices=("2", "3"), default="3")
     parser.add_argument("--port-offset", type=int, default=0)
     args = parser.parse_args()
     specs = service_specs(args.profile, args.port_offset)
     check_ports(specs)
     overrides = {"PLATFORM_PROFILE": "legacy" if args.profile == "legacy" else "heterogeneous"}
+    if args.profile != "legacy":
+        overrides["C4I_CONTRACT_VERSION"] = args.contract_version
+        if args.contract_version == "3":
+            overrides.update(
+                ATCIS_DB=os.getenv("ATCIS_V3_DB", "var/atcis-v3.db"),
+                KNCCS_DB=os.getenv("KNCCS_V3_DB", "var/knccs-v3.db"),
+                PLATFORM_VNEXT_DB=os.getenv("PLATFORM_V3_DB", "var/platform-v3.db"),
+            )
     if args.port_offset:
         module_settings = {
             "mock_atcis.app": ("ATCIS_PORT", "ATCIS_BASE_URL"),
@@ -112,7 +132,7 @@ def main():
                 overrides[url_setting] = f"http://127.0.0.1:{port}" + (
                     "/mcp" if "mcp" in module else ""
                 )
-    if args.profile == "full":
+    if args.profile in ("full", "fabric"):
         from neo4j import GraphDatabase
 
         if not os.getenv("NEO4J_PASSWORD"):

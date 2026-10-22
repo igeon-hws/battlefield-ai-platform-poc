@@ -1,0 +1,10 @@
+{
+ "datasetId":"c2-domain-demo-v3",
+ "F1":{"canonicalId":"atcis:equipment:L-V01","kind":"armored_vehicle","unresolved":"SOUTH/007","ruleIds":["ASSET-TYPE-01","ENTITY-LINK-01"]},
+ "F2":{"unitId":"atcis:unit:C111","previousName":"모의 해안중대","name":"모의 111중대","ruleIds":["UNIT-IDENTITY-01","ORG-ROLE-01"]},
+ "F3":{"SITE_CHECK":"met","IDENTIFICATION":"not_met","REVIEW":"not_met","closed":false,"ackIsCompletion":false,"ruleIds":["ACTIVITY-STEP-01"]},
+ "F4":{"relays":["atcis:report:R2","knccs:report:M1"],"original":"atcis:report:R1","correction":"atcis:report:R4","supersedes":"atcis:report:R0","ruleIds":["REPORT-LINEAGE-01","REPORT-REVISION-01"]},
+ "F5":{"baseline":"R0","changedType":"armored_vehicle","unresolved":"SOUTH/007","notClosed":true,"ruleIds":["REPORT-REVISION-01","ACTIVITY-STEP-01"]},
+ "F6":{"includedIds":["atcis:equipment:L-T01","atcis:equipment:L-T02"],"counts":{"available":1,"limited":1},"ruleIds":["ASSET-TYPE-01","AVAIL-LAND-01","FORCE-SCOPE-01"]},
+ "F7":{"includedIds":["atcis:equipment:L-T01","atcis:equipment:L-T02","atcis:equipment:L-V01","atcis:equipment:L-C01","atcis:equipment:L-U01","knccs:equipment:N-S01","knccs:equipment:N-S02"],"counts":{"available":4,"limited":1,"unavailable":1,"unknown":1},"typeCounts":{"tank":2,"armored_vehicle":1,"support_vehicle":1,"uav":1,"naval_vessel":2},"P1":4,"P2":5,"ruleIds":["FORCE-SCOPE-01","AVAIL-LAND-01","AVAIL-NAVAL-01","AGGREGATION-POLICY-01"]}
+}

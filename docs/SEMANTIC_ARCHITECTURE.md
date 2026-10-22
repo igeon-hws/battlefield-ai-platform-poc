@@ -1,5 +1,19 @@
 # 이종 C4I·Semantic Layer 아키텍처
 
+## v3: Data Fabric의 core와 의미 기능 분리 (2026-10-22)
+
+현재 `semantic-api`는 Data Fabric API/콘솔의 독립 진입점이다. `fabric.py`는 원천 접근·catalog·표시 projection·snapshot 준비를, `semantic_core/domain.py`는 검증된 Graph 조회를 담당한다. 설정된 원천 URL만 접근하며 원천 DB를 공유하지 않는다.
+
+- core: GET /v1/sources, /v1/catalog, /v1/situation, /v1/source-projections/{system}, /v1/events와 POST /v1/analysis-contexts.
+- OFF context는 Graph를 준비하지 않는다. Graph 미설정에서도 catalog·원천 도구·OFF를 실행할 수 있다. 허용된 부분 수집은 coverage로 명시하며 ON에는 불완전 원천 집합을 조용히 허용하지 않는다.
+- ON은 Builder의 인증된 관리 API로 snapshot 안정 hash와 catalog hash에 맞는 READY build를 준비한다. 실패하면 native 해석으로 몰래 대체하지 않는다.
+- Builder는 독립 프로세스다. sourceScope, checkpoint/재시도, 검증 후 공개를 재사용하며 보고/구조 변경은 안정 자료 동기화 대상이다. 위치·상태만 변하면 안정 Graph를 새로 만들지 않는다.
+- Semantic MCP: interpret_concept, resolve_unit_scope, find_equipment_refs, resolve_entity, get_semantic_evidence, query_relations, get_procedure_definition. 임의 Cypher나 Graph 쓰기 도구는 없다.
+- 응답은 graphVersion·입력 안정 hash·ontology/mapping/resolution 버전과 문서/규칙/원천 참조를 포함한다. 범위·페이지가 잘리면 partial로 표시한다.
+- 동일 질문 비교는 두 독립 대화에 동일 sourceSnapshotSet·기준 T0·선택 기준보고·문서 version/hash·모델/예산을 적용한다. 정지 원천의 긴 준비 시간과 움직이는 원천의 capture 편차를 구분한다.
+
+실제 Neo4j Python 공식 드라이버와 Docker를 사용한다. 세부 한계·검증은 [현재 보고서](./IMPLEMENTATION_REPORT.md), 이하 내용은 기존 v2 구조의 기록이다.
+
 상태: v0.6 S8 구현 명세, 2026-10-16. [PRD FR-10~18](./PRD.md)의 구현 기준이다. 실제 검증은 [구현 보고서](./IMPLEMENTATION_REPORT.md)에 기록한다. 기존 구조와의 변경에는 이 문서를 우선 적용하고, 유지하는 동작은 [ARCHITECTURE](./ARCHITECTURE.md)를 따른다.
 
 ## 1. 책임과 데이터 흐름

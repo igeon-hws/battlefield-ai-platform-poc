@@ -88,6 +88,9 @@ class BoundMCP:
 
 class MultiRuntime:
     def __init__(self, repo, provider, sources, semantic):
+        self.policy_version = getattr(repo, "policy_version", "2-native-off")
+        self.source_contract = getattr(repo, "source_contract", "2")
+        self.runner_class = MultiToolRunner
         self.repo, self.provider, self.sources, self.semantic = repo, provider, sources, semantic
         self.agent_limits = {
             "max_iterations": int(os.getenv("AGENT_MAX_ITERATIONS", "24")),
@@ -224,7 +227,7 @@ class MultiRuntime:
 
     async def execute_run(self, run):
         rid = run["runId"]
-        if run.get("semanticPolicyVersion") != "2-native-off":
+        if run.get("semanticPolicyVersion") != self.policy_version:
             await self.repo.update_run(
                 rid,
                 {
@@ -253,8 +256,8 @@ class MultiRuntime:
                     "sourceSnapshotSet": pins,
                     "graphInfo": info,
                     "agentBudget": self.agent_limits,
-                    "semanticPolicyVersion": "2-native-off",
-                    "sourceToolContractVersion": "2",
+                    "semanticPolicyVersion": self.policy_version,
+                    "sourceToolContractVersion": self.source_contract,
                 },
             )
             async with AsyncExitStack() as stack:
@@ -263,7 +266,18 @@ class MultiRuntime:
                     **({"semantic": self.semantic} if run["semanticMode"] == "on" else {}),
                 }
                 clients = {s: BoundMCP(stack, c, self.mcp_status[s]) for s, c in configs.items()}
-                runner = MultiToolRunner(clients, pins, run["semanticMode"], info)
+                runner = self.runner_class(clients, pins, run["semanticMode"], info)
+                if run.get("baselineReportRef"):
+                    runner.snapshot["baselineReportRef"] = run["baselineReportRef"]
+                historical = run.get("baselineSourceSnapshotSet") or getattr(
+                    self, "baseline_snapshots", {}
+                )
+                if hasattr(self, "prepare_run_context"):
+                    historical = await self.prepare_run_context(pins)
+                if historical:
+                    runner.historical_snapshots = historical
+                    runner.snapshot["baselineSourceSnapshotSet"] = historical
+                    await self.repo.update_run(rid, {"baselineSourceSnapshotSet": historical})
                 history = (
                     []
                     if run.get("comparisonId")
@@ -324,14 +338,15 @@ class MultiRuntime:
         preparation_started_at = datetime.now(UTC).isoformat()
         try:
             manifest = comparison.get("manifest")
-            if manifest and manifest.get("semanticPolicyVersion") != "2-native-off":
+            if manifest and manifest.get("semanticPolicyVersion") != self.policy_version:
                 raise ValueError("comparison policy changed; create a new comparison")
             if not manifest:
                 pins = await self.capture(strict=True)
                 manifest = {
                     "question": comparison["question"],
-                    "semanticPolicyVersion": "2-native-off",
-                    "sourceToolContractVersion": "2",
+                    "baselineReportRef": comparison.get("baselineReportRef"),
+                    "semanticPolicyVersion": self.policy_version,
+                    "sourceToolContractVersion": self.source_contract,
                     "agentBudget": self.agent_limits,
                     "questionHash": digest(comparison["question"]),
                     "sourceSnapshotSet": pins,

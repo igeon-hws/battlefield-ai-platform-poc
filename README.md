@@ -1,5 +1,51 @@
 ﻿# Agentic Battlefield Intelligence Platform
 
+## 현재 실행: Native C2 + Data Fabric v3
+
+2026-10-22 구현 기준은 `c2-domain-demo-v3`다. 육군·해군의 독립 native 체계, Data Fabric API/콘솔·Ontology/Neo4j·MCP, 기존 단일 동적 분석 Agent를 연결한다. 아래 S8/v2 설명은 과거 호환 기록이다. 현재 상태·검증 한계는 [STEP](docs/STEP.md)과 [구현 보고서](docs/IMPLEMENTATION_REPORT.md)를 따른다.
+
+최초 설치/빌드 후 실행한다. `.env`에 `OPENAI_API_KEY`, `OPENAI_MODEL`, `NEO4J_PASSWORD`를 설정하며 기존 Neo4j volume의 비밀번호는 유지한다.
+
+```powershell
+uv sync
+uv run python scripts/export_contracts.py
+npm.cmd --prefix frontend ci
+npm.cmd --prefix frontend run build
+uv run python scripts/build_ui.py
+docker compose up -d neo4j
+uv run python scripts/dev.py --profile full
+```
+
+육군 UI :4100, 해군 UI :4110, Fabric 콘솔 :4400, 분석 플랫폼 :4300이다. 원천 MCP :4200/mcp·:4210/mcp, Semantic MCP :4410/mcp, Builder 관리 API :4420을 사용한다. 원천은 처음에 일시 정지다. UI의 1초 진행/시작/정지 및 상태 변경으로 재현한다. Agent 도구는 읽기 전용이다.
+
+| 프로필 | 실행 범위 |
+| --- | --- |
+| sources | 두 원천만; MCP/Graph/LLM 없이 실행 |
+| fabric | 원천 MCP2 + Fabric API + Builder + Semantic MCP; 원천은 별도 실행 |
+| platform | 분석 플랫폼만; 외부 Fabric/MCP 주소 설정 필요 |
+| off | 두 원천 + 원천 MCP2 + Fabric core + 플랫폼; Neo4j 불필요 |
+| full | 전체 Python 서비스 + 별도 Docker Neo4j |
+| legacy | 기존 단일 C4I; 프로필 생략 시 기본값 |
+
+v3는 기본 `var/atcis-v3.db`, `var/knccs-v3.db`, `var/platform-v3.db`를 사용한다. `ATCIS_V3_DB`, `KNCCS_V3_DB`, `PLATFORM_V3_DB`로 변경할 수 있다. 기존 DB/Graph/대화를 자동 reset하지 않는다. `--contract-version 2`는 호환 경로다. 포트가 겹치면 기존 실행을 사용하거나 `--port-offset 1000`을 사용한다. Ctrl+C는 해당 launcher가 시작한 프로세스만 종료한다.
+
+단독 원천 CLI는 `uv run --package mock-atcis mock-atcis`, `uv run --package mock-knccs mock-knccs`이며 기본 native v3다. 기존 v2 handler는 source-runtime의 `legacy` extra가 필요하다. UI는 배포 전에 빌드·포함하므로 실행에 Node는 필요 없다.
+
+플랫폼 F1~F7 예시와 기준보고 선택 후 `동일 기준으로 비교`를 사용한다. OFF도 원천 문서/코드표를 읽을 수 있고, ON에만 구조화된 의미 근거/평가가 추가된다. F7 기대값은 고유 7개, available 4·limited 1·unavailable 1·unknown 1이다.
+
+```powershell
+docker compose --profile test up -d neo4j-test
+uv run pytest -q
+uv run pytest -m "neo4j and not live" -q
+# 실제 모델 호출·비용 발생, 명시적 실행:
+uv run pytest tests/test_domain_live.py -m "live and neo4j" -q -s
+uv run python scripts/grade_domain.py artifacts/<생성된-domain-live>.json --output artifacts/<새-평가>.json
+```
+
+현재 작업 환경에서는 원래 `.venv`의 Python 경로가 깨져 저장소 내부 `var/implementation-venv`로 검증했다. 같은 문제가 있으면 기존 환경을 지우지 말고 유효한 Python 3.12로 별도 환경을 지정한다. 정상 `.venv`에서는 위 `uv run` 명령을 사용하면 된다.
+
+## 이전 S8/v2 실행·검증 기록
+
 Python 기반 전장의 분석형 AI 플랫폼 PoC. 독립 Mock C4I → MCP Server → 단일 동적 분석 Agent로 연결한다. UI는 React·TypeScript 정적 앱이며 각 Python 서버가 제공한다.
 
 **Mock ATCIS + Mock KNCCS + Neo4j/Ontology 기반 Semantic Layer** 고도화를 구현·검증했고 현재 사용자 Review 단계다. [구현 계획](docs/IMPLEMENTATION_PLAN.md), [검증 보고서](docs/IMPLEMENTATION_REPORT.md), [Ontology·매핑](docs/ONTOLOGY_DESIGN.md), [현재 STEP](docs/STEP.md)을 참고한다. 기존 단일 C4I는 legacy 프로필로 유지한다.

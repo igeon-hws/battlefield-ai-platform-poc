@@ -1,5 +1,17 @@
 # PRD: Agentic Battlefield Intelligence Platform
 
+## 현재 구현 기준: C2 Domain / Data Fabric v3 (2026-10-22)
+
+이번 증분의 제품 경계는 독립 육군 C2, 독립 해군 C2, Data Fabric, 분석형 AI의 네 영역이다. 실제 군 체계 내부를 재현하지 않는 합성 연습 `c2-domain-demo-v3`를 사용한다. 기존 v2 요구·검증 기록은 아래에 보존한다.
+
+- 육군은 부대·장비 상태·상황보고·일지·활동을, 해군은 자군 함정·contact/track·편성·전문·전달 이벤트를 각자의 UI/API/SQLite/시뮬레이터로 제공한다.
+- Data Fabric은 native 접근·표시 통합과 Ontology/문서 기반 의미 해석을 분리한다. 분석 Agent가 원천을 조회할 때는 각 체계의 MCP를 사용한다.
+- F1~F7은 객체/관측 구별, 조직·역할, 절차, 보고 lineage/정정, 기준보고 이후 갱신, 제한 가용, 유형·상태별 통합을 검증한다. 집계와 상황보고 모두 주요 데모다.
+- OFF도 ON과 동일한 원천 문서·코드표에 접근한다. ON에만 구조화된 관계·규칙 근거와 그 평가 도구를 추가한다. OFF의 독자적인 모델 추론을 막거나 일부러 원천 정보를 숨기지 않는다.
+- 완료된 실행과 정답·근거의 충족을 별도 평가한다. 14회 실제 GPT 실행과 F7 추가 2회의 결과·한계는 [구현 보고서](./IMPLEMENTATION_REPORT.md)에 기록한다. 사용자 Review는 AI가 수행하지 않는다.
+
+이하 이전 증분의 요구와 이력이다. v3와 다른 dataset·도구·상태 정의에는 위 기준과 현재 구현 보고서를 우선 적용한다.
+
 - 한국어 명칭: 전장의 분석형 AI 플랫폼
 - 구성: Mock ATCIS + Mock KNCCS + 원천별 MCP + Ontology/Semantic Layer + Neo4j + Analytical AI Platform
 - 문서 상태: 요구사항 v0.6 S8 — Semantic 실행 경계·일관된 v2 데이터 (2026-10-16)

@@ -74,6 +74,7 @@ class MultiToolRunner:
             raise ValueError("source snapshots required")
         self.snapshots = {s: SnapshotRef.model_validate(r).public() for s, r in snapshots.items()}
         self.mode, self.graph_info = mode, graph_info
+        self.historical_snapshots: dict[str, dict] = {}
         if mode == "on" and (
             not graph_info
             or graph_info.get("status") != "READY"
@@ -153,6 +154,16 @@ class MultiToolRunner:
             )
         return [self.evidence[eid] for eid in ids]
 
+    def source_snapshot(self, system, arguments):
+        current = self.snapshots[system]
+        requested = arguments.get("snapshotId")
+        historical = getattr(self, "historical_snapshots", {}).get(system)
+        if historical and requested == historical["snapshotId"]:
+            return historical
+        if requested not in (None, current["snapshotId"]):
+            raise ValueError("snapshot_mismatch")
+        return current
+
     async def execute(self, name, arguments):
         await self.prepare()
         args: EvidenceArgs | GeoArgs | AggregateArgs
@@ -203,7 +214,7 @@ class MultiToolRunner:
                     raise ValueError("graph_version_mismatch")
                 raw["graphVersion"] = version
             else:
-                snapshot = self.snapshots[system]
+                snapshot = self.source_snapshot(system, raw)
                 for field in ("snapshotId", "toSnapshotId"):
                     if field in properties:
                         if raw.get(field) not in (None, snapshot["snapshotId"]):
@@ -233,7 +244,7 @@ class MultiToolRunner:
                     if data.get(key) != self.graph_info.get(key):
                         raise ValueError("response_rule_version_mismatch")
             else:
-                snapshot = self.snapshots[system]
+                snapshot = self.source_snapshot(system, args_dict)
                 if (
                     data.get("snapshotId", data.get("toSnapshotId", snapshot["snapshotId"]))
                     != snapshot["snapshotId"]

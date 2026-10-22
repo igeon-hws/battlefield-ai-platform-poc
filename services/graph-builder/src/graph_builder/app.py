@@ -102,4 +102,6 @@ def create_app(repository=None, sources=None, admin_token=None):
 
 
 def main():
+    load_dotenv()
+    os.environ.setdefault("C4I_CONTRACT_VERSION", "3")
     uvicorn.run(create_app(), host="127.0.0.1", port=int(os.getenv("BUILDER_PORT", "4420")))

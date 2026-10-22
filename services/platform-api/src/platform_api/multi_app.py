@@ -20,6 +20,7 @@ class Question(BaseModel):
     question: str = Field(min_length=1, max_length=12000)
     semanticMode: Literal["off", "on"] = "off"
     conversationId: str | None = None
+    baselineReportRef: Literal["atcis:report:R0"] | None = None
 
 
 class Selection(BaseModel):
@@ -31,6 +32,7 @@ class ComparisonInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     question: str = Field(min_length=1, max_length=12000)
     firstMode: Literal["off", "on"] = "off"
+    baselineReportRef: Literal["atcis:report:R0"] | None = None
 
 
 def create_multi_app(path=None, provider=None, sources=None, semantic=None):
@@ -55,11 +57,24 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
         "builderUrl": os.getenv("BUILDER_BASE_URL", "http://127.0.0.1:4420"),
         "adminToken": os.getenv("BUILDER_ADMIN_TOKEN", ""),
     }
+    domain = os.getenv("C4I_CONTRACT_VERSION") == "3"
     repo = MultiRepository(
-        Path(path or os.getenv("PLATFORM_VNEXT_DB", "var/platform-vnext-v2.db")),
+        Path(
+            path
+            or os.getenv(
+                "PLATFORM_VNEXT_DB", "var/platform-v3.db" if domain else "var/platform-vnext-v2.db"
+            )
+        ),
         os.getenv("AUTO_SEMANTIC_MODE", "off"),
+        "3-domain-native-off" if domain else "2-native-off",
+        "3" if domain else "2",
     )
-    runtime = MultiRuntime(repo, provider or OpenAIProvider(), sources, semantic)
+    runtime_type = MultiRuntime
+    if domain:
+        from platform_api.domain_runtime import DomainRuntime
+
+        runtime_type = DomainRuntime
+    runtime = runtime_type(repo, provider or OpenAIProvider(), sources, semantic)
 
     @contextlib.asynccontextmanager
     async def lifespan(app):
@@ -89,7 +104,12 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
 
     @app.get("/api/v1/config")
     async def config():
-        return {"profile": "heterogeneous", "defaultSemanticMode": "off"}
+        return {
+            "profile": "heterogeneous",
+            "defaultSemanticMode": "off",
+            "sourceToolContractVersion": repo.source_contract,
+            "semanticPolicyVersion": repo.policy_version,
+        }
 
     @app.get("/ready")
     @app.get("/api/v1/sources")
@@ -103,7 +123,12 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
     @app.post("/api/v1/analyses", status_code=202)
     async def create(body: Question):
         try:
-            return await repo.enqueue(body.question, body.semanticMode, body.conversationId)
+            return await repo.enqueue(
+                body.question,
+                body.semanticMode,
+                body.conversationId,
+                baseline_report_ref=body.baselineReportRef,
+            )
         except ConversationNotFound:
             return JSONResponse({"error": "conversation_not_found"}, status_code=404)
         except ValueError as exc:
@@ -115,7 +140,7 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
 
     @app.post("/api/v1/comparisons", status_code=202)
     async def compare(body: ComparisonInput):
-        return await repo.create_comparison(body.question, body.firstMode)
+        return await repo.create_comparison(body.question, body.firstMode, body.baselineReportRef)
 
     @app.get("/api/v1/comparisons")
     async def comparisons():

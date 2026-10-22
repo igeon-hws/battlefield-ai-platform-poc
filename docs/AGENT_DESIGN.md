@@ -1,5 +1,19 @@
 # 단일 동적 분석 Agent 설계
 
+## v3 도구·컨텍스트 구현 (2026-10-22)
+
+기존 Python 단일 `AgentLoop`와 OpenAI Responses native function calling을 유지한다. 새로운 Orchestrator·전문 Agent·고정 시나리오 workflow는 없다. 서버 discovery 설명/입력 schema를 strict 함수로 변환하고 모델이 다음 도구 또는 최종 답변을 선택한다. 시스템 지시는 앱 내 분석 역할·근거 책임·반복 실행 원칙을, MCP 서버는 개별 도구 계약을 소유한다.
+
+- 공통: 육군 native 8개, 해군 native 10개를 서버별 namespace로 discovery한다. `read_evidence`, `aggregate_evidence`는 현재 run evidence만 받는 로컬 도구다.
+- ON: Semantic 7개와 `evaluate_evidence`를 추가한다. 조건 DSL(AND/OR/EQ/EXISTS/BEFORE), 명시적 값 매핑·분류만 지원하며 임의 코드 실행은 없다. 누락 근거는 unknown이다.
+- OFF: Semantic 연결·helper·해석 계산 인자를 거부한다. native 문서 조회·일반 필드 집계와 모델 추론은 가능하다.
+- 매 반복에서 assistant function call, 검증된 function output/evidence가 컨텍스트에 누적된다. source snapshot 집합과 선택한 기준보고/T0를 run에 고정한다. 다른 run의 evidence ID는 사용할 수 없다.
+- ON 통합 집계는 resolved 조직 범위, 해당 범위를 모두 조회한 객체 참조 페이지, native 페이지 완결성, 상태 평가, 정책 근거를 요구한다. 중첩 지원 관계는 canonical 자산 1개로 병합한다. 유형·상태 교차 집계는 계산 결과로 반환한다.
+- 최종 `claims[]`의 observation/inference/semantic/calculation 배지는 주장 성격과 evidenceRefs/ruleRefs를 표시한다. 참조 유효성 검사는 자연어 주장 자체의 정답 검증을 대신하지 않는다.
+- 위치 tick은 자동 분석을 만들지 않는다. 상태·구조·활동·보고·전문 사건은 고정 snapshot으로 큐에 들어간다. 기존 멀티턴·세 방책 선택은 재사용한다.
+
+아래 v2 설명은 호환 경로의 기록이며 v3의 현재 도구·정책 경계는 위 내용과 `domain_tools.py`가 기준이다.
+
 - 문서 상태: v0.6 S8 — native OFF / Semantic 근거 ON (2026-10-16)
 - 2026-10-16 R6: 시스템 instructions는 정체성·앱 역할·동적 실행 원칙, 도구 description/schema는 개별 사용 계약을 담당한다. C4I 설명은 MCP 서비스 내부 c4i_mcp/tool_instructions.py에, 인수 schema는 서버의 typed 함수에 둔다. 플랫폼은 공유 설명 파일을 import하지 않고 실제 tools/list를 통해 정의를 발견한다.
 - 기준: [PRD](./PRD.md), [아키텍처](./ARCHITECTURE.md)

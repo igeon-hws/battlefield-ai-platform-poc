@@ -5,6 +5,7 @@ import asyncio
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import httpx
 from platform_api.evaluation import SCENARIOS, grade_run, metrics
@@ -13,7 +14,7 @@ from platform_api.evaluation import SCENARIOS, grade_run, metrics
 async def evaluate(args):
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    report = (
+    report: dict[str, Any] = (
         json.loads(output.read_text(encoding="utf-8"))
         if output.exists()
         else {"startedAt": datetime.now(UTC).isoformat(), "records": []}

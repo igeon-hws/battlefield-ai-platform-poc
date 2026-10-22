@@ -1,0 +1,14 @@
+[
+ {"ruleId":"ASSET-TYPE-01","systemId":"atcis","documentId":"EX-01","section":"mapping","definition":{"typeField":"classCode","values":{"TK":"tank","AAV":"armored_vehicle","LOG":"support_vehicle","UAS":"uav"}}},
+ {"ruleId":"ASSET-TYPE-NAVAL-01","systemId":"knccs","documentId":"EX-01","section":"mapping","definition":{"typeField":"hullClass","values":{"FF":"naval_vessel","LP":"naval_vessel"}}},
+ {"ruleId":"AVAIL-LAND-01","systemId":"atcis","documentId":"EX-01","section":"mapping","definition":{"cases":[{"field":"maintenanceCode","op":"EQ","value":"FMC","result":"available"},{"field":"maintenanceCode","op":"EQ","value":"PMC","result":"limited"},{"field":"maintenanceCode","op":"EQ","value":"NMC","result":"unavailable"}],"default":"unknown"}},
+ {"ruleId":"AVAIL-NAVAL-01","systemId":"knccs","documentId":"EX-01","section":"mapping","definition":{"cases":[{"op":"OR","args":[{"field":"engineering","op":"EQ","value":"DOWN"},{"field":"mission","op":"EQ","value":"HOLD"}],"result":"unavailable"},{"op":"AND","args":[{"field":"engineering","op":"EQ","value":"UP"},{"field":"mission","op":"EQ","value":"GO"}],"result":"available"}],"default":"unknown"}},
+ {"ruleId":"FORCE-SCOPE-01","systemId":"atcis","documentId":"EX-01","section":"mapping","definition":{"includedRoles":["ORG","ATT","SUP","ASSIGNED","SUPPORT"],"supportRoles":["SUP","SUPPORT"],"excludedRoles":["CTRL","RECEIVER"],"maxDepth":8}},
+ {"ruleId":"AGGREGATION-POLICY-01","systemId":"atcis","documentId":"EX-01","section":"mapping","definition":{"P1":["available"],"P2":["available","limited"],"unit":"unique_registered_asset","deduplication":"verified_canonical_reference"}},
+ {"ruleId":"ENTITY-LINK-01","systemId":"knccs","documentId":"EX-01","section":"mapping","definition":{"requiredFields":["originator","trackNo","refSystem","refEquipment","documentId"],"method":"explicit_exercise_association"}},
+ {"ruleId":"UNIT-IDENTITY-01","systemId":"atcis","documentId":"ORG-01","section":"organization","definition":{"method":"same_native_unit_code","nameChangeIsNewUnit":false}},
+ {"ruleId":"ORG-ROLE-01","systemId":"atcis","documentId":"ORG-01","section":"organization","definition":{"separateRelations":["ORG","ATT","SUP","CTRL","RECEIVER"]}},
+ {"ruleId":"REPORT-LINEAGE-01","systemId":"atcis","documentId":"SOP-01","section":"incident","definition":{"relayIsIndependentObservation":false,"ackIsCompletion":false}},
+ {"ruleId":"REPORT-REVISION-01","systemId":"atcis","documentId":"SOP-01","section":"incident","definition":{"method":"explicit_supersedes","timeField":"knownAt"}},
+ {"ruleId":"ACTIVITY-STEP-01","systemId":"atcis","documentId":"SOP-01","section":"incident","definition":{"steps":["SITE_CHECK","IDENTIFICATION","REVIEW"],"condition":{"op":"AND","args":[{"field":"state","op":"EQ","value":"DONE"},{"field":"evidenceReport","op":"EXISTS"}]},"closure":"all_steps_have_completion_evidence"}}
+]

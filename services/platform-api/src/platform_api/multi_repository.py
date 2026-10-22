@@ -10,11 +10,12 @@ class ConversationNotFound(KeyError):
 
 
 class MultiRepository(Repository):
-    def __init__(self, path, auto_mode="off"):
+    def __init__(self, path, auto_mode="off", policy_version="2-native-off", source_contract="2"):
         super().__init__(path)
         if auto_mode not in ("off", "on"):
             raise ValueError("invalid automatic semantic mode")
         self.auto_mode = auto_mode
+        self.policy_version, self.source_contract = policy_version, source_contract
 
     async def open(self):
         # Read-only compatibility check BEFORE base.open can modify interrupted runs.
@@ -42,8 +43,8 @@ class MultiRepository(Repository):
             "sourceSnapshotSet": None,
             "graphInfo": None,
             "comparisonId": None,
-            "semanticPolicyVersion": "2-native-off",
-            "sourceToolContractVersion": "2",
+            "semanticPolicyVersion": self.policy_version,
+            "sourceToolContractVersion": self.source_contract,
         }
 
     async def enqueue(
@@ -54,6 +55,7 @@ class MultiRepository(Repository):
         snapshots=None,
         graph_info=None,
         event=None,
+        baseline_report_ref=None,
     ):
         if mode not in ("off", "on"):
             raise ValueError("invalid semantic mode")
@@ -66,12 +68,13 @@ class MultiRepository(Repository):
                     raise ConversationNotFound("conversation not found")
                 if any(r.get("semanticMode", "off") != mode for r in matching):
                     raise ValueError("mode switch requires a new conversation")
-                if any(r.get("semanticPolicyVersion") != "2-native-off" for r in matching):
+                if any(r.get("semanticPolicyVersion") != self.policy_version for r in matching):
                     raise ValueError("policy changed; start a new conversation")
                 if any(r["status"] in ("queued", "running") for r in matching):
                     raise ValueError("conversation busy")
             run = self._new_run(question, conversation_id, event)
             run.update(semanticMode=mode, sourceSnapshotSet=snapshots, graphInfo=graph_info)
+            run["baselineReportRef"] = baseline_report_ref
             try:
                 await self._insert_run(run)
                 await self.db.commit()
@@ -113,7 +116,13 @@ class MultiRepository(Repository):
                 await self._emit("situation", state)
                 if event:
                     await self._emit("source_event", {**event, "systemId": system})
-                if event and event["type"] in ("equipment.changed", "structure.changed"):
+                if event and event["type"] in (
+                    "equipment.changed",
+                    "structure.changed",
+                    "activity.changed",
+                    "report.received",
+                    "message.received",
+                ):
                     run = self._new_run(
                         "모의 C4I 이벤트에 따른 관측 변화와 한계를 근거와 함께 설명해줘. 이벤트: "
                         + json.dumps({**event, "systemId": system}, ensure_ascii=False),
@@ -127,10 +136,11 @@ class MultiRepository(Repository):
                 raise
             return True
 
-    async def create_comparison(self, question, first_mode="off"):
+    async def create_comparison(self, question, first_mode="off", baseline_report_ref=None):
         item = {
             "comparisonId": uuid4().hex,
             "question": question,
+            "baselineReportRef": baseline_report_ref,
             "status": "preparing",
             "createdAt": timestamp(),
             "manifest": None,
@@ -202,6 +212,7 @@ class MultiRepository(Repository):
                         sourceSnapshotSet=manifest["sourceSnapshotSet"],
                         graphInfo=graph_info if mode == "on" else None,
                         comparisonId=comparison_id,
+                        baselineReportRef=manifest.get("baselineReportRef"),
                     )
                     await self._insert_run(run)
                     item[mode + "RunId"] = run["runId"]

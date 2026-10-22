@@ -4,6 +4,7 @@ import type { AnalysisResult, SourceSnapshotSet } from '../generated/contracts';
 import { formatTime } from './time';
 import './style.css';
 import './NextApp.css';
+import { domainScenarios } from './domainScenarios';
 
 type Mode = 'off' | 'on';
 type Evidence = {
@@ -42,9 +43,17 @@ type Comparison = {
     ontologyVersion: string;
     captureSpanSeconds: number;
     semanticPolicyVersion?: string;
+    baselineSourceSnapshotSet?: SourceSnapshotSet;
+    baselineReportRef?: string | null;
+    documents?: unknown;
+    modelId?: string;
+    agentBudget?: unknown;
   } | null;
 };
-type Situation = { entities: EntityView[]; sources?: Record<string, { sourceTime: string }> };
+type Situation = {
+  entities: (EntityView & { nativeStatus?: unknown })[];
+  sources?: Record<string, { sourceTime: string }>;
+};
 type Connections = {
   sources: Record<string, { connected: boolean; error?: string }>;
   mcp: Record<string, { connected: boolean; error?: string }>;
@@ -81,7 +90,11 @@ function graphRefs(value: unknown): string[] {
   return [...new Set([...direct, ...Object.values(object).flatMap(graphRefs)])];
 }
 class ApiError extends Error {
-  constructor(public status: number, public code: string | undefined, body: string) {
+  constructor(
+    public status: number,
+    public code: string | undefined,
+    body: string,
+  ) {
     super(`${status}: ${body}`);
   }
 }
@@ -125,7 +138,11 @@ function RunPanel({
     <article className="next-run">
       <div className="next-meta">
         <span>{label(run.status)}</span>
-        <span>{run.semanticMode.toUpperCase()} · {run.semanticMode === 'off' ? '원천 도구·일반 계산' : 'Semantic 해석 사용'} · 정책 {run.semanticPolicyVersion || '이전 정책'}</span>
+        <span>
+          {run.semanticMode.toUpperCase()} ·{' '}
+          {run.semanticMode === 'off' ? '원천 도구·일반 계산' : 'Semantic 해석 사용'} · 정책{' '}
+          {run.semanticPolicyVersion || '이전 정책'}
+        </span>
         <span>
           {run.toolCalls.length} tool · {run.iterations.length} model · {usage || '—'} tokens
         </span>
@@ -136,6 +153,30 @@ function RunPanel({
       {run.result?.findings.map((finding, i) => (
         <p key={i}>{finding.text}</p>
       ))}
+      {!!run.result?.claims?.length && (
+        <details>
+          <summary>주장별 해석·근거</summary>
+          {run.result.claims.map((claim, i) => (
+            <section className="next-evidence" key={i}>
+              <b>
+                {
+                  {
+                    observation: '원천 관측',
+                    inference: '모델 추론',
+                    semantic: 'Semantic 해석',
+                    calculation: '근거 계산',
+                  }[claim.kind]
+                }
+              </b>
+              <p>{claim.text}</p>
+              <small>
+                {claim.evidenceRefs.join(' · ')}
+                {claim.ruleRefs?.length ? ` · 규칙 ${claim.ruleRefs.join(', ')}` : ''}
+              </small>
+            </section>
+          ))}
+        </details>
+      )}
       {!!run.result?.limitations.length && (
         <div className="next-limits">
           <b>분석 범위·한계</b>
@@ -175,9 +216,26 @@ function RunPanel({
             {typeof e.data.rawRecordCount === 'number' && (
               <p>
                 원천 레코드 {e.data.rawRecordCount}
-                {e.data.interpretation === 'native_records_only' ? ' · 원천 필드값 집계 (의미 해석 없음)' : <> · 중복 제거 객체 {String(e.data.resolvedUniqueCount ?? '미확정')} · 확정 가용 {String(e.data.confirmedAvailable ?? '미확정')}{Number(e.data.conflicting) > 0 && <> · 불일치 {String(e.data.conflicting)}</>}</>}
+                {e.data.interpretation === 'native_records_only' ? (
+                  ' · 원천 필드값 집계 (의미 해석 없음)'
+                ) : (
+                  <>
+                    {' '}
+                    · 중복 제거 객체 {String(e.data.resolvedUniqueCount ?? '미확정')} · 확정 가용{' '}
+                    {String(e.data.confirmedAvailable ?? '미확정')}
+                    {Number(e.data.conflicting) > 0 && <> · 불일치 {String(e.data.conflicting)}</>}
+                  </>
+                )}
               </p>
             )}
+            {e.data.typeStatusCounts && typeof e.data.typeStatusCounts === 'object' ? (
+              <table aria-label="유형 및 상태별 집계">
+                <thead><tr><th>유형</th><th>상태별 객체 수</th></tr></thead>
+                <tbody>{Object.entries(e.data.typeStatusCounts).map(([kind, counts]) => (
+                  <tr key={kind}><td>{label(kind)}</td><td>{pretty(counts)}</td></tr>
+                ))}</tbody>
+              </table>
+            ) : null}
             {e.systemId === 'semantic' && (
               <div className="next-proof-links">
                 {graphRefs(e.data).map((id, index) => (
@@ -238,7 +296,8 @@ function RunPanel({
   );
 }
 
-export default function NextApp() {
+export default function NextApp({ domain = false }: { domain?: boolean }) {
+  const [baselineReportRef, setBaselineReportRef] = useState('atcis:report:R0');
   const [situation, setSituation] = useState<Situation>({ entities: [] });
   const [connections, setConnections] = useState<Connections>({ sources: {}, mcp: {} });
   const [runs, setRuns] = useState<Run[]>([]);
@@ -331,7 +390,10 @@ export default function NextApp() {
     setNotice('');
     try {
       if (compare) {
-        const c = await api<Comparison>('comparisons', { question });
+        const c = await api<Comparison>('comparisons', {
+          question,
+          ...(domain ? { baselineReportRef: baselineReportRef || null } : {}),
+        });
         setComparisons((prev) => [c, ...prev]);
         setComparisonId(c.comparisonId);
       } else {
@@ -341,10 +403,16 @@ export default function NextApp() {
             question,
             semanticMode: mode,
             conversationId: conversation,
+            ...(domain ? { baselineReportRef: baselineReportRef || null } : {}),
           });
         } catch (e) {
-          if (!conversation || !(e instanceof ApiError) ||
-              e.status !== 404 || e.code !== 'conversation_not_found') throw e;
+          if (
+            !conversation ||
+            !(e instanceof ApiError) ||
+            e.status !== 404 ||
+            e.code !== 'conversation_not_found'
+          )
+            throw e;
           // The server rejected the stale ID before enqueueing any run. Retry once.
           setConversation(null);
           sessionStorage.removeItem('vnext.conversation');
@@ -353,6 +421,7 @@ export default function NextApp() {
             question,
             semanticMode: mode,
             conversationId: null,
+            ...(domain ? { baselineReportRef: baselineReportRef || null } : {}),
           });
         }
         setConversation(run.conversationId);
@@ -450,7 +519,8 @@ export default function NextApp() {
               >
                 <b>{e.label}</b>
                 <span>
-                  {e.source?.toUpperCase()} · {label(e.kind)} · {label(e.availability)}
+                  {e.source?.toUpperCase()} · {label(e.kind)} ·{' '}
+                  {domain ? JSON.stringify(e.nativeStatus ?? '미확인') : label(e.availability)}
                 </span>
               </button>
             ))}
@@ -465,7 +535,10 @@ export default function NextApp() {
                 {object.position.longitude.toFixed(5)}, {object.position.latitude.toFixed(5)}
               </p>
               <p>
-                {label(object.affiliation)} · {label(object.availability)}
+                {label(object.affiliation)} ·{' '}
+                {domain
+                  ? JSON.stringify(object.nativeStatus ?? '미확인')
+                  : label(object.availability)}
               </p>
               <small>실시간 원천 관측 · Graph 병합 위치 아님</small>
             </section>
@@ -567,6 +640,28 @@ export default function NextApp() {
           </div>
           {notice && <p role="status">{notice}</p>}
           <label htmlFor="next-question">분석 질의</label>
+          {domain && (
+            <label>
+              기준보고
+              <select
+                value={baselineReportRef}
+                onChange={(e) => setBaselineReportRef(e.target.value)}
+              >
+                <option value="">기준보고 선택 안 함</option>
+                <option value="atcis:report:R0">R0 · T0 기준보고</option>
+              </select>
+            </label>
+          )}
+          {domain && (
+            <details>
+              <summary>시연 질의 F1–F7</summary>
+              {domainScenarios.map(([id, text]) => (
+                <button key={id} onClick={() => setQuestion(text)}>
+                  {id} · {text}
+                </button>
+              ))}
+            </details>
+          )}
           <textarea
             id="next-question"
             value={question}
@@ -633,14 +728,22 @@ export default function NextApp() {
                   <span>
                     Graph {comparison.manifest.graphVersion} · Ontology{' '}
                     {comparison.manifest.ontologyVersion}
-                    {' · 정책 '}{comparison.manifest.semanticPolicyVersion || '이전 정책'}
+                    {' · 정책 '}
+                    {comparison.manifest.semanticPolicyVersion || '이전 정책'}
                   </span>
                   {Object.entries(comparison.manifest.sourceSnapshotSet).map(([system, ref]) => (
                     <span key={system}>
-                      {system.toUpperCase()} · {ref.datasetId} · snapshot {ref.snapshotId.slice(0, 12)} ·{' '}
-                      {formatTime(ref.sourceTime)}
+                      {system.toUpperCase()} · {ref.datasetId} · snapshot{' '}
+                      {ref.snapshotId.slice(0, 12)} · {formatTime(ref.sourceTime)}
                     </span>
                   ))}
+                  <details>
+                    <summary>공통 비교 조건·문서·기준보고</summary>
+                    <pre>{pretty({ baselineReportRef: comparison.manifest.baselineReportRef,
+                      baselineSourceSnapshotSet: comparison.manifest.baselineSourceSnapshotSet,
+                      documents: comparison.manifest.documents,
+                      model: comparison.manifest.modelId, budget: comparison.manifest.agentBudget })}</pre>
+                  </details>
                 </>
               )}
               {comparison?.error && <p role="alert">{comparison.error}</p>}

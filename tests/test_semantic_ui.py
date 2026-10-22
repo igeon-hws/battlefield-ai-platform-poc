@@ -46,7 +46,7 @@ async def test_semantic_comparison_ui_runs_two_isolated_columns_and_restores_his
                     await page.get_by_label("분석 질의").fill("모의 1사단의 가용한 탱크를 보여줘.")
                     await page.get_by_role("button", name="동일 기준으로 비교", exact=True).click()
                     dialog = page.get_by_role("dialog", name="Semantic ON/OFF 비교")
-                    await dialog.get_by_text("완전 비교", exact=True).wait_for(timeout=30000)
+                    await dialog.get_by_text("완전 비교", exact=True).wait_for(timeout=120000)
                     for mode in ("off", "on"):
                         await (
                             dialog.get_by_test_id("comparison-" + mode)

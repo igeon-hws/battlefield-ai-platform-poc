@@ -241,22 +241,27 @@ version = "0.1.0"
 source = { editable = "packages/source-runtime" }
 dependencies = [
     { name = "aiosqlite" },
-    { name = "battlefield-geo" },
-    { name = "battlefield-ontology" },
     { name = "fastapi" },
     { name = "python-dotenv" },
     { name = "uvicorn" },
 ]
 
+[package.optional-dependencies]
+legacy = [
+    { name = "battlefield-geo" },
+    { name = "battlefield-ontology" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.21" },
-    { name = "battlefield-geo", editable = "packages/geo" },
-    { name = "battlefield-ontology", editable = "packages/ontology" },
+    { name = "battlefield-geo", marker = "extra == 'legacy'", editable = "packages/geo" },
+    { name = "battlefield-ontology", marker = "extra == 'legacy'", editable = "packages/ontology" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "python-dotenv", specifier = ">=1" },
     { name = "uvicorn", specifier = ">=0.34" },
 ]
+provides-extras = ["legacy"]
 
 [[package]]
 name = "build"
@@ -1154,16 +1159,22 @@ name = "semantic-api"
 version = "0.1.0"
 source = { editable = "services/semantic-api" }
 dependencies = [
+    { name = "battlefield-geo" },
     { name = "battlefield-semantic-core" },
+    { name = "battlefield-source-runtime" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "python-dotenv" },
     { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "battlefield-geo", editable = "packages/geo" },
     { name = "battlefield-semantic-core", editable = "packages/semantic-core" },
+    { name = "battlefield-source-runtime", editable = "packages/source-runtime" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.28" },
     { name = "python-dotenv", specifier = ">=1" },
     { name = "uvicorn", specifier = ">=0.34" },
 ]

@@ -1,5 +1,20 @@
 # Ontology·매핑·Knowledge Graph 설계
 
+## v3 구현 모델·검증 경계 (2026-10-22)
+
+`battlefield_ontology/domain.py`의 명시적 native adapter, `domain_rules.json`, 검토된 문서 version/hash 목록 `domain_documents.json`을 분리한다. Ontology 3.0.0, adapter 3.0.2를 catalog hash에 포함한다. 생산 코드가 테스트 gold를 읽지 않는다. SourceRecord→공통 객체의 기계적인 원천 참조에는 adapterVersion/provenanceKind를 기록하고 관련 없는 도메인 규칙을 근거로 붙이지 않는다.
+
+타입은 System, SourceRecord, Unit, Equipment, EquipmentType, ContactObservation, Observation(관계 assertion 근거), Report, Incident, Activity, SourceDocument, InterpretationRule, ConceptDefinition, Procedure, StepDefinition이다. 주요 탐색 관계는 SUBORDINATE_TO, ASSIGNED_TO, REFERS_TO, DERIVED_FROM, SUPERSEDES이다. Procedure/StepDefinition과 일부 정의 노드는 payload로 연결 정보를 보유하며 범용 절차 Graph 엔진이나 RDF/OWL 추론을 구현한 것은 아니다.
+
+- 원천별 native ID·epoch·recordType을 보존한다. contact는 originator/trackNo 복합 키이며 선행 0을 유지한다. SURFACE 관측 영역은 함정 유형을 뜻하지 않는다.
+- Entity Resolution은 명시적 association과 문서 근거만 사용한다. NORTH/077→UAV, NORTH/007→상륙장갑차를 연결하고 SOUTH/007은 미연결이다.
+- 부대 코드는 동일성을, previousName은 단일 이전 명칭을 보존한다. 지원 관계의 시작/만료와 소속·배속·지원·통제 역할을 구분한다. 완전한 시점별 조직 이력 저장소는 이번 범위가 아니다.
+- 원천 export의 schema/dataset, 문서 hash/검토 revision, 관계 endpoint, 조직 순환, 상충 association, sourceTime 이후 알려진 자료를 검증한다. 규칙을 LLM이 생성하지 않는다.
+- 원천의 live 정비·임무·위치·활동 상태와 ACK는 안정 Graph에 저장하지 않는다. 상태 정의와 P1/P2 포함 정책만 저장하고 run의 native evidence를 계산한다.
+- 가용 상태는 available/limited/unavailable/unknown으로 분리한다. P1 가용 4개, P2 제한 가용 포함 5개여도 원래 분류는 유지한다.
+
+문서는 체계별 REF-01/ORG-01/EX-01/SOP-01 총 8개 원문이다. 같은 documentId도 systemId로 한정한다. 공개 일반 개념과 합성 연습 지침/SOP를 구분하며 실제 군 권한·교리의 재현을 주장하지 않는다. 이하 v2 매핑/seed는 역사적 호환 기록이다.
+
 상태: v0.6 S8 구현 명세, 2026-10-16. Ontology/매핑 버전은 2.0.0, ER 규칙 버전은 1.0.0이다. 모든 데이터·조직·코드는 이 PoC 전용 합성이며 실제 ATCIS/KNCCS 스키마를 설명하지 않는다. 서비스/동기화 경계는 [SEMANTIC_ARCHITECTURE](./SEMANTIC_ARCHITECTURE.md)를 따른다.
 
 ## 1. 의미를 정의하는 곳

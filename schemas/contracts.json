@@ -481,6 +481,47 @@
   },
   "AnalysisResult": {
     "$defs": {
+      "Claim": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "observation",
+              "inference",
+              "semantic",
+              "calculation"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "text": {
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "evidenceRefs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidencerefs",
+            "type": "array"
+          },
+          "ruleRefs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rulerefs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "text",
+          "evidenceRefs"
+        ],
+        "title": "Claim",
+        "type": "object"
+      },
       "Course": {
         "additionalProperties": false,
         "properties": {
@@ -614,6 +655,13 @@
           }
         ],
         "title": "Courses"
+      },
+      "claims": {
+        "items": {
+          "$ref": "#/$defs/Claim"
+        },
+        "title": "Claims",
+        "type": "array"
       }
     },
     "required": [
@@ -1148,6 +1196,19 @@
         ],
         "default": null,
         "title": "Conversationid"
+      },
+      "baselineReportRef": {
+        "anyOf": [
+          {
+            "const": "atcis:report:R0",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Baselinereportref"
       }
     },
     "required": [
@@ -1173,6 +1234,19 @@
         ],
         "title": "Firstmode",
         "type": "string"
+      },
+      "baselineReportRef": {
+        "anyOf": [
+          {
+            "const": "atcis:report:R0",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Baselinereportref"
       }
     },
     "required": [

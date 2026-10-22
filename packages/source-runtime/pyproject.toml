@@ -2,7 +2,9 @@
 name = "battlefield-source-runtime"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
-dependencies = ["battlefield-ontology==0.1.0", "battlefield-geo==0.1.0", "fastapi>=0.115", "uvicorn>=0.34", "aiosqlite>=0.21", "python-dotenv>=1"]
+dependencies = ["fastapi>=0.115", "uvicorn>=0.34", "aiosqlite>=0.21", "python-dotenv>=1"]
+[project.optional-dependencies]
+legacy = ["battlefield-geo==0.1.0", "battlefield-ontology==0.1.0"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

@@ -15,26 +15,25 @@ from battlefield_ontology import (
 from c4i_contracts import Entity, EntityFilter, EntityPatch
 from platform_api.multi_app import ComparisonInput, Question
 from platform_contracts.models import AnalysisResult
+from pydantic import BaseModel
 
 root = Path(__file__).resolve().parents[1]
-schemas = {
-    model.__name__: model.model_json_schema(by_alias=True)
-    for model in [
-        Entity,
-        EntityFilter,
-        EntityPatch,
-        AnalysisResult,
-        Equipment,
-        Unit,
-        System,
-        Observation,
-        SourceRef,
-        SnapshotRef,
-        SourceSnapshotSet,
-        Question,
-        ComparisonInput,
-    ]
-}
+models: list[type[BaseModel]] = [
+    Entity,
+    EntityFilter,
+    EntityPatch,
+    AnalysisResult,
+    Equipment,
+    Unit,
+    System,
+    Observation,
+    SourceRef,
+    SnapshotRef,
+    SourceSnapshotSet,
+    Question,
+    ComparisonInput,
+]
+schemas = {model.__name__: model.model_json_schema(by_alias=True) for model in models}
 definitions = {}
 for schema in schemas.values():
     definitions.update(schema.get("$defs", {}))

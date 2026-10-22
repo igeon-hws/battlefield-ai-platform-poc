@@ -3,13 +3,18 @@ import os
 from pathlib import Path
 
 import uvicorn
-from battlefield_source_runtime.app import create_source_app
 from dotenv import load_dotenv
 
 
 def create_app(path=None, *, tick_enabled=True, token=None, control_token=None):
     load_dotenv()
+    if os.getenv("C4I_CONTRACT_VERSION") == "3":
+        from mock_knccs.native import create_app as native_app
+
+        return native_app(path, tick_enabled=tick_enabled, token=token, control_token=control_token)
     root = Path(__file__).parent
+    from battlefield_source_runtime.app import create_source_app
+
     seed = json.loads((root / "scenario.json").read_text(encoding="utf-8"))
     return create_source_app(
         "knccs",
@@ -25,4 +30,6 @@ def create_app(path=None, *, tick_enabled=True, token=None, control_token=None):
 
 
 def main():
+    load_dotenv()
+    os.environ.setdefault("C4I_CONTRACT_VERSION", "3")
     uvicorn.run(create_app(), host="127.0.0.1", port=int(os.getenv("KNCCS_PORT", "4110")))

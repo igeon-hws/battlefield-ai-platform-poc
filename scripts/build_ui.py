@@ -9,6 +9,7 @@ for ui, service, package in [
     ("mock-atcis", "mock-atcis", "mock_atcis"),
     ("mock-knccs", "mock-knccs", "mock_knccs"),
     ("platform-web", "platform-api", "platform_api"),
+    ("data-fabric-web", "semantic-api", "semantic_api"),
 ]:
     source = ROOT / "frontend" / "apps" / ui / "dist"
     target = ROOT / "services" / service / "src" / package / "web_static"

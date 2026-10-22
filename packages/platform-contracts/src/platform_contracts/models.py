@@ -19,6 +19,13 @@ class Course(Model):
     risks_and_constraints: list[str]
 
 
+class Claim(Model):
+    kind: Literal["observation", "inference", "semantic", "calculation"]
+    text: str = Field(min_length=1)
+    evidence_refs: list[str]
+    rule_refs: list[str] = Field(default_factory=list)
+
+
 class AnalysisResult(Model):
     outcome: Literal["answer", "partial", "clarification"]
     answer: str = Field(min_length=1)
@@ -26,6 +33,7 @@ class AnalysisResult(Model):
     evidence_ids: list[str]
     limitations: list[str]
     courses: list[Course] | None = Field(min_length=3, max_length=3)
+    claims: list[Claim] = Field(default_factory=list)
 
 
 def strict_schema(schema: dict) -> dict:

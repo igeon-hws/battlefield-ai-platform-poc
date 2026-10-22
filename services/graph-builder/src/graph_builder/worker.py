@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 
 import httpx
 from battlefield_ontology import (
@@ -67,7 +68,26 @@ class GraphBuilder:
                 exports[system] = data
             if set(exports) != {"atcis", "knccs"}:
                 raise ValueError("incomplete source coverage")
-            info = await asyncio.to_thread(self.repository.build, exports)
+            if os.getenv("BUILDER_GRAPH_PREFIX"):
+                prefix = os.environ["BUILDER_GRAPH_PREFIX"]
+                if prefix != "test-":
+                    raise ValueError("only test graph prefix supported")
+                from battlefield_ontology.domain import catalog_hash
+
+                version = (
+                    prefix
+                    + digest(
+                        {
+                            "hashes": {s: d["stableDataHash"] for s, d in exports.items()},
+                            "catalog": catalog_hash(),
+                        }
+                    )[:32]
+                )
+                info = await asyncio.to_thread(
+                    self.repository.build, exports, graph_version=version
+                )
+            else:
+                info = await asyncio.to_thread(self.repository.build, exports)
             self.last_version, self.last_error = info["graphVersion"], None
             return info
 
@@ -109,7 +129,12 @@ class GraphBuilder:
                     async for line in response.aiter_lines():
                         if line.startswith("data: "):
                             event = json.loads(line[6:])
-                            if event["type"] in ("structure.changed", "scenario.reset"):
+                            if event["type"] in (
+                                "structure.changed",
+                                "scenario.reset",
+                                "report.received",
+                                "message.received",
+                            ):
                                 self.wake.set()
             except asyncio.CancelledError:
                 raise
@@ -123,11 +148,20 @@ class GraphBuilder:
             "mappingVersion": MAPPING_VERSION,
             "resolutionRuleVersion": RESOLUTION_VERSION,
         }
+        if os.getenv("C4I_CONTRACT_VERSION") == "3":
+            expected = {k: "3.0.0" for k in expected}
         if versions != expected:
             raise ValueError("unsupported rule versions")
         request_id = (
             "build-request-"
-            + digest({"scope": self.scope, "snapshots": snapshots, "versions": versions})[:32]
+            + digest(
+                {
+                    "scope": self.scope,
+                    "snapshots": snapshots,
+                    "versions": versions,
+                    "domainCatalog": self.domain_catalog(),
+                }
+            )[:32]
         )
         await asyncio.to_thread(
             self.repository.query,
@@ -138,6 +172,14 @@ class GraphBuilder:
         )
         self.wake.set()
         return await self.request_info(request_id)
+
+    @staticmethod
+    def domain_catalog():
+        if os.getenv("C4I_CONTRACT_VERSION") == "3":
+            from battlefield_ontology.domain import catalog_hash
+
+            return catalog_hash()
+        return None
 
     async def request_info(self, request_id):
         rows = await asyncio.to_thread(
