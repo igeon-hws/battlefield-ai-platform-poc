@@ -124,7 +124,10 @@ def create_app(repository=None, token=None):
         return await asyncio.to_thread(repo.build_info, version)
 
     if os.getenv("C4I_CONTRACT_VERSION") == "3":
+        from semantic_api.explorer import install_explorer
         from semantic_api.fabric import install_fabric
+
+        install_explorer(app, read, repo)
 
         async def ensure_graph(snapshots):
             import httpx

@@ -1,5 +1,5 @@
-# IMPLEMENTATION_PLAN
+﻿# IMPLEMENTATION_PLAN
 
-현재 승인된 다음 구현 작업은 없다. 실행 로그·핵심 주석 R1~R4 구현/검증을 마쳤으며 [STEP](STEP.md)의 Human Review 대기 상태다. 완료 내역·실측·제약은 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md)에 통합했다.
+현재 승인된 다음 구현 작업은 없다. 2026-10-26 Data Fabric Graph 탐색·버전 선택 구현을 마쳤으며 [STEP](STEP.md)의 Human Review 대기 상태다. 실제 구현 범위, 테스트 결과, 기존 비교 UI 회귀의 snapshot 준비 오류와 성능·조회 제한은 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md)에 기록했다.
 
-사용자는 실행별 로그의 가독성, DB/UI trace와의 연결, 핵심 주석이 판단 이유를 설명하는지 검토한다. AI는 [REVIEW](REVIEW.md)를 대신 작성하지 않는다. 후속 Reflect/Plan을 명시적으로 요청하면 사용자 피드백과 현재 구현을 읽어 이 문서를 다음 유효 작업으로 교체한다. 논의 중 나온 개선 아이디어를 승인된 구현 계획으로 간주하지 않는다.
+사용자는 생성 시각·데이터셋으로 버전을 구분해 선택할 수 있는지, 객체 검색→관계 확장→원천 문서·규칙·근거 조회가 이해하기 쉬운지 검토한다. AI는 [REVIEW](REVIEW.md)를 대신 작성하거나 완료하지 않는다. 후속 Reflect/Plan 또는 수정은 사용자의 명시적 지시에 따라 수행한다.

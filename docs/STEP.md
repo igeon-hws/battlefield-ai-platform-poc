@@ -1,6 +1,6 @@
 # STEP — Spec-Driven Development
 
-**현재 STEP: 4. Review (Human).** 2026-10-22 실행 로그·핵심 주석 R1~R4 구현/검증 완료, 사용자 검토 대기. 결과는 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md)에 있다. 2026-10-26 문서 통합은 특정 파일 정리 요청이며 단계 전환이 아니다.
+**현재 STEP: 4. Review (Human).** 2026-10-26 Data Fabric Graph 탐색·버전 선택 구현/관련 검증 완료, 사용자 검토 대기. 기존 비교 UI 회귀의 snapshot 준비 실패를 포함한 결과·한계는 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md)에 있다.
 
 ## 단계와 산출물
 

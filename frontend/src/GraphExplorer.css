@@ -1,0 +1,213 @@
+﻿.graph-explorer {
+  min-width: 0;
+}
+.graph-version-panel {
+  border-bottom: 1px solid #41505c;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+}
+.graph-tools {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: end;
+  margin: 14px 0;
+}
+.graph-tools label {
+  display: flex;
+  gap: 6px;
+  flex-direction: column;
+  font-size: 12px;
+  color: #afc1ce;
+}
+.graph-tools label:has(input[type='checkbox']) {
+  flex-direction: row;
+  align-items: center;
+}
+.graph-tools input {
+  max-width: 220px;
+  min-width: 0;
+}
+.graph-version-select {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.graph-version-select select {
+  width: 100%;
+  min-width: 0;
+}
+.graph-current {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+}
+.graph-current strong {
+  color: #b4d4e6;
+}
+.graph-current span {
+  border: 1px solid #557486;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+.graph-current details {
+  width: 100%;
+}
+.graph-counts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 12px;
+  background: #121b23;
+}
+.graph-counts button,
+.graph-counts span {
+  display: inline-block;
+  margin: 4px;
+  font-size: 12px;
+}
+.graph-counts small {
+  grid-column: 1/-1;
+}
+.graph-workspace {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.7fr) minmax(300px, 2fr) minmax(230px, 1fr);
+  gap: 12px;
+}
+.graph-workspace > div {
+  min-width: 0;
+  border: 1px solid #34414d;
+  padding: 12px;
+  background: #131d25;
+}
+.graph-list,
+.graph-detail {
+  max-height: 850px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.graph-workspace svg {
+  display: block;
+  width: 100%;
+  height: 500px;
+  background: #101820;
+  border: 1px solid #34414d;
+  touch-action: none;
+}
+.graph-workspace svg text {
+  fill: #d4e0e8;
+  font-size: 12px;
+  paint-order: stroke;
+  stroke: #101820;
+  stroke-width: 3px;
+}
+.graph-workspace svg .graph-node-type {
+  fill: #90a6b5;
+  font-size: 10px;
+}
+.graph-workspace svg circle,
+.graph-workspace svg rect,
+.graph-workspace svg g[role='button'] > path:not([fill='none']) {
+  fill: #2c4c60;
+  stroke: #92b5ca;
+  stroke-width: 2px;
+}
+.graph-workspace svg g[role='button'] {
+  cursor: pointer;
+}
+.graph-workspace svg g[role='button']:focus {
+  outline: 2px solid #f2c475;
+}
+.graph-mobile-tabs {
+  display: none;
+}
+.graph-explorer details {
+  margin: 12px 0;
+}
+.graph-explorer button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.graph-legend {
+  color: #a0b2c0;
+  font-size: 12px;
+}
+@media (max-width: 1150px) {
+  .graph-workspace {
+    grid-template-columns: minmax(170px, 1fr) minmax(300px, 2fr);
+  }
+  .graph-detail {
+    grid-column: 1/-1;
+  }
+}
+@media (max-width: 700px) {
+  .graph-counts {
+    grid-template-columns: 1fr;
+  }
+  .graph-workspace {
+    display: block;
+  }
+  .graph-workspace > div {
+    display: none;
+  }
+  .graph-workspace > .mobile-selected {
+    display: block;
+  }
+  .graph-mobile-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .fabric-grid {
+    padding: 10px;
+  }
+  .fabric-grid section {
+    padding: 12px;
+    min-width: 0;
+  }
+  .graph-tools input {
+    max-width: 160px;
+  }
+  .graph-workspace svg {
+    height: 400px;
+  }
+}
+.graph-properties {
+  margin: 12px 0;
+}
+.graph-properties > div {
+  padding: 8px 0;
+  border-bottom: 1px solid #34414d;
+}
+.graph-properties dt {
+  color: #91a8b7;
+  font-size: 12px;
+}
+.graph-properties dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+.graph-workspace svg text {
+  font-size: 16px;
+}
+.graph-workspace svg .graph-node-type {
+  font-size: 13px;
+}
+@media (max-width: 700px) {
+  .fabric-grid > aside {
+    padding: 12px;
+  }
+  .fabric-grid > aside .domain-record {
+    display: inline-block;
+    width: auto;
+    margin: 4px;
+    font-size: 12px;
+  }
+  .fabric-grid > aside > h2:nth-of-type(2),
+  .fabric-grid > aside > p {
+    display: none;
+  }
+}

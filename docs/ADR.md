@@ -39,3 +39,9 @@ OFF는 native 문서/일반 계산이며 ON만 Semantic 해석·조건 평가를
 고도화 후 loop 예산은 model24/tool20/120초, legacy model12다. 준비 시간은 별도다. 두 원천·Neo4j 도입은 단일 원천/전체 SQLite 한정 전제를 대체하지만 단일 Agent/Python/MCP 경계는 유지한다.
 
 2026-10-26 문서 통합은 기술 결정 변경이 아니다. 세부 설계 중복을 ARCHITECTURE로 옮기고 과거 실측을 STATUS로 구분했다. 새 결정은 승인된 Implement의 실제 변경 이유가 있을 때만 여기에 기록한다.
+
+## Fabric Graph 탐색 — 2026-10-26
+
+읽기 전용 Fabric UI가 버전을 고정한 제한된 부분 그래프를 Semantic API로 조회한다. 임의 Cypher/Neo4j 브라우저 직접 접속이나 Agent 도구 확장 없이 기존 인증·근거 경계를 유지한다. UI는 추가 그래프 라이브러리 대신 SVG와 결정론적 배치를 사용한다. 이는 제한된 PoC 크기에 적합하지만 대규모 배치·분석 기능은 제공하지 않는다.
+
+기존 불변 READY Graph의 domainJson을 DB에서 조건·상한과 함께 읽는다. 기존 Graph를 수정하거나 다시 생성하지 않고 탐색할 수 있는 대신 JSON 검색/정렬의 DB 스캔 비용은 남는다. 버전 목록은 생성 시각/ID keyset으로 페이지를 나눠 새 build 추가 시 중복을 방지한다. 사람이 읽는 생성 시각·데이터셋·짧은 ID는 표시용이며 모든 실제 조회는 전체 graphVersion을 사용한다.

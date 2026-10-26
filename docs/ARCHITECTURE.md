@@ -110,7 +110,25 @@ JSON+Python 조건 DSL(AND/OR/EQ/EXISTS/BEFORE 등), 타입 매핑·정책·절�
 
 Semantic core→API→MCP로 나누어 Agent 밖에서도 재사용한다. 7개 도구는 interpret_concept, resolve_unit_scope, find_equipment_refs, resolve_entity, get_semantic_evidence, query_relations, get_procedure_definition이다. graphVersion 고정·bounded 읽기만 제공하며 임의 Cypher/Graph 쓰기는 없다.
 
-사단 전차 질문은 Semantic에서 조직 범위·배정·정의 근거를 읽고 현재 상태는 ATCIS MCP에서 읽는다. Graph가 현재 가용 목록을 대신 확정하지 않는다. 콘솔에는 실제 graphVersion을 입력한다. active는 /v1/builds/active 조회 별칭이며 모든 의미 조회에서 쓰는 버전 별칭은 아니다.
+사단 전차 질문은 Semantic에서 조직 범위·배정·정의 근거를 읽고 현재 상태는 ATCIS MCP에서 읽는다. Graph가 현재 가용 목록을 대신 확정하지 않는다. Fabric 콘솔은 공통 선택기로 실제 READY v3 graphVersion을 고정한다. active는 /v1/builds/active 조회 별칭이며 모든 의미 조회에서 쓰는 버전 별칭은 아니다.
+
+### Fabric Graph 탐색 읽기 API
+
+`semantic_api/explorer.py`→`semantic_core/explorer.py`→GraphRepository→Neo4j 경로다. 기존 Semantic 읽기 토큰을 사용하고 Agent/MCP 도구는 추가하지 않는다. Graph 생성/변경이나 내부 Builder 자격증명은 노출하지 않는다.
+
+| 경로 | 계약 |
+| --- | --- |
+| GET /v1/graph-builds | READY v3 목록, q/dataset/date(UTC 날짜)/cursor, limit 기본20·최대50. 생성 시각 내림차순/전체 ID 오름차순의 keyset 페이지, 실제 activeGraphVersion·입력 snapshot 메타데이터 |
+| GET /v1/graph-summary | graphVersion의 build 메타데이터·domain 노드/관계 유형별 정확한 개수. 내부 GraphBuild/GraphState 제외 |
+| GET /v1/graph-nodes | graphVersion, q(키/저장 payload 문자열), system, type, cursor, limit 기본30·최대100. key 순 요약 목록 |
+| GET /v1/graph-node | graphVersion/nodeKey의 저장 payload·원천 참조 상세 |
+| GET /v1/graph-neighborhood | graphVersion/subject/relationTypes/depth(기본1·최대2), nodeLimit 기본100·최대200, edgeLimit 기본150·최대300 |
+
+탐색 응답은 실제 버전과 노드/방향 관계, completeness/omittedReasons(depth/nodeLimit/edgeLimit)를 제공한다. 모든 관계 endpoint를 반환 노드에 포함하고 evidenceId를 유지한다. 검색 페이지와 그래프 잘림은 구분한다. cursor는 조회 버전/필터에 고정한다. 비READY/다른 ontology는422, 없는 버전/객체404, 저장소 장애503이다.
+
+탐색은 기존 `DomainService.model()` 전체 로드를 호출하지 않는다. 버전·조건·frontier·반환 상한을 Cypher에 적용하고 제한된 결과만 Python에서 decode한다. 기존 불변 Graph의 domainJson을 사용하여 migration/rebuild 없이 조회하지만 JSON 문자열 필터·정렬·집계가 DB 스캔을 일으킬 수 있다. 대규모 검색 인덱스/최적화 구현은 아니다. 임의 Cypher는 허용하지 않는다.
+
+UI는 React SVG의 결정론적 배치로 제한된 부분 그래프를 그린다. 추가 확장은 ID로 병합하며 누적200노드/300관계 상한을 적용한다. 노드/관계 선택과 문서·규칙·evidence는 동일 버전을 사용한다. 렌더 배치는 의미 관계를 추가하지 않고 실제 저장 관계만 표시한다. 전체 Graph 자동 펼치기와 자동 build는 없다.
 
 ## 6. 단일 동적 Agent
 
