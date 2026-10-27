@@ -126,7 +126,7 @@ class Fabric:
             raw = await self.get(system, "/snapshots/" + pin["snapshotId"] if pin else "/snapshot")
             ref = {k: raw[k] for k in REF_FIELDS}
             if (
-                raw.get("sourceSchemaVersion") != "3.0.0"
+                raw.get("sourceSchemaVersion") not in ("3.0.0", "4.0.0")
                 or raw.get("systemId") != system
                 or pin
                 and pin != ref
@@ -162,7 +162,7 @@ class Fabric:
         documents = [
             {"systemId": s, **d}
             for s, raw in snapshots.items()
-            for d in raw["records"]["documents"]
+            for d in raw["records"].get("documents", [])
         ]
         refs = {s: {k: raw[k] for k in REF_FIELDS} for s, raw in snapshots.items()}
         baseline_refs = {}
@@ -207,7 +207,9 @@ class Fabric:
 
 class ContextRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    semanticMode: str = "off"
+    semanticMode: str | None = None
+    knowledgeMode: str | None = None
+    knowledgeSetVersion: str | None = None
     sourceSnapshotSet: dict | None = None
     allowPartial: bool = False
 
@@ -221,7 +223,13 @@ def install_fabric(app, read, ensure_graph=None):
         situation = await fabric.situation()
         return {
             "items": [
-                {"systemId": s, "sourceSchemaVersion": "3.0.0", **situation["coverage"][s]}
+                {
+                    "systemId": s,
+                    "sourceSchemaVersion": "4.0.0"
+                    if os.getenv("C4I_CONTRACT_VERSION") == "4"
+                    else "3.0.0",
+                    **situation["coverage"][s],
+                }
                 for s in fabric.sources
             ]
         }
@@ -229,8 +237,10 @@ def install_fabric(app, read, ensure_graph=None):
     @app.get("/v1/catalog", dependencies=[Depends(read)])
     async def catalog():
         return {
-            "datasetId": "c2-domain-demo-v3",
-            "sourceSchemaVersion": "3.0.0",
+            "datasetId": "c2-domain-demo-v4"
+            if os.getenv("C4I_CONTRACT_VERSION") == "4"
+            else "c2-domain-demo-v3",
+            "sourceSchemaVersion": "4.0.0" if os.getenv("C4I_CONTRACT_VERSION") == "4" else "3.0.0",
             "layers": [
                 "format",
                 "entity",
@@ -264,7 +274,45 @@ def install_fabric(app, read, ensure_graph=None):
 
     @app.post("/v1/analysis-contexts", dependencies=[Depends(read)])
     async def prepare(body: ContextRequest):
-        return await fabric.prepare(body.semanticMode, body.sourceSnapshotSet, body.allowPartial)
+        if os.getenv("C4I_CONTRACT_VERSION") != "4":
+            return await fabric.prepare(
+                body.semanticMode or "off", body.sourceSnapshotSet, body.allowPartial
+            )
+        if body.semanticMode is not None or body.knowledgeMode not in (
+            "native",
+            "documents",
+            "structured",
+        ):
+            raise ValueError("v4 requires explicit knowledgeMode, not semanticMode")
+        result = await fabric.prepare("off", body.sourceSnapshotSet, body.allowPartial)
+        result.update(
+            knowledgeMode=body.knowledgeMode,
+            semanticPolicyVersion="4-knowledge-abc",
+            sourceToolContractVersion="4",
+        )
+        result.pop("semanticMode", None)
+        result.pop("documents", None)
+        if body.knowledgeMode != "native":
+            from semantic_core.knowledge import KnowledgeCatalog
+
+            catalog = KnowledgeCatalog()
+            version = body.knowledgeSetVersion or catalog.version
+            catalog = KnowledgeCatalog(version)
+            for source in result["sourceSnapshotSet"].values():
+                for item in catalog.documents:
+                    known = item["document"].get("knownAt")
+                    if known and datetime.fromisoformat(known) > datetime.fromisoformat(
+                        source["sourceTime"]
+                    ):
+                        raise ValueError("knowledge knownAt beyond source snapshot")
+            result.update(knowledgeSetVersion=version, knowledgeSetHash=catalog.hash)
+            if body.knowledgeMode == "structured":
+                if set(result["sourceSnapshotSet"]) != {"atcis", "knccs"} or body.allowPartial:
+                    raise ValueError("structured requires complete sources")
+                result["graphInfo"] = await ensure_graph(result["sourceSnapshotSet"], version)
+                if result["graphInfo"].get("knowledgeSetHash") != catalog.hash:
+                    raise ValueError("graph knowledge mismatch")
+        return result
 
     @app.get("/v1/events", dependencies=[Depends(read)])
     async def events(request: Request, systemId: str, epochId: str, after: int = 0):

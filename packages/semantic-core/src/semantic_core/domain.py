@@ -8,8 +8,23 @@ from battlefield_ontology import digest
 from battlefield_ontology.domain import DOMAIN_VERSION, build_domain, catalog_hash
 
 
-def publish_domain(repo, sources, graph_version=None):
+def publish_domain(repo, sources, graph_version=None, knowledge=None):
     """Publish an immutable validated build; READY reuse requires identical semantic inputs."""
+    v4 = any(s.get("sourceSchemaVersion") == "4.0.0" for s in sources.values())
+    version_number = "4.0.0" if v4 else DOMAIN_VERSION
+    if v4:
+        from semantic_core.knowledge import KnowledgeCatalog
+
+        catalog = KnowledgeCatalog()
+        catalog.validate(knowledge)
+        catalog = KnowledgeCatalog(knowledge["knowledgeSetVersion"])
+        for source in sources.values():
+            for item in catalog.documents:
+                known = item["document"].get("knownAt")
+                if known and datetime.fromisoformat(known) > datetime.fromisoformat(
+                    source["sourceTime"]
+                ):
+                    raise ValueError("knowledge beyond source snapshot")
     hashes = {
         s: digest(
             {
@@ -22,7 +37,12 @@ def publish_domain(repo, sources, graph_version=None):
     }
     # Stable data + reviewed catalog identify meaning; position ticks do not force rebuilds.
     fingerprint = digest(
-        {"hashes": hashes, "domain": DOMAIN_VERSION, "catalogHash": catalog_hash()}
+        {
+            "hashes": hashes,
+            "domain": version_number,
+            "catalogHash": catalog_hash(version_number),
+            **({"knowledge": knowledge} if v4 else {}),
+        }
     )
     version = graph_version or "domain-" + fingerprint[:24]
     inputs = {
@@ -48,12 +68,21 @@ def publish_domain(repo, sources, graph_version=None):
             f=fingerprint,
             h=json.dumps(hashes),
             i=json.dumps(inputs),
-            o=DOMAIN_VERSION,
-            c=catalog_hash(),
+            o=version_number,
+            c=catalog_hash(version_number),
             t=datetime.now(UTC).isoformat(),
         )
         try:
-            model = build_domain(sources)
+            model = build_domain(
+                sources, catalog.documents if v4 else None, knowledge if v4 else None
+            )
+            if v4:
+                repo.query(
+                    "MATCH (b:GraphBuild {graphVersion:$v}) SET b.knowledgeSetVersion=$k,b.knowledgeSetHash=$h",
+                    v=version,
+                    k=knowledge["knowledgeSetVersion"],
+                    h=knowledge["knowledgeSetHash"],
+                )
             nodes, edges = defaultdict(list), defaultdict(list)
             for n in model["nodes"]:
                 nodes[n["label"]].append(
@@ -94,8 +123,8 @@ class DomainService:
 
     def model(self, version):
         info = self.repo.require_ready(version)
-        if info["ontologyVersion"] != DOMAIN_VERSION:
-            raise ValueError("not a v3 domain build")
+        if info["ontologyVersion"] not in (DOMAIN_VERSION, "4.0.0"):
+            raise ValueError("unsupported domain build")
         nodes = [
             json.loads(r["body"])
             for r in self.repo.query(

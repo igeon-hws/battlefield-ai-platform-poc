@@ -2,9 +2,10 @@
 name = "semantic-mcp"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
-dependencies = ["mcp>=1.20,<2", "httpx>=0.28", "uvicorn>=0.34", "python-dotenv>=1"]
+dependencies = ["battlefield-source-runtime==0.1.0", "mcp>=1.20,<2", "httpx>=0.28", "uvicorn>=0.34", "python-dotenv>=1"]
 [project.scripts]
 semantic-mcp = "semantic_mcp.server:main"
+knowledge-mcp = "semantic_mcp.knowledge:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

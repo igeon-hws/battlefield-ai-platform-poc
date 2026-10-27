@@ -217,18 +217,20 @@ export default function NativeSourceApp({ system }: { system: 'atcis' | 'knccs' 
       </div>
       {error && <p role="alert">{error}</p>}
       <nav>
-        {Object.entries(tabs[system]).map(([key, label]) => (
-          <button
-            key={key}
-            aria-pressed={key === tab}
-            onClick={() => {
-              setTab(key);
-              setSelected(null);
-            }}
-          >
-            {label}
-          </button>
-        ))}
+        {Object.entries(tabs[system])
+          .filter(([key]) => key !== 'documents' || Boolean(snapshot?.records.documents))
+          .map(([key, label]) => (
+            <button
+              key={key}
+              aria-pressed={key === tab}
+              onClick={() => {
+                setTab(key);
+                setSelected(null);
+              }}
+            >
+              {label}
+            </button>
+          ))}
       </nav>
       <main className="domain-source-grid">
         <aside>

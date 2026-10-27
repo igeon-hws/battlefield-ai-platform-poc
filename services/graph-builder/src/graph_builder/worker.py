@@ -51,7 +51,7 @@ class GraphBuilder:
 
         return dict(await asyncio.gather(*(snapshot(s) for s in self.sources)))
 
-    async def ensure_build(self, snapshots):
+    async def ensure_build(self, snapshots, knowledge_version=None):
         """Read immutable public exports, validate their pins, then publish/reuse a build."""
         async with self.lock:
             exports = {}
@@ -70,7 +70,57 @@ class GraphBuilder:
                 exports[system] = data
             if set(exports) != {"atcis", "knccs"}:
                 raise ValueError("incomplete source coverage")
-            if os.getenv("BUILDER_GRAPH_PREFIX"):
+            knowledge = None
+            if any(d.get("sourceSchemaVersion") == "4.0.0" for d in exports.values()):
+                if knowledge_version is None:
+                    from semantic_core.knowledge import KnowledgeCatalog
+
+                    knowledge_version = KnowledgeCatalog().version
+                async with httpx.AsyncClient(
+                    base_url=os.getenv("SEMANTIC_BASE_URL", "http://127.0.0.1:4400"),
+                    headers={"Authorization": "Bearer " + os.environ["SEMANTIC_READ_TOKEN"]}
+                    if os.getenv("SEMANTIC_READ_TOKEN")
+                    else {},
+                    timeout=10,
+                ) as client:
+                    response = await client.get("/v1/knowledge/sets/" + knowledge_version)
+                    response.raise_for_status()
+                    knowledge = response.json()
+                    from semantic_core.knowledge import KnowledgeCatalog
+
+                    KnowledgeCatalog().validate(knowledge)
+                    for item in knowledge["documents"]:
+                        response = await client.get(
+                            "/v1/knowledge/documents/" + item["documentKey"],
+                            params={"knowledgeSetVersion": knowledge_version},
+                        )
+                        response.raise_for_status()
+                        actual = response.json()
+                        expected = KnowledgeCatalog(knowledge_version).document(
+                            knowledge_version, item["documentKey"]
+                        )
+                        if actual != expected:
+                            raise ValueError("knowledge document body mismatch")
+            if knowledge is not None:
+                prefix = os.getenv("BUILDER_GRAPH_PREFIX", "")
+                if prefix not in ("", "test-"):
+                    raise ValueError("only test graph prefix supported")
+                version = (
+                    prefix
+                    + digest(
+                        {
+                            "sources": {s: d["stableDataHash"] for s, d in exports.items()},
+                            "knowledge": knowledge,
+                            "catalog": self.domain_catalog(),
+                        }
+                    )[:32]
+                    if prefix
+                    else None
+                )
+                info = await asyncio.to_thread(
+                    self.repository.build, exports, graph_version=version, knowledge=knowledge
+                )
+            elif os.getenv("BUILDER_GRAPH_PREFIX"):
                 prefix = os.environ["BUILDER_GRAPH_PREFIX"]
                 if prefix != "test-":
                     raise ValueError("only test graph prefix supported")
@@ -144,14 +194,16 @@ class GraphBuilder:
                 self.last_error = f"{system} stream: {type(exc).__name__}"
                 await asyncio.sleep(1)
 
-    async def submit(self, snapshots, versions):
+    async def submit(self, snapshots, versions, knowledge_version=None):
         expected = {
             "ontologyVersion": ONTOLOGY_VERSION,
             "mappingVersion": MAPPING_VERSION,
             "resolutionRuleVersion": RESOLUTION_VERSION,
         }
-        if os.getenv("C4I_CONTRACT_VERSION") == "3":
-            expected = {k: "3.0.0" for k in expected}
+        if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4"):
+            expected = {k: os.environ["C4I_CONTRACT_VERSION"] + ".0.0" for k in expected}
+        if os.getenv("C4I_CONTRACT_VERSION") == "4" and not knowledge_version:
+            raise ValueError("knowledgeSetVersion required")
         if versions != expected:
             raise ValueError("unsupported rule versions")
         request_id = (
@@ -162,14 +214,16 @@ class GraphBuilder:
                     "snapshots": snapshots,
                     "versions": versions,
                     "domainCatalog": self.domain_catalog(),
+                    "knowledgeSetVersion": knowledge_version,
                 }
             )[:32]
         )
         await asyncio.to_thread(
             self.repository.query,
-            "MERGE (r:BuildRequest {requestId:$id}) ON CREATE SET r.status='QUEUED',r.bodyJson=$body,r.sourceScope=$scope",
+            "MERGE (r:BuildRequest {requestId:$id}) ON CREATE SET r.status='QUEUED',r.bodyJson=$body,r.sourceScope=$scope,r.knowledgeSetVersion=$knowledge",
             id=request_id,
             scope=self.scope,
+            knowledge=knowledge_version,
             body=json.dumps(snapshots),
         )
         self.wake.set()
@@ -177,10 +231,10 @@ class GraphBuilder:
 
     @staticmethod
     def domain_catalog():
-        if os.getenv("C4I_CONTRACT_VERSION") == "3":
+        if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4"):
             from battlefield_ontology.domain import catalog_hash
 
-            return catalog_hash()
+            return catalog_hash(os.environ["C4I_CONTRACT_VERSION"] + ".0.0")
         return None
 
     async def request_info(self, request_id):
@@ -204,7 +258,7 @@ class GraphBuilder:
             self.wake.clear()
             rows = await asyncio.to_thread(
                 self.repository.query,
-                "MATCH (r:BuildRequest {status:'QUEUED',sourceScope:$scope}) RETURN r.requestId AS id,r.bodyJson AS body ORDER BY r.requestId LIMIT 1",
+                "MATCH (r:BuildRequest {status:'QUEUED',sourceScope:$scope}) RETURN r.requestId AS id,r.bodyJson AS body,r.knowledgeSetVersion AS knowledge ORDER BY r.requestId LIMIT 1",
                 scope=self.scope,
             )
             if rows:
@@ -215,7 +269,9 @@ class GraphBuilder:
                     id=request["id"],
                 )
                 try:
-                    info = await self.ensure_build(json.loads(request["body"]))
+                    info = await self.ensure_build(
+                        json.loads(request["body"]), request.get("knowledge")
+                    )
                     await asyncio.to_thread(
                         self.repository.query,
                         "MATCH (r:BuildRequest {requestId:$id}) SET r.status='READY',r.graphVersion=$v",

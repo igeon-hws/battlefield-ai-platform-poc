@@ -19,6 +19,7 @@ class Question(BaseModel):
     model_config = ConfigDict(extra="forbid")
     question: str = Field(min_length=1, max_length=12000)
     semanticMode: Literal["off", "on"] = "off"
+    knowledgeMode: Literal["native", "documents", "structured"] | None = None
     conversationId: str | None = None
     baselineReportRef: Literal["atcis:report:R0"] | None = None
 
@@ -32,6 +33,7 @@ class ComparisonInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     question: str = Field(min_length=1, max_length=12000)
     firstMode: Literal["off", "on"] = "off"
+    firstKnowledgeMode: Literal["native", "documents", "structured"] = "native"
     baselineReportRef: Literal["atcis:report:R0"] | None = None
 
 
@@ -57,23 +59,38 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
         "builderUrl": os.getenv("BUILDER_BASE_URL", "http://127.0.0.1:4420"),
         "adminToken": os.getenv("BUILDER_ADMIN_TOKEN", ""),
     }
-    domain = os.getenv("C4I_CONTRACT_VERSION") == "3"
-    repo = MultiRepository(
+    v4 = os.getenv("C4I_CONTRACT_VERSION") == "4"
+    domain = os.getenv("C4I_CONTRACT_VERSION") in ("3", "4")
+    repository_type = MultiRepository
+    if v4:
+        from platform_api.knowledge_runtime import KnowledgeRepository
+
+        repository_type = KnowledgeRepository
+    repo = repository_type(
         Path(
             path
             or os.getenv(
-                "PLATFORM_VNEXT_DB", "var/platform-v3.db" if domain else "var/platform-vnext-v2.db"
+                "PLATFORM_VNEXT_DB",
+                "var/platform-v4.db"
+                if v4
+                else "var/platform-v3.db"
+                if domain
+                else "var/platform-vnext-v2.db",
             )
         ),
         os.getenv("AUTO_SEMANTIC_MODE", "off"),
-        "3-domain-native-off" if domain else "2-native-off",
-        "3" if domain else "2",
+        "4-knowledge-abc" if v4 else "3-domain-native-off" if domain else "2-native-off",
+        "4" if v4 else "3" if domain else "2",
     )
     runtime_type = MultiRuntime
     if domain:
         from platform_api.domain_runtime import DomainRuntime
 
         runtime_type = DomainRuntime
+    if v4:
+        from platform_api.knowledge_runtime import KnowledgeRuntime
+
+        runtime_type = KnowledgeRuntime
     runtime = runtime_type(repo, provider or OpenAIProvider(), sources, semantic)
 
     @contextlib.asynccontextmanager
@@ -106,7 +123,15 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
     async def config():
         return {
             "profile": "heterogeneous",
-            "defaultSemanticMode": "off",
+            **(
+                {
+                    "defaultKnowledgeMode": "native",
+                    "knowledgeModes": ["native", "documents", "structured"],
+                    "fabricUrl": semantic["url"],
+                }
+                if v4
+                else {"defaultSemanticMode": "off"}
+            ),
             "sourceToolContractVersion": repo.source_contract,
             "semanticPolicyVersion": repo.policy_version,
         }
@@ -123,11 +148,18 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
     @app.post("/api/v1/analyses", status_code=202)
     async def create(body: Question):
         try:
+            if v4 and (body.knowledgeMode is None or "semanticMode" in body.model_fields_set):
+                raise HTTPException(
+                    422, "v4 requires knowledgeMode; semanticMode is a legacy contract"
+                )
             return await repo.enqueue(
                 body.question,
-                body.semanticMode,
+                ("on" if body.knowledgeMode == "structured" else "off")
+                if v4
+                else body.semanticMode,
                 body.conversationId,
                 baseline_report_ref=body.baselineReportRef,
+                knowledge_mode=body.knowledgeMode if v4 else None,
             )
         except ConversationNotFound:
             return JSONResponse({"error": "conversation_not_found"}, status_code=404)
@@ -140,7 +172,11 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
 
     @app.post("/api/v1/comparisons", status_code=202)
     async def compare(body: ComparisonInput):
-        return await repo.create_comparison(body.question, body.firstMode, body.baselineReportRef)
+        if v4 and "firstMode" in body.model_fields_set:
+            raise HTTPException(422, "v4 requires firstKnowledgeMode")
+        return await repo.create_comparison(
+            body.question, body.firstKnowledgeMode if v4 else body.firstMode, body.baselineReportRef
+        )
 
     @app.get("/api/v1/comparisons")
     async def comparisons():

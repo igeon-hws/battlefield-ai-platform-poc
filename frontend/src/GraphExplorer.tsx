@@ -69,12 +69,14 @@ export default function GraphExplorer({
   onVersion,
   visible,
   onRule,
+  onDocument,
 }: {
   get: Get;
   version: string;
   onVersion: (v: string) => void;
   visible: boolean;
   onRule: (rule: string) => void;
+  onDocument?: (key: string, version: string) => void;
 }) {
   const [builds, setBuilds] = useState<Build[]>([]);
   const [pinned, setPinned] = useState<Build[]>([]);
@@ -124,7 +126,8 @@ export default function GraphExplorer({
       const saved: Build[] = [];
       for (const value of new Set([result.activeGraphVersion, chosen.current].filter(Boolean))) {
         const info = await get('builds/' + encodeURIComponent(value));
-        if (info.status === 'READY' && info.ontologyVersion === '3.0.0') saved.push(info);
+        if (info.status === 'READY' && ['3.0.0', '4.0.0'].includes(info.ontologyVersion))
+          saved.push(info);
       }
       if (id !== buildGeneration.current) return;
       setPinned(saved);
@@ -441,6 +444,7 @@ export default function GraphExplorer({
             className="graph-tools"
             onSubmit={(e) => {
               e.preventDefault();
+              setMode('목록');
               void searchNodes();
             }}
           >
@@ -769,17 +773,25 @@ export default function GraphExplorer({
                     <button onClick={() => onRule(edge.ruleId!)}>규칙 {edge.ruleId} 보기</button>
                   )}
                   {(edge.documentRefs || []).map((value, i) => {
-                    const ref = value as { systemId: string; nativeId: string };
+                    const ref = value as {
+                      systemId: string;
+                      nativeId: string;
+                      documentKey?: string;
+                      knowledgeSetVersion?: string;
+                    };
                     return (
                       <button
                         key={i}
                         className="domain-record"
                         onClick={() => {
-                          void chooseNode(`${ref.systemId}:document:${ref.nativeId}`);
+                          if (ref.documentKey && ref.knowledgeSetVersion)
+                            onDocument?.(ref.documentKey, ref.knowledgeSetVersion);
+                          else void chooseNode(`${ref.systemId}:document:${ref.nativeId}`);
                           setMode('상세');
                         }}
                       >
-                        원천 문서 {ref.systemId} · {ref.nativeId} 보기
+                        {ref.documentKey ? 'Fabric 지식' : '원천 문서'}{' '}
+                        {ref.documentKey || ref.systemId + ' · ' + ref.nativeId} 보기
                       </button>
                     );
                   })}

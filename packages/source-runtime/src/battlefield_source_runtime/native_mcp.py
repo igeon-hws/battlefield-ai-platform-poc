@@ -1,5 +1,6 @@
 """Native v3 HTTP read adapters. Descriptions belong to the MCP server."""
 
+import os
 from typing import Annotated
 from urllib.parse import quote
 
@@ -13,7 +14,9 @@ from battlefield_source_runtime.mcp import TokenMiddleware
 
 def create_native_mcp(system, url, read_token="", mcp_token=""):
     server = FastMCP(
-        f"Synthetic {system.upper()} native v3", stateless_http=True, json_response=True
+        f"Synthetic {system.upper()} native v{os.getenv('C4I_CONTRACT_VERSION', '3')}",
+        stateless_http=True,
+        json_response=True,
     )
 
     async def get(path, params=None):
@@ -95,6 +98,14 @@ def create_native_mcp(system, url, read_token="", mcp_token=""):
         },
     }
     for resource, description in resources[system].items():
+        if os.getenv("C4I_CONTRACT_VERSION") == "4" and resource == "documents":
+            continue
+        if os.getenv("C4I_CONTRACT_VERSION") == "4":
+            description = (
+                "Read native "
+                + resource
+                + " records using their original field names, IDs and source units."
+            )
         (land_tool if system == "atcis" else sea_tool)(resource, description)
     app = server.streamable_http_app()
     app.state.tool_server = server
@@ -102,7 +113,11 @@ def create_native_mcp(system, url, read_token="", mcp_token=""):
 
     async def health(request):
         return JSONResponse(
-            {"status": "ok", "service": system + "-mcp", "sourceToolContractVersion": "3"}
+            {
+                "status": "ok",
+                "service": system + "-mcp",
+                "sourceToolContractVersion": os.getenv("C4I_CONTRACT_VERSION", "3"),
+            }
         )
 
     app.add_route("/health", health)

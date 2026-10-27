@@ -14,7 +14,7 @@ def rule_ids(value):
     return set()
 
 
-def grade_record(record, expected):
+def grade_record_legacy(record, expected):
     state = record["state"]
     evidence = state.get("evidence", [])
     ids = {e["evidenceId"] for e in evidence}
@@ -73,16 +73,61 @@ def grade_record(record, expected):
     }
 
 
+def grade_record(record, expected):
+    mode = record.get("knowledgeMode", record.get("mode"))
+    if mode not in ("native", "documents", "structured"):
+        return grade_record_legacy(record, expected)
+    state = record["state"]
+    calls = state.get("toolCalls", [])
+    evidence = state.get("evidence", [])
+    knowledge = any(c["name"].startswith("knowledge__") for c in calls) or any(
+        e.get("systemId") == "knowledge" for e in evidence
+    )
+    semantic = any(
+        c["name"].startswith("semantic__") or c["name"] == "evaluate_evidence" for c in calls
+    ) or any(
+        e.get("systemId") == "semantic"
+        or e.get("data", {}).get("interpretation") == "semantic_evidence"
+        for e in evidence
+    )
+    source_documents = any(
+        c["name"] in ("atcis__list_documents", "knccs__list_documents") for c in calls
+    )
+    valid = (
+        not source_documents
+        and (mode != "native" or not knowledge)
+        and (mode == "structured" or not semantic)
+    )
+    legacy = grade_record_legacy(
+        {**record, "mode": "on" if mode == "structured" else "off"}, expected
+    )
+    return {
+        **legacy,
+        "knowledgeMode": mode,
+        "capabilityBoundaryValid": valid,
+        "offBoundaryValid": None,
+        "missingRuleIds": [],
+        "knowledgeDocumentsRead": knowledge,
+        "commonFactsReviewRequired": True,
+        "structuredFactsChecked": legacy["deterministicFactsMatch"]
+        if mode == "structured"
+        else None,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("artifact", type=Path)
-    parser.add_argument(
-        "--gold", type=Path, default=Path("tests/fixtures/c2-domain-demo-v3/expected.json")
-    )
+    parser.add_argument("--gold", type=Path, default=None)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     report = json.loads(args.artifact.read_text(encoding="utf-8"))
-    gold = json.loads(args.gold.read_text(encoding="utf-8"))
+    gold_path = args.gold or Path(
+        "tests/fixtures/c2-domain-demo-v4/expected.json"
+        if report.get("sourceToolContractVersion") == "4"
+        else "tests/fixtures/c2-domain-demo-v3/expected.json"
+    )
+    gold = json.loads(gold_path.read_text(encoding="utf-8"))
     layers = {
         "F1": ["L1", "L2"],
         "F2": ["L3", "L5"],
@@ -98,18 +143,20 @@ def main():
         "records": [
             {
                 "scenario": r["scenario"],
-                "mode": r["mode"],
+                "mode": r.get("knowledgeMode", r.get("mode")),
                 "layers": layers[r["scenario"]],
                 "grade": grade_record(r, gold[r["scenario"]]),
                 "toolCalls": len(r["state"].get("toolCalls", [])),
-                "durationSeconds": r["durationSeconds"],
-                "inputTokens": r["inputTokens"],
-                "outputTokens": r["outputTokens"],
+                "durationSeconds": r.get("durationSeconds"),
+                "inputTokens": r.get("inputTokens"),
+                "outputTokens": r.get("outputTokens"),
             }
             for r in report["records"]
         ],
         "limits": "Evidence-only checks. No fabricated answer score or automatic ON superiority. Same artifact context applies to each pair. No dollar price inferred from token usage.",
     }
+    if args.output.exists():
+        raise ValueError("refuse to overwrite existing evaluation artifact")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({"gradedRecords": len(result["records"]), "output": str(args.output)}))

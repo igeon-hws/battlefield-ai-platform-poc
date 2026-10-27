@@ -2,16 +2,59 @@
 
 ## 현재 상태
 
-2026-10-26 Data Fabric Graph 탐색·버전 선택 구현과 관련 검증을 마쳐 **Human Review 대기**다. 기존 비교 UI 회귀 한 건의 snapshot 준비 오류는 아래에 남긴다. 현재 기준은 c2-domain-demo-v3, Ontology3.0.0/adapter3.0.2다. [ARCHITECTURE](ARCHITECTURE.md)는 구현 구조/실행 방법, [PLAN](IMPLEMENTATION_PLAN.md)은 다음 유효 작업이다. 이 문서는 실제 결과·제약·주요 이력만 관리한다.
+2026-10-27 Fabric 지식 분리·A/B/C 비교에 이어 REVIEW 기반 지도·AI 채팅 통합 화면의 구현·검증을 완료해 **Human Review 대기**다. 현재 기본은 c2-domain-demo-v4, source/ontology/adapter4.0.0, 정책4-knowledge-abc다. 실제 GPT 효과 비교는 미측정이며 기존 v3 OFF/ON 실측을 대체하지 않는다. [ARCHITECTURE](ARCHITECTURE.md)는 구현 구조/실행 방법, [PLAN](IMPLEMENTATION_PLAN.md)은 다음 유효 작업이다. 이 문서는 실제 결과·제약·주요 이력만 관리한다.
+
+## 지도·AI 채팅 통합 화면 — 2026-10-27
+
+REVIEW의 ‘상황판과 챗 UI를 함께’는 상시 MapLibre 지도+대화 타임라인+고정 composer로 반영했다. ‘GOTHAM/LATTICE·ChatGPT 참고’는 지도 중심의 원천/객체 계층과 이어지는 질문/응답·이력·비교 동작, 기존 차콜 토큰으로 반영했다. 실제 브랜드 자산은 사용하지 않았다. `KnowledgeApp.tsx`/CSS 범위이며 backend·MCP·A/B/C 지식/정책 경계는 변경하지 않았다.
+
+- 같은 conversation의 전체 질문/응답, A/B/C 모드 격리·새 대화, F1~F7/R0 옵션과 비교를 제공한다. IME 조합 중 Enter와 중복 전송을 막고 실패 시 초안을 보존한다. 지연 응답이 사용자의 새 모드/초안을 덮어쓰지 않는다.
+- 지도 인스턴스·camera·선택 객체를 대화·이력·비교 중 유지한다. sessionStorage에는 UI 식별자·camera/선택·스크롤만 저장한다. 대화/비교 본문은 전용 서버 API에서 복원하고 capped 목록 밖의 비교 run도 추가 조회한다. 삭제된 비교는 안내 후 정리한다.
+- 읽는 위치 자동 이동을 막고 새 내용 복귀 버튼을 제공한다. 원천 단절/갱신 실패와 지도 타일 장애를 구분한다. 비교는 채팅 탭·확대 dialog(데스크톱 세 열)로 읽고 닫으면 기존 지도를 유지한다. 원천 객체 선택은 Agent에 자동 전달하지 않는다.
+- 1024px 이상 지도와 우측360~460px 채팅, 미만은 지도 상단/채팅 하단이다. 가용 높이가 줄면 지도를 축소한다. UI_GUIDE·PRD·ARCHITECTURE·ADR와 README 사용법을 실제 동작에 맞췄다.
+
+선행 실패: 기존 UI에서 지도 region 부재를 확인했고, 추가 반례로 삭제된 비교의 무한 로딩과390×430에서 composer 하단 가림을 재현한 뒤 수정했다. 최종 정적 빌드를 패키징하고 실제 Chromium으로 확인했다. TypeScript lint·플랫폼 production build·변경 테스트 Ruff 검사 통과. 빌드의500kB chunk 경고는 남으며 새 오류는 아니다.
+
+실제 서비스 검증은 `tests/test_knowledge_integration.py`의 기본2 passed(122.60초)와 `-m neo4j` 1 passed(139.04초)다. 실제 HTTP→MCP·Neo4j에서 A/B/C 공통 snapshot·지식 provenance, 비교 재열람/확대/지도 인스턴스 유지·모바일 C 탭·Fabric 고정 문서 이동을 확인했다. 지식 경계 회귀 `tests/test_knowledge_v4.py`는12 passed,1 deselected다. 결정론적 provider를 사용했고 유료 모델 호출·도메인 정답률 측정을 수행하지 않았다.
+
+최종 `uv run pytest tests/test_workspace_ui.py tests/test_domain_ui.py -m ui -q`는 **10 passed(158.74초)**다. mock API+실제 MapLibre canvas로1440×900/1280×800/1024×768/640×900/390×844/390×430의 지도·composer 동시 가시성, 후속 대화/모드 격리, IME·중복·503·늦은 응답, 긴 답변의 스크롤 유지, 지도 camera/객체·새로고침 복원을 확인했다. 별도 실제 서비스 fixture로 육군/해군 업무 기록·Fabric 독립 화면·v3 OFF/ON 비교·모바일 탭·해군 참조 탭 회귀를 통과했다. 첫 실행에서 기존 Fabric ‘Graph 없음’ 검사가 로컬 `.env`의 활성 Neo4j에 의존해 실패해, 이 테스트만 `NEO4J_PASSWORD=""`로 격리한 뒤 재검증했다. 제품 Graph/데이터는 변경하지 않았다. docs8개·REVIEW SHA256 불변과 변경 파일 공백 검사를 확인했다(REVIEW 원문에 있던 Markdown 줄바꿈 공백은 보존).
+
+캡처를 직접 확인했다: `artifacts/knowledge-platform-v4.png`(실제 원천10객체·배경 지도), `knowledge-comparison-expanded-v4.png`(실제 비교), `battlefield-chat-desktop.png`/`battlefield-chat-mobile.png`(mock 응답·타일 장애), `battlefield-chat-long.png`(긴 답변/선택 객체), `battlefield-chat-source-error.png`(원천 갱신 실패). 정상 지도 외부 타일 표시와 강제 타일 차단 fallback을 구분해 확인했다. 실제 모바일 OS 키보드/실기기, 접근성 전체 대비 감사, 유료 GPT 응답 품질은 미검증이다. 디자인의 최종 가독성/밀도는 Human Review 대상이다.
 
 ## 구현 범위
 
 - 독립 육군/해군 native UI·API·SQL·시뮬레이터. 공유 runtime은 ledger/auth/snapshot/event 등 기계 기능이다.
-- 원천 MCP2, Fabric API/콘솔·catalog/projection/분석 context, Neo4j Builder, Semantic MCP7개. 공개 원천 API·실제 MCP 경계를 유지한다.
+- 원천 MCP2(ATCIS7/KNCCS9도구), Fabric 지식 catalog/API·독립 Knowledge MCP3도구·projection/분석 context, Neo4j Builder, Semantic MCP7도구. 공개 API·실제 MCP 경계를 유지한다.
 - 검토 문서 hash/version·adapter·규칙 분리, 명시적 association ER, 안정 Graph와 live 상태 소유권 분리.
-- 단일 native tool loop, OFF helper 차단/원천 문서 허용, ON 현재-run 근거 평가·집계·유형×상태 계산, 기준보고/T0 고정·비교 대화 격리.
+- 단일 native tool loop, A 원천/B 문서/C 구조화 지식 경계, C 현재-run 근거 평가·집계·유형×상태 계산, 기준보고/T0·B/C 지식 집합 고정과 비교 대화 격리. v3 문서 허용 OFF/ON은 호환 정책이다.
 - F1~F7·주장 배지·계산 표·비교 조건·세 방책 선택. 제품4개와 legacy의 정적 UI5개.
 - 실행별 UTF-8 파일 로그와 핵심 경계 주석. 로그는 기본 var/logs/agent/<runId>.log이며 전체 근거는 DB/UI trace가 기준이다.
+
+## Fabric 지식 분리·A/B/C 비교 — 2026-10-27
+
+2026-10-26 합의한 계획의 구현을 이어 완료했다. 원천의 업무 보고·전문·활동·조직/식별 관계는 유지하고, v4의 설명 문서 API/MCP/DB/UI 자원을 제거했다. 원래8개 설명 문서는 본문/version/hash를 보존해 Fabric으로 이관했고, C의 기본값·기간·unknown·집계·완료 조건을 B도 읽을 수 있도록 `fabric:POLICY-01`을 보완해 총9개를 관리한다. 새 v4 seed/독립 fixture/gold·전용 DB 경로를 사용하며 v3 파일·이력·Graph·실측 artifact는 원래 의미로 보존한다.
+
+Knowledge catalog는 현재/불변 archive 집합과 문서 hash를 검증한다. 읽기 API와 별도 :4430 Knowledge MCP의 목록/검색/본문 도구를 구현했다. 검색은 literal text이며 Graph/임베딩/LLM 요약을 호출하지 않는다. A는 Knowledge/Graph 클라이언트가 없고 B는 Graph 없이 실행된다. C는 같은 문서 집합을 원천 stable hash와 함께 고정한 READY Graph를 사용한다. Builder는 실제 공개 지식 API에서 manifest와 본문을 읽고 검증한다. Graph provenance의 문서 참조는 Fabric key/집합 버전으로 연결된다.
+
+플랫폼은 `knowledgeMode=native/documents/structured` 개별 실행과 공통 manifest의 세 run 비교를 제공한다. 모드별 대화·도구·근거·계산 helper를 격리하고, C 준비 실패는 C의 실패로 보존하며 A/B를 버리지 않는다. v4에서 모호한 legacy semanticMode 요청은 거부한다. 기존 정책의 run이 있는 DB는 읽기 검사에서 거부하고 별도 v4 DB를 요구한다. 같은 문서 대화는 원래 지식 버전을 유지한다.
+
+UI에는 F1~F7, A/B/C 선택·개별 실행·같은 기준 비교·실행/비교 이력·공통 조건 상세를 추가했다. 세 열/모바일 탭·원천 지도·기존 결과/방책/근거 패널을 유지하고, Fabric의 지식 문서 본문과 Graph의 버전 고정 문서 이동을 연결했다. 기본은 v4이며 `--contract-version 3`으로 기존 정책을 실행한다. A/B는 `--profile off`에서 Knowledge MCP와 함께 Neo4j 없이 사용할 수 있다.
+
+| 이번 검증 | 결과 |
+| --- | --- |
+| 선행 실패와 수정 | 새 API 부재/원천 문서 잔존, A/B 우회 호출, 이벤트 캡처의 타 체계 누락, 단독 CLI의 legacy DB 재사용을 테스트로 확인 후 수정 |
+| 관련 원천·의미·MCP·Agent·평가·Fabric·실행·로그 회귀 | 54 passed, 1 deselected /23.38초. 실제 원천 MCP 경로와 기존 v3 호환 포함 |
+| 최종 지식/Graph·호환 검사 | `test_knowledge_v4.py`와 `test_graph_explorer*.py`: 26 passed /30.17초. 실제 Neo4j, 인증/버전/본문 hash·문서 참조, A/B helper 금지, C 실패 보존, DB 보호·이벤트 snapshot 병합, v3 탐색 포함 |
+| 최종 실제 스택/UI | `test_knowledge_integration.py`: 3 passed /241.17초. A/B의 실제 MCP·Neo4j 없는 실행, A/B/C 공통 pins·지식 hash·세 대화·Semantic MCP, 데스크톱 세 열/모바일 탭·Graph→고정 Fabric 본문 이동 |
+| UI 지연 응답 회귀 | catalog 응답이 늦게 도착해 Graph 탭을 문서 탭으로 되돌리는 문제를 수정. 별도 재현 검사 1 passed /3.19초 후 최종26개 검사에 포함 |
+| 정적/빌드 | Ruff check 통과, format125파일 통과, mypy72 source files 통과, 계약 export 실행, TypeScript와 전체 UI build·최종 Fabric/플랫폼 재빌드·정적 패키징 통과 |
+| 시각 확인 | `artifacts/knowledge-platform-v4.png`, `knowledge-comparison-v4.png`, `knowledge-fabric-v4-mobile.png`의 실제 테스트 UI 캡처 확인 |
+
+검증 도중 실제 서비스 준비+실행보다 짧았던 테스트 대기(단일20초)를 120초 Agent 예산과 별도 준비 시간을 허용하도록 조정했다. 세 run은 순차 실행하므로 별도 비교 대기 범위를 둔다. 브라우저는 외부 자원 전체 load 대신 DOM 준비 후 실제 컨트롤/결과를 검증한다. 운영 loop/도구/원천 동시 캡처의 기준을 완화한 것은 아니다. 최종 관련 검증은 모두 통과했으며 앞선 실패를 통과 기록으로 대체해 사용하지 않았다.
+
+**측정 한계:** 통합 테스트의 provider는 기능 검증용 deterministic adapter다. 실제 GPT 호출·F1~F7 자연어 정확도·A↔B 지식 제공 효과·B↔C 구조화 효과는 이번에 측정하지 않았다. opt-in 평가 CLI `scripts/evaluate_knowledge.py --live`와 세 모드 경계/근거를 구분하는 grader를 제공하지만 자동 승자/정답률/비용 결론은 내리지 않는다. 사용량이 없는 값은 unknown/None으로 보존하고 원본 run의 usage를 남긴다. C에는 규칙 평가도 있으므로 Graph 저장 형식만의 효과라고 주장하지 않는다.
+
+지식 등록/개정은 검토된 패키지와 archive 배포 방식이며 임의 업로드/OCR/LLM 추출은 없다. 현재 검색은 작은9개 문서 집합용이다. 기존 v2 비교 UI의 snapshot 준비 실패는 과거 절에 남기며 이번에 해당 회귀를 통과했다고 주장하지 않는다. 테스트는 별도 Neo4j/폐기용 test build를 사용했고 사용자 데모 DB·volume 초기화나 실행 중인 사용자 서비스 종료는 하지 않았다. 적용하려면 기존 launcher를 종료한 뒤 full 프로필을 재실행하고 브라우저를 새로고침해야 한다.
 
 ## Data Fabric Graph 탐색·버전 선택 — 2026-10-26
 

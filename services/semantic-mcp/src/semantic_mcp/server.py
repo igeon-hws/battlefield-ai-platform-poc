@@ -101,7 +101,7 @@ def create_app():
             "/v1/evidence/" + quote(evidenceId, safe=""), {"graphVersion": graphVersion}
         )
 
-    if os.getenv("C4I_CONTRACT_VERSION") == "3":
+    if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4"):
 
         @server.tool(
             description="Explore verified organization/report/incident/activity relations at graphVersion. subject is a canonical key returned by Semantic tools. relationTypes allowed: SUBORDINATE_TO,ASSIGNED_TO,REFERS_TO,DERIVED_FROM,SUPERSEDES. Bounded traversal returns source/document/rule proofs and partial coverage when truncated. No live state inference."
@@ -145,5 +145,5 @@ def create_app():
 
 def main():
     load_dotenv()
-    os.environ.setdefault("C4I_CONTRACT_VERSION", "3")
+    os.environ.setdefault("C4I_CONTRACT_VERSION", "4")
     uvicorn.run(create_app(), host="127.0.0.1", port=int(os.getenv("SEMANTIC_MCP_PORT", "4410")))

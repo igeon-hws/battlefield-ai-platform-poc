@@ -45,7 +45,7 @@ class UnitPatch(BaseModel):
 
 class LandStore(Ledger):
     async def setup_native(self):
-        await self.db.executescript("""
+        schema = """
         CREATE TABLE IF NOT EXISTS land_equipment_master(equipment_id TEXT PRIMARY KEY, owner_code TEXT, class_code TEXT, role TEXT);
         CREATE TABLE IF NOT EXISTS land_equipment_state(equipment_id TEXT PRIMARY KEY, maintenance_code TEXT, limitation TEXT, position_json TEXT, vector_json TEXT, observed_at TEXT);
         CREATE TABLE IF NOT EXISTS land_units(unit_code TEXT PRIMARY KEY, name TEXT, parent_code TEXT, body TEXT);
@@ -54,7 +54,10 @@ class LandStore(Ledger):
         CREATE TABLE IF NOT EXISTS land_journal(entry_id TEXT PRIMARY KEY, body TEXT);
         CREATE TABLE IF NOT EXISTS land_relations(relation_id TEXT PRIMARY KEY, body TEXT);
         CREATE TABLE IF NOT EXISTS land_documents(document_id TEXT, version TEXT, hash TEXT, body TEXT, PRIMARY KEY(document_id,version));
-        """)
+        """
+        if self.seed["sourceSchemaVersion"] == "4.0.0":
+            schema = "\n".join(line for line in schema.splitlines() if "_documents(" not in line)
+        await self.db.executescript(schema)
 
     async def persist_native(self, state):
         for table in (
@@ -67,6 +70,8 @@ class LandStore(Ledger):
             "land_relations",
             "land_documents",
         ):
+            if table.endswith("_documents") and self.seed["sourceSchemaVersion"] == "4.0.0":
+                continue
             await self.db.execute(f"DELETE FROM {table}")
         r = state["records"]
         for e in r["equipment"]:
@@ -113,7 +118,7 @@ class LandStore(Ledger):
             await self.db.execute(
                 "INSERT INTO land_relations VALUES(?,?)", (row["id"], json.dumps(row))
             )
-        for doc in r["documents"]:
+        for doc in r.get("documents", []):
             await self.db.execute(
                 "INSERT INTO land_documents VALUES(?,?,?,?)",
                 (doc["documentId"], doc["version"], doc["hash"], json.dumps(doc)),
@@ -280,8 +285,13 @@ def install(app, store, read, control):
 
 
 def create_app(path=None, *, tick_enabled=True, token=None, control_token=None):
-    seed = json.loads(Path(__file__).with_name("native_seed.json").read_text(encoding="utf-8"))
-    for doc in seed["records"]["documents"]:
+    v4 = os.getenv("C4I_CONTRACT_VERSION") == "4"
+    seed = json.loads(
+        Path(__file__)
+        .with_name("native_seed_v4.json" if v4 else "native_seed.json")
+        .read_text(encoding="utf-8")
+    )
+    for doc in seed["records"].get("documents", []):
         doc["hash"] = content_hash(doc)
     baseline = deepcopy(seed)
     baseline["sourceTime"] = "2026-10-20T09:00:00Z"
@@ -290,7 +300,12 @@ def create_app(path=None, *, tick_enabled=True, token=None, control_token=None):
             r for r in baseline["records"][key] if r["knownAt"] <= baseline["sourceTime"]
         ]
     store = LandStore(
-        path or os.getenv("ATCIS_DB", "var/atcis-v3.db"), "atcis", seed, stable, advance, baseline
+        path or os.getenv("ATCIS_DB", "var/atcis-v4.db" if v4 else "var/atcis-v3.db"),
+        "atcis",
+        seed,
+        stable,
+        advance,
+        baseline,
     )
     return mount_ui(
         create_ledger_app(

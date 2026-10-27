@@ -33,14 +33,14 @@ docker compose up -d neo4j
 uv run python scripts/dev.py --profile full
 ```
 
-현재 v3 데모는 `--profile full`을 명시한다. 프로필을 생략하면 legacy가 실행된다. 실행 터미널을 열어 둔 채 다음 주소로 접속한다. 아래 주소는 기본 포트 기준이다.
+현재 v4 데모는 `--profile full`을 명시한다. 프로필을 생략하면 legacy가 실행된다. 실행 터미널을 열어 둔 채 다음 주소로 접속한다. 아래 주소는 기본 포트 기준이다.
 
 | 화면 | 주소 | 사용 방법 |
 | --- | --- | --- |
-| 분석 플랫폼 | [localhost:4300](http://localhost:4300) | 질문·분석 및 ON/OFF 비교 |
+| 분석 플랫폼 | [localhost:4300](http://localhost:4300) | A/B/C 지식 조건 선택·분석·동일 기준 비교 |
 | Mock ATCIS | [localhost:4100](http://localhost:4100) | 지상 원천 조회·시뮬레이션 제어 |
 | Mock KNCCS | [localhost:4110](http://localhost:4110) | 해상 원천 조회·시뮬레이션 제어 |
-| Data Fabric | [localhost:4400](http://localhost:4400) | 의미·관계·근거 확인 |
+| Data Fabric | [localhost:4400](http://localhost:4400) | 지식 문서·Graph·규칙·근거 확인 |
 | Neo4j Browser | [localhost:7474](http://localhost:7474) | Graph 확인 (`neo4j` / 설정한 비밀번호) |
 
 원천 시뮬레이터는 처음에 정지 상태다. ATCIS·KNCCS 화면에서 `1초 진행` 또는 `시작`으로 진행한다. 재실행해도 기존 DB·Graph·대화는 자동 초기화되지 않는다.
@@ -52,6 +52,12 @@ docker compose stop neo4j
 ```
 
 원천 두 개만 실행하려면 `uv run python scripts/dev.py --profile sources`를 사용한다(MCP·Graph·LLM 불필요). 포트 충돌 시 기존 실행을 확인하거나 launcher에 `--port-offset 1000`을 추가한다. 이 경우 Python 서비스 접속 포트에 1000을 더하며 Neo4j 포트는 그대로다.
+
+v4는 설명 문서를 Data Fabric에서 관리합니다. 플랫폼에서 A(원천만), B(원천+문서), C(원천+구조화 지식)를 선택하고 F1~F7 또는 직접 질문으로 실행합니다. `동일 기준 A/B/C 비교`는 같은 원천 snapshot과 B/C의 같은 지식 집합으로 비교합니다. Fabric의 `지식 문서`에서 본문을, `Graph 탐색`에서 구조화된 관계를 확인합니다.
+
+플랫폼에서는 지도와 AI 채팅을 함께 사용합니다. 입력창에서 `Enter`로 보내고 `Shift+Enter`로 줄을 바꿉니다. `옵션`에서 F1~F7·기준보고 R0를 고르고, 좌측 상단 이력 버튼에서 이전 대화와 비교를 다시 엽니다. 비교는 A/B/C 탭으로 읽고 확대 버튼으로 세 열을 나란히 확인합니다. 새로고침해도 같은 탭의 선택 대화·지도 시점과 객체가 복원됩니다.
+
+A/B만 실행하려면 `uv run python scripts/dev.py --profile off`를 사용합니다(Knowledge MCP 포함, Neo4j 불필요). C/세 조건 전체 비교에는 full이 필요합니다. 기존 문서 허용 OFF/ON 데모는 `--profile full --contract-version 3`으로 별도 v3 DB를 사용합니다. 신규 v4는 `var/*-v4.db`를 사용하고 이전 DB·Graph를 초기화하지 않습니다. 이미 서버가 실행 중이었다면 Ctrl+C 후 재실행하고 브라우저를 새로고침합니다.
 
 ## 문서
 
@@ -79,4 +85,5 @@ docker compose stop neo4j
 | semantic_api.app | :4400 | Fabric API/읽기 콘솔·Semantic API |
 | semantic_mcp.server | :4410/mcp | Semantic API의 읽기 도구 |
 | graph_builder.app | :4420 | 내부 Graph build 관리 API |
+| semantic_mcp.knowledge | :4430/mcp | Fabric 지식 문서 읽기 도구 |
 | Neo4j Docker | Bolt :7687 / Browser :7474 | 안정 의미·관계·근거 저장 |

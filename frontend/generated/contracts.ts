@@ -19,5 +19,5 @@ export type Unit = { canonicalId: string; name: string; sourceRef: SourceRef; pa
 export type System = { systemId: "atcis" | "knccs"; name: string; synthetic?: true };
 export type Observation = { observationId: string; assertionType: RelationType; sourceRefs: (SourceRef)[]; ruleId: string; ruleVersion: string; payloadHash: string };
 export type SourceSnapshotSet = { atcis: SnapshotRef; knccs: SnapshotRef };
-export type Question = { question: string; semanticMode?: "off" | "on"; conversationId?: string | null; baselineReportRef?: "atcis:report:R0" | null };
-export type ComparisonInput = { question: string; firstMode?: "off" | "on"; baselineReportRef?: "atcis:report:R0" | null };
+export type Question = { question: string; semanticMode?: "off" | "on"; knowledgeMode?: "native" | "documents" | "structured" | null; conversationId?: string | null; baselineReportRef?: "atcis:report:R0" | null };
+export type ComparisonInput = { question: string; firstMode?: "off" | "on"; firstKnowledgeMode?: "native" | "documents" | "structured"; baselineReportRef?: "atcis:report:R0" | null };

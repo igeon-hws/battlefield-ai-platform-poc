@@ -1184,6 +1184,7 @@ name = "semantic-mcp"
 version = "0.1.0"
 source = { editable = "services/semantic-mcp" }
 dependencies = [
+    { name = "battlefield-source-runtime" },
     { name = "httpx" },
     { name = "mcp" },
     { name = "python-dotenv" },
@@ -1192,6 +1193,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "battlefield-source-runtime", editable = "packages/source-runtime" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "mcp", specifier = ">=1.20,<2" },
     { name = "python-dotenv", specifier = ">=1" },

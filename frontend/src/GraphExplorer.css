@@ -211,3 +211,20 @@
     display: none;
   }
 }
+.knowledge-document-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr);
+  gap: 20px;
+}
+.knowledge-document-grid > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .knowledge-document-grid {
+    display: block;
+  }
+  .knowledge-document-grid > div {
+    margin-bottom: 20px;
+  }
+}

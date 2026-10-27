@@ -1185,6 +1185,23 @@
         "title": "Semanticmode",
         "type": "string"
       },
+      "knowledgeMode": {
+        "anyOf": [
+          {
+            "enum": [
+              "native",
+              "documents",
+              "structured"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Knowledgemode"
+      },
       "conversationId": {
         "anyOf": [
           {
@@ -1233,6 +1250,16 @@
           "on"
         ],
         "title": "Firstmode",
+        "type": "string"
+      },
+      "firstKnowledgeMode": {
+        "default": "native",
+        "enum": [
+          "native",
+          "documents",
+          "structured"
+        ],
+        "title": "Firstknowledgemode",
         "type": "string"
       },
       "baselineReportRef": {

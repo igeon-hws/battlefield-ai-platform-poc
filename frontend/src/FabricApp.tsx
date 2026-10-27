@@ -1,3 +1,4 @@
+import KnowledgeDocuments from './KnowledgeDocuments';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import GraphExplorer from './GraphExplorer';
 import './Domain.css';
@@ -5,7 +6,10 @@ import './Domain.css';
 const pretty = (value: unknown) => JSON.stringify(value, null, 2);
 export default function FabricApp() {
   const [catalog, setCatalog] = useState<{ datasetId?: string; layers?: string[] }>({});
-  const [tab, setTab] = useState('Graph 탐색');
+  const [knowledgeTarget, setKnowledgeTarget] = useState<{ key: string; version: string } | null>(
+    null,
+  );
+  const [tab, setTab] = useState('원천 연결');
   const [data, setData] = useState<unknown>(null);
   const [version, setVersion] = useState('');
   const [term, setTerm] = useState('all');
@@ -13,6 +17,7 @@ export default function FabricApp() {
   const [error, setError] = useState('');
   const [token, setToken] = useState(sessionStorage.getItem('fabric.readToken') || '');
   const queryGeneration = useRef(0);
+  const userNavigated = useRef(false);
   const get = useCallback(
     async (path: string) => {
       const r = await fetch('/v1/' + path, { headers: { Authorization: `Bearer ${token}` } });
@@ -27,7 +32,11 @@ export default function FabricApp() {
   }, [version, tab, token]);
   useEffect(() => {
     void get('catalog')
-      .then(setCatalog)
+      .then((value) => {
+        setCatalog(value);
+        if (!userNavigated.current)
+          setTab(value.datasetId === 'c2-domain-demo-v4' ? '지식 문서' : 'Graph 탐색');
+      })
       .catch((e) => setError(String(e)));
   }, [token]);
   const query = async () => {
@@ -84,26 +93,33 @@ export default function FabricApp() {
       <main className="fabric-grid">
         <aside>
           <h2>탐색</h2>
-          {['Graph 탐색', '원천 연결', 'Catalog', '도메인 규칙', '관계·근거', 'Graph build'].map(
-            (label) => (
-              <button
-                className="domain-record"
-                key={label}
-                aria-pressed={tab === label}
-                onClick={() => {
-                  setTab(label);
-                  setData(null);
-                  setError(
-                    label === '도메인 규칙' && !version
-                      ? '규칙을 조회할 Graph 버전이 필요합니다.'
-                      : '',
-                  );
-                }}
-              >
-                {label}
-              </button>
-            ),
-          )}
+          {[
+            '지식 문서',
+            'Graph 탐색',
+            '원천 연결',
+            'Catalog',
+            '도메인 규칙',
+            '관계·근거',
+            'Graph build',
+          ].map((label) => (
+            <button
+              className="domain-record"
+              key={label}
+              aria-pressed={tab === label}
+              onClick={() => {
+                userNavigated.current = true;
+                setTab(label);
+                setData(null);
+                setError(
+                  label === '도메인 규칙' && !version
+                    ? '규칙을 조회할 Graph 버전이 필요합니다.'
+                    : '',
+                );
+              }}
+            >
+              {label}
+            </button>
+          ))}
           <h2>검증 층</h2>
           {catalog.layers?.map((layer, i) => (
             <p key={layer}>
@@ -113,17 +129,24 @@ export default function FabricApp() {
         </aside>
         <section>
           <h2>{tab}</h2>
-          <GraphExplorer
-            get={get}
-            version={version}
-            onVersion={setVersion}
-            visible={tab === 'Graph 탐색'}
-            onRule={(rule) => {
-              setTerm(rule);
-              setTab('도메인 규칙');
-              setError('');
-            }}
-          />
+          {tab !== '지식 문서' && (
+            <GraphExplorer
+              get={get}
+              version={version}
+              onVersion={setVersion}
+              visible={tab === 'Graph 탐색'}
+              onDocument={(key, v) => {
+                setKnowledgeTarget({ key, version: v });
+                setTab('지식 문서');
+              }}
+              onRule={(rule) => {
+                setTerm(rule);
+                setTab('도메인 규칙');
+                setError('');
+              }}
+            />
+          )}
+          {tab === '지식 문서' && <KnowledgeDocuments get={get} target={knowledgeTarget} />}
           {tab === '관계·근거' ? (
             <label>
               객체 참조
@@ -135,7 +158,9 @@ export default function FabricApp() {
               <input value={term} onChange={(e) => setTerm(e.target.value)} />
             </label>
           ) : null}
-          {tab !== 'Graph 탐색' && <button onClick={() => void query()}>조회</button>}
+          {!['Graph 탐색', '지식 문서'].includes(tab) && (
+            <button onClick={() => void query()}>조회</button>
+          )}
           {error && <p role="alert">{error}</p>}
           {data !== null && <pre>{pretty(data)}</pre>}
           <p>

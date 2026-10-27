@@ -70,11 +70,11 @@ class GraphRepository:
             raise ValueError("graph build is not READY")
         return info
 
-    def build(self, sources, graph_version=None):
-        if any(data.get("sourceSchemaVersion") == "3.0.0" for data in sources.values()):
+    def build(self, sources, graph_version=None, knowledge=None):
+        if any(data.get("sourceSchemaVersion") in ("3.0.0", "4.0.0") for data in sources.values()):
             from semantic_core.domain import publish_domain
 
-            return publish_domain(self, sources, graph_version)
+            return publish_domain(self, sources, graph_version, knowledge)
         stable = {system: stable_payload(data) for system, data in sources.items()}
         hashes = {system: stable_hash(data) for system, data in stable.items()}
         fingerprint = digest(

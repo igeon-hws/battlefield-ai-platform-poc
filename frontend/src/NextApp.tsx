@@ -14,7 +14,8 @@ type Evidence = {
   data: Record<string, unknown>;
   arguments: unknown;
 };
-type Run = {
+export type Run = {
+  knowledgeMode?: string;
   runId: string;
   conversationId: string;
   semanticMode: Mode;
@@ -119,7 +120,7 @@ async function api<T>(path: string, body?: object, method = 'POST'): Promise<T> 
   return response.json() as Promise<T>;
 }
 
-function RunPanel({
+export function RunPanel({
   run,
   onSelect,
 }: {
@@ -139,9 +140,13 @@ function RunPanel({
       <div className="next-meta">
         <span>{label(run.status)}</span>
         <span>
-          {run.semanticMode.toUpperCase()} ·{' '}
-          {run.semanticMode === 'off' ? '원천 도구·일반 계산' : 'Semantic 해석 사용'} · 정책{' '}
-          {run.semanticPolicyVersion || '이전 정책'}
+          {run.knowledgeMode || run.semanticMode.toUpperCase()} ·{' '}
+          {run.knowledgeMode
+            ? '지식 제공 조건'
+            : run.semanticMode === 'off'
+              ? '원천 도구·일반 계산'
+              : 'Semantic 해석 사용'}{' '}
+          · 정책 {run.semanticPolicyVersion || '이전 정책'}
         </span>
         <span>
           {run.toolCalls.length} tool · {run.iterations.length} model · {usage || '—'} tokens
@@ -230,10 +235,20 @@ function RunPanel({
             )}
             {e.data.typeStatusCounts && typeof e.data.typeStatusCounts === 'object' ? (
               <table aria-label="유형 및 상태별 집계">
-                <thead><tr><th>유형</th><th>상태별 객체 수</th></tr></thead>
-                <tbody>{Object.entries(e.data.typeStatusCounts).map(([kind, counts]) => (
-                  <tr key={kind}><td>{label(kind)}</td><td>{pretty(counts)}</td></tr>
-                ))}</tbody>
+                <thead>
+                  <tr>
+                    <th>유형</th>
+                    <th>상태별 객체 수</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(e.data.typeStatusCounts).map(([kind, counts]) => (
+                    <tr key={kind}>
+                      <td>{label(kind)}</td>
+                      <td>{pretty(counts)}</td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             ) : null}
             {e.systemId === 'semantic' && (
@@ -739,10 +754,15 @@ export default function NextApp({ domain = false }: { domain?: boolean }) {
                   ))}
                   <details>
                     <summary>공통 비교 조건·문서·기준보고</summary>
-                    <pre>{pretty({ baselineReportRef: comparison.manifest.baselineReportRef,
-                      baselineSourceSnapshotSet: comparison.manifest.baselineSourceSnapshotSet,
-                      documents: comparison.manifest.documents,
-                      model: comparison.manifest.modelId, budget: comparison.manifest.agentBudget })}</pre>
+                    <pre>
+                      {pretty({
+                        baselineReportRef: comparison.manifest.baselineReportRef,
+                        baselineSourceSnapshotSet: comparison.manifest.baselineSourceSnapshotSet,
+                        documents: comparison.manifest.documents,
+                        model: comparison.manifest.modelId,
+                        budget: comparison.manifest.agentBudget,
+                      })}
+                    </pre>
                   </details>
                 </>
               )}

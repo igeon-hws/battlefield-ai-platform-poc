@@ -19,6 +19,7 @@ from graph_builder.worker import GraphBuilder
 
 class BuildInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    knowledgeSetVersion: str | None = None
     snapshots: SourceSnapshotSet
     ontologyVersion: str = ONTOLOGY_VERSION
     mappingVersion: str = MAPPING_VERSION
@@ -87,6 +88,7 @@ def create_app(repository=None, sources=None, admin_token=None):
                     k: getattr(body, k)
                     for k in ("ontologyVersion", "mappingVersion", "resolutionRuleVersion")
                 },
+                body.knowledgeSetVersion,
             )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
@@ -103,5 +105,5 @@ def create_app(repository=None, sources=None, admin_token=None):
 
 def main():
     load_dotenv()
-    os.environ.setdefault("C4I_CONTRACT_VERSION", "3")
+    os.environ.setdefault("C4I_CONTRACT_VERSION", "4")
     uvicorn.run(create_app(), host="127.0.0.1", port=int(os.getenv("BUILDER_PORT", "4420")))

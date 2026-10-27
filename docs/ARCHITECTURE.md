@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-현재 기준: c2-domain-demo-v3, Ontology 3.0.0 / adapter 3.0.2. 기술 설계의 단일 기준이다. 요구사항·데모는 [PRD](PRD.md), 화면은 [UI_GUIDE](UI_GUIDE.md), 실측·한계는 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md), 선택 이유는 [ADR](ADR.md)에 둔다.
+현재 기준: c2-domain-demo-v4, source/ontology/adapter 4.0.0, 비교 정책 4-knowledge-abc. v3(문서 허용 OFF/ON)는 호환 이력으로 보존한다. 기술 설계의 단일 기준이다. 요구사항·데모는 [PRD](PRD.md), 화면은 [UI_GUIDE](UI_GUIDE.md), 실측·한계는 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md), 선택 이유는 [ADR](ADR.md)에 둔다.
 
 ## 1. 구성과 책임
 
@@ -18,7 +18,11 @@ flowchart LR
   O[Ontology/규칙/문서 검토 목록] --> B
   B --> G[(Neo4j)]
   G --> S[Semantic API/Core]
-  P --> SM[Semantic MCP · ON만]
+  F --> K[Fabric Knowledge 문서 catalog]
+  P --> KM[Knowledge MCP · B/C]
+  KM --> K
+  K --> B
+  P --> SM[Semantic MCP · C만]
   SM --> S
   P --> L[OpenAI Responses API]
 ```
@@ -35,6 +39,7 @@ flowchart LR
 | semantic_api.app | :4400 | Fabric API/읽기 콘솔·Semantic API |
 | semantic_mcp.server | :4410/mcp | Semantic API의 읽기 도구 |
 | graph_builder.app | :4420 | 내부 Graph build 관리 API |
+| semantic_mcp.knowledge | :4430/mcp | Fabric 지식 문서 읽기 도구·Graph 독립 |
 | Neo4j Docker | Bolt :7687 / Browser :7474 | 안정 의미·관계·근거 저장 |
 
 Python3.12/uv workspace, FastAPI/Uvicorn, HTTPX/asyncio, Pydantic, MCP 공식 Python SDK(Streamable HTTP), OpenAI Python SDK, Neo4j 공식 Python driver를 사용한다. React/TypeScript/Vite UI는 배포 전에 빌드해 각 Python 서버가 제공한다. Node는 빌드 도구다. 별도 gateway·브로커·Agent 프레임워크는 없다.
@@ -45,14 +50,14 @@ Python3.12/uv workspace, FastAPI/Uvicorn, HTTPX/asyncio, Pydantic, MCP 공식 Py
 - packages/source-runtime: ledger.py의 인증/snapshot/event/저장 공통 기능, native_mcp.py의 공개 HTTP 읽기 어댑터. 공통 runtime이 도메인 의미를 소유하지 않는다.
 - packages/ontology: 명시적 Python adapter, domain_rules.json, 검토 문서 version/hash 목록 domain_documents.json.
 - services/graph-builder, packages/semantic-core, services/semantic-api, services/semantic-mcp: 생성·저장/탐색·API·MCP 경계.
-- services/platform-api: v3 domain_runtime.py, 다원천 multi_runtime.py, Agent·근거·대화·로그.
+- services/platform-api: v4 knowledge_runtime.py/agent/knowledge_tools.py, v3 domain_runtime.py, 공통 multi_runtime.py, Agent·근거·대화·로그.
 - frontend: 원천2/Fabric/플랫폼/legacy 정적 앱. scripts/build_ui.py가 Python package 정적 경로에 복사한다.
 
 ## 2. 이종 원천 계약
 
 | 구분 | ATCIS | KNCCS |
 | --- | --- | --- |
-| 자원 | units/equipment/relations/reports/journal/activities/documents | formations/own-forces/contacts/tracks/associations/relations/messages/delivery-events/documents |
+| 자원 | units/equipment/relations/reports/journal/activities | formations/own-forces/contacts/tracks/associations/relations/messages/delivery-events |
 | 목록 | items,total,nextOffset | header,payload; header의 continuation |
 | 페이지 | offset/limit, 최대100 | resource/snapshot/filter/limit에 고정한 opaque cursor |
 | 장비 | equipmentId,classCode,ownerCode,maintenanceCode | pennant,hullClass,formationRef,engineering,mission |
@@ -65,28 +70,38 @@ Python3.12/uv workspace, FastAPI/Uvicorn, HTTPX/asyncio, Pydantic, MCP 공식 Py
 
 좌표는 WGS84, GeoJSON 배열은 경도→위도다. 누락 위치를 (0,0)으로 만들지 않는다. 해상 course는 북쪽0도/시계 방향이며 mps=knots×1852/3600, east=mps×sin(course), north=mps×cos(course)다. Python 시뮬레이터가 매초 원천 위치를 갱신하고 브라우저는 벡터·표시 보간을 그린다. 지도 projection은 도메인 추론이 아니며 OFF 분석 근거로 자동 첨부하지 않는다.
 
-각 원천은 자체 master/state/report SQL을 가진다. 단독 wheel은 빌드된 UI와 source-runtime 및 공개 의존성을 포함/설치한다. v3 원천 실행에는 ontology/Neo4j/OpenAI/MCP/상대 원천이 필요 없다. 원천 DB를 다른 서비스가 직접 읽지 않는다.
+각 원천은 자체 master/state/report SQL을 가진다. 단독 wheel은 빌드된 UI와 source-runtime 및 공개 의존성을 포함/설치한다. v4 원천 실행에는 ontology/Neo4j/OpenAI/MCP/상대 원천이 필요 없다. 원천 DB를 다른 서비스가 직접 읽지 않는다.
 
 ## 3. Fabric과 기준 시점
 
 Fabric은 원천 공개 REST/SSE를 수집해 catalog·projection·이벤트·분석 기준을 제공한다. 플랫폼 상황판은 Fabric 경유, Agent 원천 조회는 MCP 경유다. 화면 갱신과 모델 실행 주기를 분리한다. 상태/보고/활동/전문 등 분석 대상 이벤트를 큐에 넣으며 이동 tick마다 LLM을 호출하지 않는다.
 
-GET /v1/sources, /catalog, /situation, /source-projections/{system}, /events와 POST /v1/analysis-contexts가 주요 계약이다. context는 sourceSnapshotSet, 필요 시 baselineSourceSnapshotSet, 문서 version/hash를 고정한다. semantic_api의 fabric.py는 수집/기준을, semantic_core/domain.py는 의미 조회를 담당한다.
+v4 `KnowledgeApp.tsx`는 동일한 SituationMap 인스턴스와 conversation별 RunPanel 타임라인을 함께 유지한다. 독립 polling은 이력/비교·상황 projection·연결 상태를 갱신하며 선택 대화와 비교는 전용 API로 추가 복원한다(목록 상한 밖의 과거 비교 포함). 늦은 제출 응답은 선택 epoch를 확인해 현재 초안/모드를 덮어쓰지 않는다. sessionStorage에는 UI 식별자·지도 camera/선택·스크롤만 저장하고 응답·지식·근거는 서버에서 읽는다. 지도 선택/필터는 모델 입력에 추가하지 않는다. 반응형 배치·비교 확대·입력 동작은 [UI_GUIDE](UI_GUIDE.md)를 따른다. v3/원천/Fabric CSS와 분리된 `.bf-shell` 범위를 사용한다.
 
-- OFF는 Graph 없이 가능하다. 부분 원천은 coverage로 표시하며 전체0으로 확정하지 않는다.
-- ON은 완결 원천 집합과 stable hash/catalog가 일치하는 READY Graph를 요구한다. 실패하면 준비 오류이며 OFF로 자동 전환하지 않는다.
-- 비교는 같은 질문·snapshot 집합·문서·기준보고/T0·모델/예산을 가진 격리된 두 run/대화다.
+GET /v1/sources, /catalog, /situation, /source-projections/{system}, /events와 POST /v1/analysis-contexts가 주요 계약이다. context는 sourceSnapshotSet, 필요 시 baselineSourceSnapshotSet, 지식 집합 version/hash(B/C)를 고정한다. semantic_api의 fabric.py는 수집/기준을, semantic_core/domain.py는 의미 조회를 담당한다.
+
+- A(native)는 추가 지식 없이, B(documents)는 Fabric 지식 문서만 추가해 Graph 없이 동작한다. 부분 원천은 coverage로 표시하며 전체0으로 확정하지 않는다.
+- C(structured)는 완결 원천 집합과 stable hash/지식 집합/catalog가 일치하는 READY Graph를 요구한다. 실패 시 C 준비 오류를 보존하고 A/B run을 버리거나 다른 모드로 자동 전환하지 않는다.
+- 비교는 같은 질문·snapshot 집합·기준보고/T0·모델/예산의 격리된 세 run/대화다. B/C만 동일한 지식 집합에 접근한다. knowledgeMode=native/documents/structured이며 새 계약은 semanticMode 요청을 거부한다.
 - 움직이는 원천의 엄격한 동시 캡처 허용차는2초다. 정지 원천 준비/Graph 생성 시간이2초를 넘는 것과 구분한다.
 
 epoch/sequence와 연결/시점을 추적한다. 재연결·gap·reset 때 기준을 다시 확보한다. 빈 결과·페이지 잘림·단절·Graph 지연을 구분한다. 브라우저를 닫아도 서버 수집/큐/분석은 계속된다.
+
+### Fabric 지식 catalog/API/MCP
+
+`semantic_core/knowledge.py`는 Graph를 import하지 않는 불변 문서 catalog다. 현재 집합은 `knowledge_documents.json`, 보존 버전은 `knowledge_sets/knowledge-<hash>.json`으로 패키징하며 version/hash를 검증한다. 임의 업로드/LLM 추출은 없고 새 내용은 개발 시 검토·archive·배포한다. 문서 자체 hash와 관리 namespace/적용 범위를 분리한다.
+
+인증된 `GET /v1/knowledge/sets`, `/sets/{version}`, `/documents`, `/documents/{documentKey}`, `/search`를 제공한다. 문서 목록/검색은 knowledgeSetVersion, cursor, limit(기본20/최대50)을 사용한다. 검색은 literal text이며 Graph/임베딩/생성 요약이 없다. 현재 문서는 전체 본문을 반환하고 completeness=complete를 명시한다. 문서 version/hash·issuer/section/knownAt/effectiveFrom·검토 revision을 보존한다.
+
+별도 `semantic_mcp.knowledge`(:4430/mcp)는 list_knowledge_documents/search_knowledge_documents/get_knowledge_document 3개를 제공한다. Agent→실제 Knowledge MCP→Fabric 읽기 API이며 인증은 KNOWLEDGE_MCP_TOKEN과 Fabric SEMANTIC_READ_TOKEN을 분리한다. A는 이 클라이언트를 만들지 않고 B/C만 연결한다. B는 Semantic MCP/Neo4j/Builder 없이 실행한다. Builder도 같은 공개 지식 API에서 고정 manifest와 각 본문을 읽어 검증한다. 지식 읽기는 Graph 준비를 호출하지 않아 순환 의존이 없다.
 
 ## 4. Ontology·Graph 생성·저장
 
 Graph는 검증된 의미·관계·동일성·근거를 소유한다. 위치·정비/임무 상태·활동 완료·ACK·현재 항적은 원천이 소유한다. stable export는 live 필드를 제외하며 초 단위 이동을 Graph Observation으로 누적하지 않는다.
 
-원천 합성 문서와 규칙은 개발 시 작성하고 검토 목록으로 관리한다. **런타임 LLM이 문서에서 규칙이나 관계를 생성하지 않는다.** 문서 hash는 입력 무결성이지 군 전문가의 의미 인증이 아니다.
+Fabric 합성 지식 문서와 규칙은 개발 시 작성하고 검토 목록으로 관리한다. **런타임 LLM이 문서에서 규칙이나 관계를 생성하지 않는다.** 문서 hash는 입력 무결성이지 군 전문가의 의미 인증이 아니다.
 
-Builder는 공개 stable-export의 schema/dataset, 문서 version/hash·검토 revision, 미래 knownAt, 관계 endpoint, 조직 순환, association 일관성을 검증한다. 명시적 Python adapter/규칙으로 결정론적으로 생성한다. stable input hash+catalog hash로 불변 graphVersion을 식별하고 검증된 READY만 공개한다. 실패 build는 공개하지 않는다. sourceScope/checkpoint로 변경·gap/reset을 다루며 위치 tick만으로 rebuild하지 않는다.
+Builder는 공개 stable-export의 schema/dataset, 문서 version/hash·검토 revision, 미래 knownAt, 관계 endpoint, 조직 순환, association 일관성을 검증한다. 명시적 Python adapter/규칙으로 결정론적으로 생성한다. stable input hash+knowledge manifest+ontology/adapter catalog hash로 불변 graphVersion을 식별하고 검증된 READY만 공개한다. 실패 build는 공개하지 않는다. sourceScope/checkpoint로 변경·gap/reset을 다루며 위치 tick만으로 rebuild하지 않는다.
 
 노드: System, SourceRecord, Unit, Equipment, EquipmentType, ContactObservation, Observation(assertion 근거), Report, Incident, Activity, SourceDocument, InterpretationRule, ConceptDefinition, Procedure, StepDefinition. build manifest는 입력 snapshot·stable hash·버전·진단을 보존한다.
 
@@ -104,13 +119,13 @@ Unit은 명시적 코드/parent, 장비 배정은 역할·기간·출처로 연�
 
 JSON+Python 조건 DSL(AND/OR/EQ/EXISTS/BEFORE 등), 타입 매핑·정책·절차 정의를 사용한다. 규칙 종류마다 실행 계약이 달라 모든 규칙을 조건 평가기에 넣을 수는 없다. RDF/OWL 엔진·범용 SOP 추출은 없다. 일부 정의/Procedure/StepDefinition 연결은 payload 모델이다.
 
-원천 문서는 체계별 REF-01/ORG-01/EX-01/SOP-01 총8개이며 documentId는 systemId로 한정한다. EX-01은 연습 해석 문서 ID이며 관측 생성 이벤트가 아니다. 현재 공통 통합 정책 일부도 원천 문서에 포함돼 책임 분리가 완전하지 않다.
+기존 체계별 REF-01/ORG-01/EX-01/SOP-01 8개 문서는 본문/version/hash를 보존해 Fabric으로 이관했다. 공통 정책의 기본값·기간·unknown·집계·완료 조건을 설명하는 fabric:POLICY-01을 추가해 현재9개다. 문서 key는 atcis/knccs/fabric namespace를 가진다. EX-01은 연습 해석 문서 ID이며 관측 생성 이벤트가 아니다. 기존 문서의 발행/적용 체계와 Fabric의 등록·관리 책임을 구분한다. 신규 Graph의 documentRefs는 Fabric documentKey/knowledgeSetVersion/version/hash를 보존한다.
 
 ## 5. Semantic API와 MCP
 
 Semantic core→API→MCP로 나누어 Agent 밖에서도 재사용한다. 7개 도구는 interpret_concept, resolve_unit_scope, find_equipment_refs, resolve_entity, get_semantic_evidence, query_relations, get_procedure_definition이다. graphVersion 고정·bounded 읽기만 제공하며 임의 Cypher/Graph 쓰기는 없다.
 
-사단 전차 질문은 Semantic에서 조직 범위·배정·정의 근거를 읽고 현재 상태는 ATCIS MCP에서 읽는다. Graph가 현재 가용 목록을 대신 확정하지 않는다. Fabric 콘솔은 공통 선택기로 실제 READY v3 graphVersion을 고정한다. active는 /v1/builds/active 조회 별칭이며 모든 의미 조회에서 쓰는 버전 별칭은 아니다.
+사단 전차 질문은 Semantic에서 조직 범위·배정·정의 근거를 읽고 현재 상태는 ATCIS MCP에서 읽는다. Graph가 현재 가용 목록을 대신 확정하지 않는다. Fabric 콘솔은 공통 선택기로 실제 READY v3/v4 graphVersion을 고정한다. active는 /v1/builds/active 조회 별칭이며 모든 의미 조회에서 쓰는 버전 별칭은 아니다.
 
 ### Fabric Graph 탐색 읽기 API
 
@@ -118,7 +133,7 @@ Semantic core→API→MCP로 나누어 Agent 밖에서도 재사용한다. 7개 
 
 | 경로 | 계약 |
 | --- | --- |
-| GET /v1/graph-builds | READY v3 목록, q/dataset/date(UTC 날짜)/cursor, limit 기본20·최대50. 생성 시각 내림차순/전체 ID 오름차순의 keyset 페이지, 실제 activeGraphVersion·입력 snapshot 메타데이터 |
+| GET /v1/graph-builds | READY v3/v4 목록, q/dataset/date(UTC 날짜)/cursor, limit 기본20·최대50. 생성 시각 내림차순/전체 ID 오름차순의 keyset 페이지, 실제 activeGraphVersion·입력 snapshot 메타데이터 |
 | GET /v1/graph-summary | graphVersion의 build 메타데이터·domain 노드/관계 유형별 정확한 개수. 내부 GraphBuild/GraphState 제외 |
 | GET /v1/graph-nodes | graphVersion, q(키/저장 payload 문자열), system, type, cursor, limit 기본30·최대100. key 순 요약 목록 |
 | GET /v1/graph-node | graphVersion/nodeKey의 저장 payload·원천 참조 상세 |
@@ -129,6 +144,14 @@ Semantic core→API→MCP로 나누어 Agent 밖에서도 재사용한다. 7개 
 탐색은 기존 `DomainService.model()` 전체 로드를 호출하지 않는다. 버전·조건·frontier·반환 상한을 Cypher에 적용하고 제한된 결과만 Python에서 decode한다. 기존 불변 Graph의 domainJson을 사용하여 migration/rebuild 없이 조회하지만 JSON 문자열 필터·정렬·집계가 DB 스캔을 일으킬 수 있다. 대규모 검색 인덱스/최적화 구현은 아니다. 임의 Cypher는 허용하지 않는다.
 
 UI는 React SVG의 결정론적 배치로 제한된 부분 그래프를 그린다. 추가 확장은 ID로 병합하며 누적200노드/300관계 상한을 적용한다. 노드/관계 선택과 문서·규칙·evidence는 동일 버전을 사용한다. 렌더 배치는 의미 관계를 추가하지 않고 실제 저장 관계만 표시한다. 전체 Graph 자동 펼치기와 자동 build는 없다.
+
+### A/B/C 실행·호환
+
+새 플랫폼 계약은 knowledgeMode=native/documents/structured를 요구한다. 내부 공통 runner의 off/on 값은 계산 기능 선택을 위한 구현 세부이며 새 A/B/C의 정책 식별자는 4-knowledge-abc다. 원천 문서 허용이던 과거 v3 OFF를 A로 재해석하지 않는다. 새 DB가 과거 source contract의 run을 가진 DB를 열려고 하면 읽기 검사에서 거부한다. 원래 이력은 해당 계약으로 실행해 조회한다.
+
+A/B는 Semantic 평가·helper 간접 집계와 이전 원천 list_documents를 차단한다. B/C의 Knowledge 응답은 고정 knowledgeSetVersion/hash·본문 hash를 검증한다. C는 Graph의 지식 hash·source stable hash까지 일치해야 한다. mode 변경은 새 대화이며 같은 지식 대화는 기존 지식 버전을 유지한다. 비교는 하나의 공유 manifest와 세 빈 대화/run을 원자적으로 만들고 model/prompt/budget/order/pins/knowledge/hash를 기록한다. C 준비 실패는 C run 실패로 남기고 A/B를 계속 실행한다.
+
+실제 모델 평가 opt-in: `uv run python scripts/evaluate_knowledge.py --live --output <새-artifact.json>` (기본 F1~F7, --scenario로 선택). 순서를 회전하고 원본 comparison/run·usage를 보존한다. `scripts/grade_domain.py`는 A/B에 C 규칙 ID를 요구하지 않고 경계·참조·정형 사실과 자연어 Human Review를 구분한다. 지식 접근 효과와 구조화 체계 효과를 분리하며 실제 측정 없이는 우열을 주장하지 않는다.
 
 ## 6. 단일 동적 Agent
 
@@ -142,20 +165,21 @@ UI는 React SVG의 결정론적 배치로 제한된 부분 그래프를 그린�
 
 시스템 프롬프트는 정체성·앱 역할·loop/근거 원칙을, 서버 소유 도구 설명/schema는 개별 입력/출력·해석 범위를 담당한다. 텍스트에서 행동 JSON을 파싱하지 않는다. discovery 실패를 로컬 정의 복사로 위장하지 않는다. 이름 충돌·지원하지 않는 schema는 오류다. optional/nullable/default를 보존해 strict 변환하며 실행 전 원래 계약도 검증한다. 한 번에 하나의 도구를 처리한다.
 
-원천 조회는 **MCP Python Client→MCP Server→공개 C4I API**이며 직접 REST/DB/내부 모듈 fallback은 없다. v3 원천 MCP는 ATCIS8개(snapshot+자원7), KNCCS10개(snapshot+자원9)다. 실제 함수명/계약은 discovery가 기준이다. API ID 필터가 모두 MCP에 노출된 것은 아니다.
+원천 조회는 **MCP Python Client→MCP Server→공개 C4I API**이며 직접 REST/DB/내부 모듈 fallback은 없다. v4 원천 MCP는 ATCIS7개(snapshot+자원6), KNCCS9개(snapshot+자원8)다. v3 호환 MCP는 각각 documents를 포함한8개/10개다. 실제 함수명/계약은 discovery가 기준이다. API ID 필터가 모두 MCP에 노출된 것은 아니다.
 
-로컬 read_evidence는 현재 run 근거 재열람, aggregate_evidence는 계산, ON의 evaluate_evidence는 조회한 조건 규칙 평가다. 임의 HTTP/SQL/코드 실행 도구는 없다.
+로컬 read_evidence는 현재 run 근거 재열람, aggregate_evidence는 계산, C의 evaluate_evidence는 조회한 조건 규칙 평가다. 임의 HTTP/SQL/코드 실행 도구는 없다.
 
 | 모드 | 허용 | 경계 |
 | --- | --- | --- |
-| OFF | native MCP·원천 문서·일반 계산 | Semantic 연결/근거/해석·조직 해소·ER helper 간접 호출 금지 |
-| ON | 위 기능+Semantic MCP·근거 기반 평가/집계 | 현재 run의 의미/원천 근거 없이 공통 분류·동일성 확정 금지 |
+| A native | 원천 MCP·일반 계산 | Fabric 지식·Semantic·helper 금지; 원천 설명 문서 API 없음 |
+| B documents | A+Knowledge MCP 문서 검색/본문 | Graph·Semantic·평가 helper·간접 의미 집계 금지 |
+| C structured | B+Semantic MCP·근거 기반 평가/집계 | 현재 run의 의미/원천 근거 없이 공통 분류·동일성 확정 금지 |
 
-OFF도 원천 문서/코드표로 올바르게 해석할 수 있다. 오답을 강제하지 않는다. 지도 projection·이전 ON 대화에서 의미 결과를 유출하지 않는다. 다른 정책의 과거 대화/대기 run을 자동 재사용하지 않는다.
+A/B도 모델의 자체 해석 또는 제공된 문서로 올바르게 답할 수 있으며 오답을 강제하지 않는다. 지도 projection·이전 C 대화에서 의미 결과를 유출하지 않는다. v3 OFF의 원천 문서 허용은 원래 호환 정책으로 보존한다. 다른 정책의 과거 대화/대기 run을 자동 재사용하지 않는다.
 
-ON 집계는 완결 scope·조직별 identity 조회·원천 전체 페이지·상태 평가·정책 근거를 요구한다. 일부 빈 결과를 전체0으로 확정하지 않는다. canonical 지원 중복을 병합하고 유형/상태/유형×상태 집계를 제공한다. unknown과 unavailable을 구분한다. P1/P2 포함 정책은 원래 분류를 바꾸지 않는다. 활동 완료에는 원본 보고 근거가 필요하며 ACK만으로 완료 판정하지 않는다.
+C 집계는 완결 scope·조직별 identity 조회·원천 전체 페이지·상태 평가·정책 근거를 요구한다. 일부 빈 결과를 전체0으로 확정하지 않는다. canonical 지원 중복을 병합하고 유형/상태/유형×상태 집계를 제공한다. unknown과 unavailable을 구분한다. P1/P2 포함 정책은 원래 분류를 바꾸지 않는다. 활동 완료에는 원본 보고 근거가 필요하며 ACK만으로 완료 판정하지 않는다.
 
-v3 예산은 model24/tool20/loop120초이며 준비 시간은 별도다. legacy model 기본12다. 반복 guard·오류 관찰·출력 교정1회·취소/timeout을 둔다. claims의 observation/inference/semantic/calculation 성격과 현재 근거 참조를 검사하지만 문장 의미의 정확성을 완전히 판정하지는 않는다.
+v3/v4 예산은 model24/tool20/loop120초이며 준비 시간은 별도다. legacy model 기본12다. 반복 guard·오류 관찰·출력 교정1회·취소/timeout을 둔다. claims의 observation/inference/semantic/calculation 성격과 현재 근거 참조를 검사하지만 문장 의미의 정확성을 완전히 판정하지는 않는다.
 
 컨텍스트는 instructions+질문+짧은 대화 맥락+현재 run의 model output/도구 결과다. 이전 질문/최종 답변/선택은 참고이며 새 턴 사실은 새 snapshot에서 읽는다. 대화·run·근거·trace·방책/선택·비교 manifest는 플랫폼 SQLite에 저장한다. 방책 선택은 C4I 명령 실행이 아니다.
 
@@ -187,12 +211,12 @@ uv run python scripts/dev.py --profile full
 | fabric | 원천 MCP2+Fabric API+Builder+Semantic MCP, 원천 별도 실행 |
 | platform | 플랫폼만, 외부 Fabric/MCP 주소 필요 |
 | off | 원천2+원천 MCP2+Fabric core+플랫폼, Neo4j 불필요 |
-| full | Python8개+별도 Docker Neo4j |
+| full | v4 Python9개(Knowledge MCP 포함)+별도 Docker Neo4j; v3는8개 |
 | legacy | 기존 C4I/MCP/플랫폼3개, 프로필 생략 시 기본값 |
 
-현재 데모는 --profile full을 명시한다. 비legacy launcher는 기본 contract3, --contract-version 2는 호환 경로다. v3 기본 DB는 var/atcis-v3.db, var/knccs-v3.db, var/platform-v3.db이며 ATCIS_V3_DB/KNCCS_V3_DB/PLATFORM_V3_DB로 변경한다. 이전 DB/Graph/대화는 자동 reset하지 않는다.
+현재 데모는 --profile full을 명시한다. 비legacy launcher는 기본 contract4다. --contract-version 3/2는 원래 정책·DB의 호환 경로다. v4 기본 DB는 var/atcis-v4.db, var/knccs-v4.db, var/platform-v4.db이며 ATCIS_V4_DB/KNCCS_V4_DB/PLATFORM_V4_DB로 변경한다. 이전 DB/Graph/대화는 자동 reset하지 않는다.
 
-단독 CLI: uv run --package mock-atcis mock-atcis / uv run --package mock-knccs mock-knccs. 기본 v3이며 독립 v2 handler 설치에는 source-runtime의 legacy extra가 필요하다. 읽기 토큰을 해당 MCP/Fabric과 일치시킨다. 포트가 사용 중이면 원인을 확인하거나 --port-offset 1000을 사용한다. offset은 Python만 바꾸고 Neo4j는 그대로다. Ctrl+C는 launcher가 시작한 프로세스만 종료한다. 사용자 프로세스·데이터·volume을 임의 삭제하지 않는다.
+단독 CLI: uv run --package mock-atcis mock-atcis / uv run --package mock-knccs mock-knccs. 기본 v4이며 단독 source CLI도 ATCIS_V4_DB/KNCCS_V4_DB를 사용해 기존 generic v2/v3 DB 경로를 보호한다. 독립 v2 handler 설치에는 source-runtime의 legacy extra가 필요하다. 읽기 토큰을 해당 MCP/Fabric과 일치시킨다. 포트가 사용 중이면 원인을 확인하거나 --port-offset 1000을 사용한다. offset은 Python만 바꾸고 Neo4j는 그대로다. Ctrl+C는 launcher가 시작한 프로세스만 종료한다. 사용자 프로세스·데이터·volume을 임의 삭제하지 않는다.
 
 원천은 처음 정지 상태다. UI :4100/:4110에서1초 진행/시작/정지·상태 변경, Fabric :4400에서 근거 확인, 플랫폼 :4300에서 F1~F7/기준보고·동일 기준 비교를 사용한다.
 
@@ -213,7 +237,7 @@ uv run mypy services packages scripts
 
 ## 9. 호환과 공개 참고 자료
 
-legacy 단일 C4I, v2 semantic-demo-v2는 호환·역사 기록이다. legacy 접경120개/연안 시나리오를 v3 고유7개 기대값과 혼용하지 않는다. 과거 다중 Agent 제안·전체 SQLite 한정·v1 상태 충돌 시연은 현행 기준이 아니다.
+legacy 단일 C4I, v2 semantic-demo-v2는 호환·역사 기록이다. legacy 접경120개/연안 시나리오를 현재 고유7개 기대값과 혼용하지 않는다. 과거 다중 Agent 제안·전체 SQLite 한정·v1 상태 충돌 시연은 현행 기준이 아니다.
 
 다음은 일반 개념 참고 자료이며 실제 한국군 내부 schema·권한·표준절차를 확보했다는 뜻이 아니다. 합성 SOP는 인증된 한국군 교리가 아니다. 원천 문서의 과거 조사명과 KR-1/INT-1 표기는 아래 출처 식별자로 보존한다. 문서 통합만으로 seed/fixture의 문서 내용·hash를 변경하지 않는다.
 

@@ -41,7 +41,7 @@ def create_app(repository=None, token=None):
         else UnavailableRepository()
     )
     service: Any = SemanticService(repo)
-    if os.getenv("C4I_CONTRACT_VERSION") == "3":
+    if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4"):
         from semantic_core.domain import DomainService
 
         service = DomainService(repo)
@@ -123,13 +123,17 @@ def create_app(repository=None, token=None):
                 raise KeyError("active")
         return await asyncio.to_thread(repo.build_info, version)
 
-    if os.getenv("C4I_CONTRACT_VERSION") == "3":
+    from semantic_api.knowledge import install_knowledge
+
+    install_knowledge(app, read)
+
+    if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4"):
         from semantic_api.explorer import install_explorer
         from semantic_api.fabric import install_fabric
 
         install_explorer(app, read, repo)
 
-        async def ensure_graph(snapshots):
+        async def ensure_graph(snapshots, knowledge_version=None):
             import httpx
 
             token = os.getenv("BUILDER_ADMIN_TOKEN", "")
@@ -144,9 +148,10 @@ def create_app(repository=None, token=None):
                     "/internal/build-requests",
                     json={
                         "snapshots": snapshots,
-                        "ontologyVersion": "3.0.0",
-                        "mappingVersion": "3.0.0",
-                        "resolutionRuleVersion": "3.0.0",
+                        "ontologyVersion": "4.0.0" if knowledge_version else "3.0.0",
+                        "mappingVersion": "4.0.0" if knowledge_version else "3.0.0",
+                        "resolutionRuleVersion": "4.0.0" if knowledge_version else "3.0.0",
+                        "knowledgeSetVersion": knowledge_version,
                     },
                 )
                 r.raise_for_status()
@@ -204,5 +209,5 @@ def create_app(repository=None, token=None):
 
 def main():
     load_dotenv()
-    os.environ.setdefault("C4I_CONTRACT_VERSION", "3")
+    os.environ.setdefault("C4I_CONTRACT_VERSION", "4")
     uvicorn.run(create_app(), host="127.0.0.1", port=int(os.getenv("SEMANTIC_PORT", "4400")))

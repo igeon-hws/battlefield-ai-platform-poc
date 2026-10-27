@@ -174,3 +174,39 @@ async def test_explorer_empty_or_unavailable_keeps_catalog_usable(graph_status):
                 assert await page.get_by_label("조회할 Graph 버전", exact=True).input_value() == ""
             finally:
                 await browser.close()
+
+
+@pytest.mark.ui
+async def test_late_fabric_catalog_does_not_override_user_navigation():
+    release = asyncio.Event()
+    with server(
+        "import uvicorn; from semantic_api.app import create_app; uvicorn.run(create_app(),host='127.0.0.1',port=PORT,log_level='error')",
+        {"C4I_CONTRACT_VERSION": "4", "NEO4J_PASSWORD": "", "SEMANTIC_READ_TOKEN": ""},
+    ) as url:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+
+            async def route_api(route):
+                if "/catalog" in route.request.url:
+                    await release.wait()
+                    await route.fulfill(json={"datasetId": "c2-domain-demo-v4"})
+                elif "/graph-builds" in route.request.url:
+                    await route.fulfill(
+                        json={"items": [], "activeGraphVersion": None, "nextCursor": None}
+                    )
+                else:
+                    await route.fulfill(json={})
+
+            await page.route("**/v1/**", route_api)
+            try:
+                await page.goto(url, wait_until="domcontentloaded")
+                await page.get_by_role("button", name="Graph 탐색", exact=True).click()
+                release.set()
+                await expect(page.get_by_text("c2-domain-demo-v4", exact=True)).to_be_visible()
+                await expect(
+                    page.get_by_role("heading", name="Graph 탐색", exact=True)
+                ).to_be_visible()
+            finally:
+                release.set()
+                await browser.close()

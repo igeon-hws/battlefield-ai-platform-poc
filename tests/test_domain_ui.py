@@ -38,7 +38,8 @@ async def test_native_workspaces_show_distinct_work_records_and_raw_schema(
 async def test_fabric_console_is_independent_and_shows_catalog():
     with server(
         "import uvicorn; from semantic_api.app import create_app; uvicorn.run(create_app(),host='127.0.0.1',port=PORT,log_level='error')",
-        {"C4I_CONTRACT_VERSION": "3", "SEMANTIC_READ_TOKEN": ""},
+        # This case requires no Graph; do not inherit a developer's active Neo4j.
+        {"C4I_CONTRACT_VERSION": "3", "SEMANTIC_READ_TOKEN": "", "NEO4J_PASSWORD": ""},
     ) as url:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)

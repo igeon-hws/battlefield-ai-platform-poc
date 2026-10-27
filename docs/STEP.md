@@ -1,6 +1,6 @@
 # STEP — Spec-Driven Development
 
-**현재 STEP: 4. Review (Human).** 2026-10-26 Data Fabric Graph 탐색·버전 선택 구현/관련 검증 완료, 사용자 검토 대기. 기존 비교 UI 회귀의 snapshot 준비 실패를 포함한 결과·한계는 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md)에 있다.
+**현재 STEP: 4. Review (Human).** 2026-10-27 지도·AI 채팅 통합 화면 구현·검증 완료, 사용자 Review 대기.
 
 ## 단계와 산출물
 

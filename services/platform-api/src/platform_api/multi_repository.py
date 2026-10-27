@@ -45,6 +45,7 @@ class MultiRepository(Repository):
             "comparisonId": None,
             "semanticPolicyVersion": self.policy_version,
             "sourceToolContractVersion": self.source_contract,
+            **({"knowledgeMode": "native"} if self.source_contract == "4" else {}),
         }
 
     async def enqueue(
@@ -56,10 +57,17 @@ class MultiRepository(Repository):
         graph_info=None,
         event=None,
         baseline_report_ref=None,
+        knowledge_mode=None,
     ):
         # New modes/policies must not inherit another mode's interpreted conversation.
         if mode not in ("off", "on"):
             raise ValueError("invalid semantic mode")
+        if self.source_contract == "4" and knowledge_mode not in (
+            "native",
+            "documents",
+            "structured",
+        ):
+            raise ValueError("knowledgeMode required")
         async with self.lock:
             if conversation_id:
                 async with self.db.execute("SELECT body FROM runs") as cursor:
@@ -67,6 +75,10 @@ class MultiRepository(Repository):
                 matching = [r for r in previous if r["conversationId"] == conversation_id]
                 if not matching:
                     raise ConversationNotFound("conversation not found")
+                if self.source_contract == "4" and any(
+                    r.get("knowledgeMode") != knowledge_mode for r in matching
+                ):
+                    raise ValueError("knowledge mode switch requires a new conversation")
                 if any(r.get("semanticMode", "off") != mode for r in matching):
                     raise ValueError("mode switch requires a new conversation")
                 if any(r.get("semanticPolicyVersion") != self.policy_version for r in matching):
@@ -75,6 +87,19 @@ class MultiRepository(Repository):
                     raise ValueError("conversation busy")
             run = self._new_run(question, conversation_id, event)
             run.update(semanticMode=mode, sourceSnapshotSet=snapshots, graphInfo=graph_info)
+            if knowledge_mode:
+                run["knowledgeMode"] = knowledge_mode
+                if conversation_id and knowledge_mode != "native":
+                    previous_version = next(
+                        (
+                            r.get("knowledgeSetVersion")
+                            for r in reversed(matching)
+                            if r.get("knowledgeSetVersion")
+                        ),
+                        None,
+                    )
+                    if previous_version:
+                        run["knowledgeSetVersion"] = previous_version
             run["baselineReportRef"] = baseline_report_ref
             try:
                 await self._insert_run(run)

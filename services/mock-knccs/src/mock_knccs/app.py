@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 def create_app(path=None, *, tick_enabled=True, token=None, control_token=None):
     load_dotenv()
-    if os.getenv("C4I_CONTRACT_VERSION") == "3":
+    if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4"):
         from mock_knccs.native import create_app as native_app
 
         return native_app(path, tick_enabled=tick_enabled, token=token, control_token=control_token)
@@ -31,5 +31,7 @@ def create_app(path=None, *, tick_enabled=True, token=None, control_token=None):
 
 def main():
     load_dotenv()
-    os.environ.setdefault("C4I_CONTRACT_VERSION", "3")
+    os.environ.setdefault("C4I_CONTRACT_VERSION", "4")
+    if os.environ["C4I_CONTRACT_VERSION"] == "4":
+        os.environ["KNCCS_DB"] = os.getenv("KNCCS_V4_DB", "var/knccs-v4.db")
     uvicorn.run(create_app(), host="127.0.0.1", port=int(os.getenv("KNCCS_PORT", "4110")))

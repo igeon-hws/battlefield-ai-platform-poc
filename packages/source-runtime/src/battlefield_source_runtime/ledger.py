@@ -209,7 +209,7 @@ def create_ledger_app(store, install_routes, *, tick_enabled, token, control_tok
             "status": "ok",
             "systemId": store.system,
             "synthetic": True,
-            "sourceSchemaVersion": "3.0.0",
+            "sourceSchemaVersion": store.seed["sourceSchemaVersion"],
         }
 
     @app.get("/api/v1/snapshot", dependencies=[Depends(read)])

@@ -45,3 +45,15 @@ OFF는 native 문서/일반 계산이며 ON만 Semantic 해석·조건 평가를
 읽기 전용 Fabric UI가 버전을 고정한 제한된 부분 그래프를 Semantic API로 조회한다. 임의 Cypher/Neo4j 브라우저 직접 접속이나 Agent 도구 확장 없이 기존 인증·근거 경계를 유지한다. UI는 추가 그래프 라이브러리 대신 SVG와 결정론적 배치를 사용한다. 이는 제한된 PoC 크기에 적합하지만 대규모 배치·분석 기능은 제공하지 않는다.
 
 기존 불변 READY Graph의 domainJson을 DB에서 조건·상한과 함께 읽는다. 기존 Graph를 수정하거나 다시 생성하지 않고 탐색할 수 있는 대신 JSON 검색/정렬의 DB 스캔 비용은 남는다. 버전 목록은 생성 시각/ID keyset으로 페이지를 나눠 새 build 추가 시 중복을 방지한다. 사람이 읽는 생성 시각·데이터셋·짧은 ID는 표시용이며 모든 실제 조회는 전체 graphVersion을 사용한다.
+
+## Fabric 지식 소유권과 A/B/C 비교 — 2026-10-26
+
+레거시 체계 API에 LLM용 설명 문서가 이미 있다는 가정을 제거한다. 업무 보고·명시적 관계는 원천에 남기고 설명 문서8개는 hash/version을 보존해 Fabric에 이관한다. 공통 정책 보완 문서를 추가해 C의 해석에 필요한 기본값/예외를 B에도 제공한다. 관리 주체와 발행·적용 체계는 구분한다.
+
+A↔B로 추가 지식 접근, B↔C로 동일 지식의 구조화·규칙 재사용 체계를 비교한다. C에는 평가 helper도 있으므로 Graph 저장만의 효과라고 주장하지 않는다. B는 실제 Knowledge MCP를 사용하며 Graph 없이 동작한다. 지식 version/hash는 불변 archive로 보존하고 원천 snapshot과 독립적으로 고정한다. 일반적인 문서 수집/임베딩/LLM 추출 대신 검토된 패키지 catalog와 literal 검색을 사용하므로 작고 재현 가능하지만 새 지식 등록은 검토·배포가 필요하다.
+
+원천 문서 제거는 파괴적 계약 변경이므로 v4/schema·ontology·adapter4/정책4-knowledge-abc와 별도 DB를 도입한다. v3의 문서 허용 OFF/ON·Graph·평가 결과는 원래 의미로 보존한다. 하나의 Agent loop를 재사용하고 별도 Orchestrator는 도입하지 않는다.
+
+## 지도·AI 채팅 통합 — 2026-10-27
+
+사용자 REVIEW에 따라 v4의 세로 분석 폼과 접힌 지도를 viewport 안의 지도·채팅 작업 화면으로 교체한다. 같은 SituationMap과 공통 RunPanel을 재사용해 지도 상태와 근거/방책 동작을 유지하고, 비교는 채팅 탭과 명시적 확대 화면으로 제공한다. 대화 본문과 지도 UI 상태만 연결하며 지도 선택을 새 Agent 근거로 주입하지 않는다. 별도 backend/Agent 정책은 추가하지 않는 대신 UI가 capped 목록 밖의 선택 비교/실행을 추가 조회하고, 짧은 화면에서는 지도 높이를 줄이는 대가를 수용한다. v4 CSS를 `.bf-shell`에 한정해 원천/Fabric/v3 화면과 격리한다.

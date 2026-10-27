@@ -52,7 +52,7 @@ def start_service(module, env_overrides=None):
     return process, reader
 
 
-def _service_specs(profile):
+def _service_specs(profile, contract_version="3"):
     platform = ("platform_api.app", int(os.getenv("PLATFORM_PORT", "4300")))
     if profile == "legacy":
         return [
@@ -75,6 +75,8 @@ def _service_specs(profile):
     if profile == "fabric":
         services = [(m, p) for m, p in services if not m.startswith("mock_")]
     services += [("semantic_api.app", int(os.getenv("SEMANTIC_PORT", "4400")))]
+    if contract_version == "4":
+        services += [("semantic_mcp.knowledge", int(os.getenv("KNOWLEDGE_MCP_PORT", "4430")))]
     if profile in ("full", "fabric"):
         services += [
             ("graph_builder.app", int(os.getenv("BUILDER_PORT", "4420"))),
@@ -83,8 +85,8 @@ def _service_specs(profile):
     return services if profile == "fabric" else services + [platform]
 
 
-def service_specs(profile, offset=0):
-    specs = [(module, port + offset) for module, port in _service_specs(profile)]
+def service_specs(profile, offset=0, contract_version="3"):
+    specs = [(module, port + offset) for module, port in _service_specs(profile, contract_version)]
     if any(not 1 <= port <= 65535 for _, port in specs):
         raise ValueError("port offset creates an invalid port")
     return specs
@@ -98,19 +100,22 @@ def main():
         choices=("legacy", "off", "full", "sources", "fabric", "platform"),
         default="legacy",
     )
-    parser.add_argument("--contract-version", choices=("2", "3"), default="3")
+    parser.add_argument("--contract-version", choices=("2", "3", "4"), default="4")
     parser.add_argument("--port-offset", type=int, default=0)
     args = parser.parse_args()
-    specs = service_specs(args.profile, args.port_offset)
+    specs = service_specs(args.profile, args.port_offset, args.contract_version)
     check_ports(specs)
     overrides = {"PLATFORM_PROFILE": "legacy" if args.profile == "legacy" else "heterogeneous"}
     if args.profile != "legacy":
         overrides["C4I_CONTRACT_VERSION"] = args.contract_version
-        if args.contract_version == "3":
+        if args.contract_version in ("3", "4"):
+            version = args.contract_version
             overrides.update(
-                ATCIS_DB=os.getenv("ATCIS_V3_DB", "var/atcis-v3.db"),
-                KNCCS_DB=os.getenv("KNCCS_V3_DB", "var/knccs-v3.db"),
-                PLATFORM_VNEXT_DB=os.getenv("PLATFORM_V3_DB", "var/platform-v3.db"),
+                ATCIS_DB=os.getenv("ATCIS_V" + version + "_DB", "var/atcis-v" + version + ".db"),
+                KNCCS_DB=os.getenv("KNCCS_V" + version + "_DB", "var/knccs-v" + version + ".db"),
+                PLATFORM_VNEXT_DB=os.getenv(
+                    "PLATFORM_V" + version + "_DB", "var/platform-v" + version + ".db"
+                ),
             )
     if args.port_offset:
         module_settings = {
@@ -120,6 +125,7 @@ def main():
             "knccs_mcp.server": ("KNCCS_MCP_PORT", "KNCCS_MCP_URL"),
             "graph_builder.app": ("BUILDER_PORT", "BUILDER_BASE_URL"),
             "semantic_api.app": ("SEMANTIC_PORT", "SEMANTIC_BASE_URL"),
+            "semantic_mcp.knowledge": ("KNOWLEDGE_MCP_PORT", "KNOWLEDGE_MCP_URL"),
             "semantic_mcp.server": ("SEMANTIC_MCP_PORT", "SEMANTIC_MCP_URL"),
             "platform_api.app": ("PLATFORM_PORT", None),
             "mock_c4i.app": ("C4I_PORT", "C4I_BASE_URL"),

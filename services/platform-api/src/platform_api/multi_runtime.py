@@ -281,8 +281,14 @@ class MultiRuntime:
                     **self.sources,
                     **({"semantic": self.semantic} if run["semanticMode"] == "on" else {}),
                 }
+                if hasattr(self, "run_configs"):
+                    configs = self.run_configs(run)
                 clients = {s: BoundMCP(stack, c, self.mcp_status[s]) for s, c in configs.items()}
-                runner = self.runner_class(clients, pins, run["semanticMode"], info)
+                runner = (
+                    self.make_runner(run, clients, pins, info)
+                    if hasattr(self, "make_runner")
+                    else self.runner_class(clients, pins, run["semanticMode"], info)
+                )
                 if run.get("baselineReportRef"):
                     runner.snapshot["baselineReportRef"] = run["baselineReportRef"]
                 historical = run.get("baselineSourceSnapshotSet") or getattr(

@@ -38,7 +38,7 @@ class ReceiptInput(BaseModel):
 
 class MaritimeStore(Ledger):
     async def setup_native(self):
-        await self.db.executescript("""
+        schema = """
         CREATE TABLE IF NOT EXISTS navy_force_master(pennant TEXT PRIMARY KEY, hull_class TEXT, formation_ref TEXT);
         CREATE TABLE IF NOT EXISTS navy_force_state(pennant TEXT PRIMARY KEY, engineering TEXT, mission TEXT, geo_json TEXT, motion_json TEXT, report_time TEXT);
         CREATE TABLE IF NOT EXISTS navy_contacts(originator TEXT, track_no TEXT, domain TEXT, identity TEXT, PRIMARY KEY(originator,track_no));
@@ -50,7 +50,10 @@ class MaritimeStore(Ledger):
         CREATE TABLE IF NOT EXISTS navy_associations(association_id TEXT PRIMARY KEY, body TEXT);
         CREATE TABLE IF NOT EXISTS navy_relations(relation_id TEXT PRIMARY KEY, body TEXT);
         CREATE TABLE IF NOT EXISTS navy_documents(document_id TEXT, version TEXT, hash TEXT, body TEXT, PRIMARY KEY(document_id,version));
-        """)
+        """
+        if self.seed["sourceSchemaVersion"] == "4.0.0":
+            schema = "\n".join(line for line in schema.splitlines() if "_documents(" not in line)
+        await self.db.executescript(schema)
 
     async def persist_native(self, state):
         for table in (
@@ -66,6 +69,8 @@ class MaritimeStore(Ledger):
             "navy_relations",
             "navy_documents",
         ):
+            if table.endswith("_documents") and self.seed["sourceSchemaVersion"] == "4.0.0":
+                continue
             await self.db.execute(f"DELETE FROM {table}")
         r = state["records"]
         for force in r["own-forces"]:
@@ -125,7 +130,7 @@ class MaritimeStore(Ledger):
             await self.db.execute(
                 "INSERT INTO navy_relations VALUES(?,?)", (row["id"], json.dumps(row))
             )
-        for doc in r["documents"]:
+        for doc in r.get("documents", []):
             await self.db.execute(
                 "INSERT INTO navy_documents VALUES(?,?,?,?)",
                 (doc["documentId"], doc["version"], doc["hash"], json.dumps(doc)),
@@ -279,8 +284,13 @@ def install(app, store, read, control):
 
 
 def create_app(path=None, *, tick_enabled=True, token=None, control_token=None):
-    seed = json.loads(Path(__file__).with_name("native_seed.json").read_text(encoding="utf-8"))
-    for doc in seed["records"]["documents"]:
+    v4 = os.getenv("C4I_CONTRACT_VERSION") == "4"
+    seed = json.loads(
+        Path(__file__)
+        .with_name("native_seed_v4.json" if v4 else "native_seed.json")
+        .read_text(encoding="utf-8")
+    )
+    for doc in seed["records"].get("documents", []):
         doc["hash"] = content_hash(doc)
     baseline = deepcopy(seed)
     baseline["sourceTime"] = "2026-10-20T09:00:00Z"
@@ -295,7 +305,12 @@ def create_app(path=None, *, tick_enabled=True, token=None, control_token=None):
             r for r in baseline["records"][key] if r[time_field] <= baseline["sourceTime"]
         ]
     store = MaritimeStore(
-        path or os.getenv("KNCCS_DB", "var/knccs-v3.db"), "knccs", seed, stable, advance, baseline
+        path or os.getenv("KNCCS_DB", "var/knccs-v4.db" if v4 else "var/knccs-v3.db"),
+        "knccs",
+        seed,
+        stable,
+        advance,
+        baseline,
     )
     return mount_ui(
         create_ledger_app(

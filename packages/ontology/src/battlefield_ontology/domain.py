@@ -10,11 +10,11 @@ DOMAIN_VERSION = "3.0.0"
 ADAPTER_VERSION = "3.0.2"
 
 
-def catalog_hash():
+def catalog_hash(version=DOMAIN_VERSION):
     return digest(
         [
-            DOMAIN_VERSION,
-            ADAPTER_VERSION,
+            version,
+            "4.0.0" if version == "4.0.0" else ADAPTER_VERSION,
             json.loads(Path(__file__).with_name("domain_rules.json").read_text(encoding="utf-8")),
             json.loads(
                 Path(__file__).with_name("domain_documents.json").read_text(encoding="utf-8")
@@ -23,16 +23,19 @@ def catalog_hash():
     )
 
 
-def build_domain(sources):
+def build_domain(sources, knowledge_documents=None, knowledge_manifest=None):
     """Apply reviewed mappings to stable exports; never infer identity from proximity/text."""
     reviewed_documents = json.loads(
         Path(__file__).with_name("domain_documents.json").read_text(encoding="utf-8")
     )
     if set(sources) != {"atcis", "knccs"}:
         raise ValueError("complete native source set required")
-    if any(s.get("sourceSchemaVersion") != DOMAIN_VERSION for s in sources.values()):
+    domain_version = "4.0.0" if knowledge_manifest else DOMAIN_VERSION
+    if any(s.get("sourceSchemaVersion") != domain_version for s in sources.values()):
         raise ValueError("unsupported native schema")
-    if {s["datasetId"] for s in sources.values()} != {"c2-domain-demo-v3"}:
+    if {s["datasetId"] for s in sources.values()} != {
+        "c2-domain-demo-v4" if knowledge_manifest else "c2-domain-demo-v3"
+    }:
         raise ValueError("dataset mismatch")
     nodes, edges, documents = {}, [], {}
     for source in sources.values():
@@ -45,6 +48,16 @@ def build_domain(sources):
                         raise ValueError("future source record beyond snapshot boundary")
 
     def ref(system, resource, native_id):
+        if resource == "document" and knowledge_manifest:
+            return {
+                "systemId": "fabric",
+                "documentKey": system + ":" + native_id,
+                "knowledgeSetVersion": knowledge_manifest["knowledgeSetVersion"],
+                "datasetId": knowledge_manifest["knowledgeSetVersion"],
+                "epochId": knowledge_manifest["knowledgeSetHash"],
+                "recordType": "knowledge_document",
+                "nativeId": native_id,
+            }
         s = sources[system]
         return {
             "systemId": system,
@@ -67,7 +80,11 @@ def build_domain(sources):
         return key
 
     for system, source in sources.items():
-        for doc in source["records"]["documents"]:
+        for doc in (
+            [d["document"] for d in knowledge_documents if d["namespace"] == system]
+            if knowledge_documents is not None
+            else source["records"]["documents"]
+        ):
             if digest({k: v for k, v in doc.items() if k != "hash"}) != doc["hash"]:
                 raise ValueError("document hash mismatch")
             if reviewed_documents.get(system, {}).get(doc["documentId"]) != {
@@ -85,7 +102,7 @@ def build_domain(sources):
         doc = documents[(rule["systemId"], rule["documentId"])]
         if rule["section"] != doc["section"]:
             raise ValueError("rule document section mismatch")
-        rule["version"] = DOMAIN_VERSION
+        rule["version"] = domain_version
         rule["documentRefs"] = [
             {
                 **ref(rule["systemId"], "document", rule["documentId"]),
@@ -94,7 +111,21 @@ def build_domain(sources):
                 "section": doc["section"],
             }
         ]
+        if knowledge_manifest:
+            supplement = next(
+                d["document"] for d in knowledge_documents if d["documentKey"] == "fabric:POLICY-01"
+            )
+            rule["documentRefs"].append(
+                {
+                    **ref("fabric", "document", "POLICY-01"),
+                    "version": supplement["version"],
+                    "hash": supplement["hash"],
+                    "section": supplement["section"],
+                }
+            )
         node(rule["systemId"], "rule", rule["ruleId"], "InterpretationRule", rule)
+    if knowledge_manifest:
+        node("fabric", "document", "POLICY-01", "SourceDocument", supplement)
     rule_map = {r["ruleId"]: r for r in rules}
 
     def edge(kind, start, end, system, resource, native_id, rule_id, **props):
@@ -105,7 +136,7 @@ def build_domain(sources):
             "end": end,
             "sourceRefs": [ref(system, resource, native_id)],
             "ruleId": rule_id,
-            "ruleVersion": DOMAIN_VERSION,
+            "ruleVersion": domain_version,
             "documentRefs": rule["documentRefs"],
             **props,
         }
@@ -325,7 +356,7 @@ def build_domain(sources):
             "end": original["key"],
             "sourceRefs": [source_ref],
             "provenanceKind": "native_record_reference",
-            "adapterVersion": ADAPTER_VERSION,
+            "adapterVersion": "4.0.0" if knowledge_manifest else ADAPTER_VERSION,
         }
         edges.append({**body, "evidenceId": "assert-" + digest(body)[:32]})
     for assertion in edges:
