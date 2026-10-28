@@ -15,6 +15,14 @@ from pydantic import Field
 
 NATIVE_TOOLS = {
     "get_snapshot",
+    "list_assets",
+    "list_work_orders",
+    "list_parts",
+    "list_inventory",
+    "list_reservations",
+    "list_supply_requests",
+    "list_cargo",
+    "list_transports",
     "list_units",
     "list_equipment",
     "list_relations",

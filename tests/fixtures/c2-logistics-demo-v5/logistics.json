@@ -1,0 +1,124 @@
+{
+  "datasetId": "c2-logistics-demo-v5",
+  "sourceSchemaVersion": "5.0.0",
+  "sourceTime": "2026-10-20T09:10:00Z",
+  "records": {
+    "assets": [
+      {
+        "assetId": "EQ-781",
+        "externalSystem": "atcis",
+        "externalId": "L-T02",
+        "registrationId": "REG-01",
+        "validFrom": "2026-01-01T00:00:00Z",
+        "validTo": null
+      },
+      {
+        "assetId": "EQ-782",
+        "externalSystem": "atcis",
+        "externalId": "L-C01",
+        "registrationId": "REG-02",
+        "validFrom": "2026-01-01T00:00:00Z",
+        "validTo": null
+      }
+    ],
+    "work-orders": [
+      {
+        "workOrderId": "M-17",
+        "assetId": "EQ-781",
+        "status": "WAIT_PART",
+        "requirements": [
+          {
+            "partId": "P-08",
+            "quantity": 2,
+            "unit": "EA"
+          }
+        ],
+        "laborHours": 4,
+        "otherFaults": false,
+        "updatedAt": "2026-10-20T09:05:00Z"
+      },
+      {
+        "workOrderId": "M-18",
+        "assetId": "EQ-782",
+        "status": "WAIT_PART",
+        "requirements": [
+          {
+            "partId": "P-08",
+            "quantity": 1,
+            "unit": "EA"
+          },
+          {
+            "partId": "P-09",
+            "quantity": 1,
+            "unit": "EA"
+          }
+        ],
+        "laborHours": 8,
+        "otherFaults": null,
+        "updatedAt": "2026-10-20T09:06:00Z"
+      }
+    ],
+    "parts": [
+      {
+        "partId": "P-08",
+        "name": "합성 공용 제어 모듈",
+        "unit": "EA",
+        "applicableAssets": [
+          "EQ-781",
+          "EQ-782"
+        ]
+      },
+      {
+        "partId": "P-09",
+        "name": "합성 동력 모듈",
+        "unit": "EA",
+        "applicableAssets": [
+          "EQ-782"
+        ]
+      }
+    ],
+    "inventory": [
+      {
+        "inventoryId": "WH-1/P-08",
+        "warehouseId": "WH-1",
+        "partId": "P-08",
+        "unit": "EA",
+        "onHand": 2,
+        "reserved": 1,
+        "updatedAt": "2026-10-20T09:08:00Z"
+      }
+    ],
+    "reservations": [
+      {
+        "reservationId": "RES-01",
+        "inventoryId": "WH-1/P-08",
+        "workOrderId": "M-18",
+        "quantity": 1,
+        "unit": "EA"
+      }
+    ],
+    "supply-requests": [
+      {
+        "requestId": "REQ-01",
+        "workOrderId": "M-17",
+        "cargoId": "C-12",
+        "partId": "P-08",
+        "quantity": 1,
+        "unit": "EA"
+      }
+    ],
+    "cargo": [
+      {
+        "cargoId": "C-12",
+        "transportId": "N-21",
+        "externalSystem": "knccs",
+        "partId": "P-08",
+        "quantity": 1,
+        "unit": "EA",
+        "requestId": "REQ-01",
+        "status": "IN_TRANSIT",
+        "updatedAt": "2026-10-20T09:09:00Z"
+      }
+    ]
+  }
+}

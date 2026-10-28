@@ -1,6 +1,6 @@
 # STEP — Spec-Driven Development
 
-**현재 STEP: 4. Review (Human).** 2026-10-27 지도·AI 채팅 통합 화면 구현·검증 완료, 사용자 Review 대기.
+**현재 STEP: 3. Implement (AI).** 2026-10-28 주장 분류·출처 검증 오류 수정 진행 중.
 
 ## 단계와 산출물
 

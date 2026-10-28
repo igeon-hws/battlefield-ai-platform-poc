@@ -19,6 +19,13 @@ REF_FIELDS = ("datasetId", "epochId", "snapshotId", "sequence", "sourceTime", "s
 
 def display(system, snapshot):
     entities = []
+    if system == "logistics":
+        return {
+            **{k: snapshot[k] for k in REF_FIELDS},
+            "systemId": system,
+            "running": snapshot["running"],
+            "entities": [],
+        }
     if system == "atcis":
         for r in snapshot["records"]["equipment"]:
             entities.append(
@@ -100,9 +107,14 @@ class Fabric:
                 "url": os.getenv(s.upper() + "_BASE_URL", f"http://127.0.0.1:{port}"),
                 "token": os.getenv(s.upper() + "_READ_TOKEN", ""),
             }
-            for s, port in (("atcis", 4100), ("knccs", 4110))
+            for s, port in (
+                (("atcis", 4100), ("knccs", 4110), ("logistics", 4120))
+                if os.getenv("C4I_CONTRACT_VERSION") == "5"
+                else (("atcis", 4100), ("knccs", 4110))
+            )
         }
         self.ensure_graph = ensure_graph
+        self.received = {}
 
     async def get(self, system, path, params=None):
         config = self.sources[system]
@@ -113,6 +125,7 @@ class Fabric:
         ) as client:
             r = await client.get("/api/v1" + path, params=params)
             r.raise_for_status()
+            self.received[system] = datetime.now(UTC).isoformat()
             return r.json()
 
     async def capture(self, pins=None, allow_partial=False):
@@ -126,7 +139,7 @@ class Fabric:
             raw = await self.get(system, "/snapshots/" + pin["snapshotId"] if pin else "/snapshot")
             ref = {k: raw[k] for k in REF_FIELDS}
             if (
-                raw.get("sourceSchemaVersion") not in ("3.0.0", "4.0.0")
+                raw.get("sourceSchemaVersion") not in ("3.0.0", "4.0.0", "5.0.0")
                 or raw.get("systemId") != system
                 or pin
                 and pin != ref
@@ -274,7 +287,7 @@ def install_fabric(app, read, ensure_graph=None):
 
     @app.post("/v1/analysis-contexts", dependencies=[Depends(read)])
     async def prepare(body: ContextRequest):
-        if os.getenv("C4I_CONTRACT_VERSION") != "4":
+        if os.getenv("C4I_CONTRACT_VERSION") not in ("4", "5"):
             return await fabric.prepare(
                 body.semanticMode or "off", body.sourceSnapshotSet, body.allowPartial
             )
@@ -287,8 +300,10 @@ def install_fabric(app, read, ensure_graph=None):
         result = await fabric.prepare("off", body.sourceSnapshotSet, body.allowPartial)
         result.update(
             knowledgeMode=body.knowledgeMode,
-            semanticPolicyVersion="4-knowledge-abc",
-            sourceToolContractVersion="4",
+            semanticPolicyVersion="5-logistics-abc"
+            if os.getenv("C4I_CONTRACT_VERSION") == "5"
+            else "4-knowledge-abc",
+            sourceToolContractVersion=os.getenv("C4I_CONTRACT_VERSION", "4"),
         )
         result.pop("semanticMode", None)
         result.pop("documents", None)
@@ -307,7 +322,7 @@ def install_fabric(app, read, ensure_graph=None):
                         raise ValueError("knowledge knownAt beyond source snapshot")
             result.update(knowledgeSetVersion=version, knowledgeSetHash=catalog.hash)
             if body.knowledgeMode == "structured":
-                if set(result["sourceSnapshotSet"]) != {"atcis", "knccs"} or body.allowPartial:
+                if set(result["sourceSnapshotSet"]) != set(fabric.sources) or body.allowPartial:
                     raise ValueError("structured requires complete sources")
                 result["graphInfo"] = await ensure_graph(result["sourceSnapshotSet"], version)
                 if result["graphInfo"].get("knowledgeSetHash") != catalog.hash:

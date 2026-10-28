@@ -41,7 +41,7 @@ SEMANTIC_TOOLS = frozenset(
 
 
 class NativeFilter(Model):
-    system_id: Literal["atcis", "knccs"] | None = None
+    system_id: Literal["atcis", "knccs", "logistics"] | None = None
     field: str
     value: str
 
@@ -70,7 +70,7 @@ class MultiToolRunner:
     def __init__(self, clients, snapshots, mode, graph_info=None):
         if mode not in ("off", "on"):
             raise ValueError("invalid semantic mode")
-        if not snapshots or set(snapshots) - {"atcis", "knccs"}:
+        if not snapshots or set(snapshots) - {"atcis", "knccs", "logistics"}:
             raise ValueError("source snapshots required")
         self.snapshots = {s: SnapshotRef.model_validate(r).public() for s, r in snapshots.items()}
         self.mode, self.graph_info = mode, graph_info

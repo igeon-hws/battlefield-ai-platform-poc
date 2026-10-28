@@ -66,13 +66,21 @@ class CapabilityProvider:
 
 
 @contextmanager
-def v4_stack(tmp_path, graph=False):
+def v4_stack(
+    tmp_path,
+    graph=False,
+    version="4",
+    provider_module="test_knowledge_integration",
+    provider_class="CapabilityProvider",
+    knowledge=True,
+):
     from dotenv import load_dotenv
 
     load_dotenv()
+    systems = ("atcis", "knccs", "logistics") if version == "5" else ("atcis", "knccs")
     with ExitStack() as stack:
         env = {
-            "C4I_CONTRACT_VERSION": "4",
+            "C4I_CONTRACT_VERSION": version,
             "BUILDER_GRAPH_PREFIX": "test-",
             "SEMANTIC_READ_TOKEN": "",
             "SEMANTIC_MCP_TOKEN": "",
@@ -81,21 +89,21 @@ def v4_stack(tmp_path, graph=False):
             "PYTHONPATH": str(Path(__file__).parent.resolve()),
             "AGENT_LOG_ENABLED": "false",
         }
-        for system in ("atcis", "knccs"):
+        for system in systems:
             env[system.upper() + "_READ_TOKEN"] = ""
             env[system.upper() + "_CONTROL_TOKEN"] = ""
             env[system.upper() + "_MCP_TOKEN"] = ""
             env[system.upper() + "_DB"] = str(tmp_path / (system + ".db"))
             env[system.upper() + "_BASE_URL"] = stack.enter_context(
                 server(
-                    f"import uvicorn; from mock_{system}.native import create_app; uvicorn.run(create_app(tick_enabled=False),host='127.0.0.1',port=PORT,log_level='error')",
+                    f"import uvicorn; from mock_{system}.{'app' if system == 'logistics' else 'native'} import create_app; uvicorn.run(create_app(tick_enabled=False),host='127.0.0.1',port=PORT,log_level='error')",
                     env,
                 )
             )
             env[system.upper() + "_MCP_URL"] = (
                 stack.enter_context(
                     server(
-                        f"import uvicorn; from {system}_mcp.server import create_app; uvicorn.run(create_app(),host='127.0.0.1',port=PORT,log_level='error')",
+                        f"import uvicorn; from {'mock_logistics.mcp' if system == 'logistics' else system + '_mcp.server'} import create_app; uvicorn.run(create_app(),host='127.0.0.1',port=PORT,log_level='error')",
                         env,
                     )
                 )
@@ -126,28 +134,34 @@ def v4_stack(tmp_path, graph=False):
                     env,
                 )
             )
-        env["KNOWLEDGE_MCP_URL"] = (
-            stack.enter_context(
-                server(
-                    "import uvicorn; from semantic_mcp.knowledge import create_app; uvicorn.run(create_app(),host='127.0.0.1',port=PORT,log_level='error')",
-                    env,
+        if knowledge:
+            env["KNOWLEDGE_MCP_URL"] = (
+                stack.enter_context(
+                    server(
+                        "import uvicorn; from semantic_mcp.knowledge import create_app; uvicorn.run(create_app(),host='127.0.0.1',port=PORT,log_level='error')",
+                        env,
+                    )
                 )
+                + "/mcp"
             )
-            + "/mcp"
-        )
-        env["SEMANTIC_MCP_URL"] = (
-            stack.enter_context(
-                server(
-                    "import uvicorn; from semantic_mcp.server import create_app; uvicorn.run(create_app(),host='127.0.0.1',port=PORT,log_level='error')",
-                    env,
+        else:
+            env["KNOWLEDGE_MCP_URL"] = "http://127.0.0.1:1/mcp"
+        if version == "5" and not graph:
+            env["SEMANTIC_MCP_URL"] = "http://127.0.0.1:1/mcp"
+        else:
+            env["SEMANTIC_MCP_URL"] = (
+                stack.enter_context(
+                    server(
+                        "import uvicorn; from semantic_mcp.server import create_app; uvicorn.run(create_app(),host='127.0.0.1',port=PORT,log_level='error')",
+                        env,
+                    )
                 )
+                + "/mcp"
             )
-            + "/mcp"
-        )
         env["PLATFORM_VNEXT_DB"] = str(tmp_path / "platform.db")
         platform = stack.enter_context(
             server(
-                "import uvicorn; from platform_api.app import create_app; from test_knowledge_integration import CapabilityProvider; uvicorn.run(create_app(profile='heterogeneous',provider=CapabilityProvider()),host='127.0.0.1',port=PORT,log_level='error')",
+                f"import uvicorn; from platform_api.app import create_app; from {provider_module} import {provider_class}; uvicorn.run(create_app(profile='heterogeneous',provider={provider_class}()),host='127.0.0.1',port=PORT,log_level='error')",
                 env,
             )
         )
@@ -160,9 +174,7 @@ def v4_stack(tmp_path, graph=False):
                 from semantic_core.graph import GraphRepository
 
                 repo = GraphRepository(env["NEO4J_URI"], "neo4j", os.environ["NEO4J_PASSWORD"])
-                scope = digest(
-                    {s: env[s.upper() + "_BASE_URL"].rstrip("/") for s in ("atcis", "knccs")}
-                )
+                scope = digest({s: env[s.upper() + "_BASE_URL"].rstrip("/") for s in systems})
                 for row in repo.query(
                     "MATCH (r:BuildRequest {sourceScope:$scope}) WHERE r.graphVersion STARTS WITH 'test-' RETURN DISTINCT r.graphVersion AS v",
                     scope=scope,

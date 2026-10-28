@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 def create_app():
     load_dotenv()
-    if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4"):
+    if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4", "5"):
         from battlefield_source_runtime.native_mcp import create_native_mcp
 
         return create_native_mcp(

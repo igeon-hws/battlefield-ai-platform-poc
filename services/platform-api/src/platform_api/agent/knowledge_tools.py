@@ -28,7 +28,12 @@ class KnowledgeToolRunner(DomainToolRunner):
         if mode != "native" and "knowledge" in clients:
             self.clients["knowledge"] = clients["knowledge"]
         self.snapshot.pop("semanticMode", None)
-        self.snapshot.update(knowledgeMode=mode, semanticPolicyVersion="4-knowledge-abc")
+        self.snapshot.update(
+            knowledgeMode=mode,
+            semanticPolicyVersion="5-logistics-abc"
+            if "logistics" in snapshots
+            else "4-knowledge-abc",
+        )
         if self.knowledge:
             self.snapshot.update(
                 {k: knowledge[k] for k in ("knowledgeSetVersion", "knowledgeSetHash")}

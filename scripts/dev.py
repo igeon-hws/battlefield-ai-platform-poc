@@ -70,12 +70,19 @@ def _service_specs(profile, contract_version="3"):
         ("mock_knccs.app", int(os.getenv("KNCCS_PORT", "4110"))),
         ("knccs_mcp.server", int(os.getenv("KNCCS_MCP_PORT", "4210"))),
     ]
+    if contract_version == "5":
+        services += [
+            ("mock_logistics.app", int(os.getenv("LOGISTICS_PORT", "4120"))),
+            ("mock_logistics.mcp", int(os.getenv("LOGISTICS_MCP_PORT", "4220"))),
+        ]
     if profile == "sources":
-        return [(m, p) for m, p in services if m.startswith("mock_")]
+        return [(m, p) for m, p in services if m.startswith("mock_") and m.endswith(".app")]
     if profile == "fabric":
-        services = [(m, p) for m, p in services if not m.startswith("mock_")]
+        services = [
+            (m, p) for m, p in services if not (m.startswith("mock_") and m.endswith(".app"))
+        ]
     services += [("semantic_api.app", int(os.getenv("SEMANTIC_PORT", "4400")))]
-    if contract_version == "4":
+    if contract_version in ("4", "5"):
         services += [("semantic_mcp.knowledge", int(os.getenv("KNOWLEDGE_MCP_PORT", "4430")))]
     if profile in ("full", "fabric"):
         services += [
@@ -100,7 +107,7 @@ def main():
         choices=("legacy", "off", "full", "sources", "fabric", "platform"),
         default="legacy",
     )
-    parser.add_argument("--contract-version", choices=("2", "3", "4"), default="4")
+    parser.add_argument("--contract-version", choices=("2", "3", "4", "5"), default="5")
     parser.add_argument("--port-offset", type=int, default=0)
     args = parser.parse_args()
     specs = service_specs(args.profile, args.port_offset, args.contract_version)
@@ -108,7 +115,7 @@ def main():
     overrides = {"PLATFORM_PROFILE": "legacy" if args.profile == "legacy" else "heterogeneous"}
     if args.profile != "legacy":
         overrides["C4I_CONTRACT_VERSION"] = args.contract_version
-        if args.contract_version in ("3", "4"):
+        if args.contract_version in ("3", "4", "5"):
             version = args.contract_version
             overrides.update(
                 ATCIS_DB=os.getenv("ATCIS_V" + version + "_DB", "var/atcis-v" + version + ".db"),
@@ -119,6 +126,8 @@ def main():
             )
     if args.port_offset:
         module_settings = {
+            "mock_logistics.app": ("LOGISTICS_PORT", "LOGISTICS_BASE_URL"),
+            "mock_logistics.mcp": ("LOGISTICS_MCP_PORT", "LOGISTICS_MCP_URL"),
             "mock_atcis.app": ("ATCIS_PORT", "ATCIS_BASE_URL"),
             "atcis_mcp.server": ("ATCIS_MCP_PORT", "ATCIS_MCP_URL"),
             "mock_knccs.app": ("KNCCS_PORT", "KNCCS_BASE_URL"),

@@ -29,6 +29,7 @@ const tabs = {
     messages: '전문함',
     'delivery-events': '수신 이력',
     associations: '참조 기록',
+    transports: '수송·입항',
     documents: '기준 문서',
   },
 };
@@ -48,6 +49,7 @@ function identity(row: Row) {
       row.unitCode ||
       row.formationRef ||
       row.documentId ||
+      row.transportId ||
       `${row.originator}/${row.trackNo}`,
   );
 }
@@ -282,6 +284,19 @@ export default function NativeSourceApp({ system }: { system: 'atcis' | 'knccs' 
           {record ? (
             <>
               <pre>{pretty(record)}</pre>
+              {tab === 'transports' && (
+                <button
+                  onClick={() =>
+                    void action(
+                      `transports/${encodeURIComponent(identity(record))}`,
+                      { delayHours: 6 },
+                      'PATCH',
+                    )
+                  }
+                >
+                  입항·인도 6시간 지연
+                </button>
+              )}
               {(tab === 'equipment' || tab === 'own-forces') && (
                 <>
                   <label>

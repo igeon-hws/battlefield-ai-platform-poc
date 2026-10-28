@@ -675,6 +675,339 @@
     "title": "AnalysisResult",
     "type": "object"
   },
+  "ProvenancedAnalysisResult": {
+    "$defs": {
+      "ClaimProvenance": {
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "const": "1",
+            "title": "Version",
+            "type": "string"
+          },
+          "reportedKind": {
+            "enum": [
+              "observation",
+              "inference",
+              "semantic",
+              "calculation"
+            ],
+            "title": "Reportedkind",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "enum": [
+                "source",
+                "document",
+                "semantic",
+                "calculation"
+              ],
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/$defs/DocumentCitation"
+            },
+            "title": "Documents",
+            "type": "array"
+          },
+          "documentRuleRefs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Documentrulerefs",
+            "type": "array"
+          },
+          "unverifiedRuleRefs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unverifiedrulerefs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "version",
+          "reportedKind",
+          "sources",
+          "documents",
+          "documentRuleRefs",
+          "unverifiedRuleRefs"
+        ],
+        "title": "ClaimProvenance",
+        "type": "object"
+      },
+      "Course": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "evidenceIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidenceids",
+            "type": "array"
+          },
+          "expectedEffects": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Expectedeffects",
+            "type": "array"
+          },
+          "risksAndConstraints": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Risksandconstraints",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "evidenceIds",
+          "expectedEffects",
+          "risksAndConstraints"
+        ],
+        "title": "Course",
+        "type": "object"
+      },
+      "DocumentCitation": {
+        "additionalProperties": false,
+        "properties": {
+          "evidenceId": {
+            "title": "Evidenceid",
+            "type": "string"
+          },
+          "documentKey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documentkey"
+          },
+          "knowledgeSetVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Knowledgesetversion"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hash"
+          }
+        },
+        "required": [
+          "evidenceId",
+          "documentKey",
+          "knowledgeSetVersion",
+          "version",
+          "hash"
+        ],
+        "title": "DocumentCitation",
+        "type": "object"
+      },
+      "Finding": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "category": {
+            "enum": [
+              "fact",
+              "inference",
+              "assumption"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "evidenceIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidenceids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "text",
+          "category",
+          "evidenceIds"
+        ],
+        "title": "Finding",
+        "type": "object"
+      },
+      "ProvenancedClaim": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "observation",
+              "inference",
+              "semantic",
+              "calculation"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "text": {
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "evidenceRefs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidencerefs",
+            "type": "array"
+          },
+          "ruleRefs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rulerefs",
+            "type": "array"
+          },
+          "provenance": {
+            "$ref": "#/$defs/ClaimProvenance"
+          }
+        },
+        "required": [
+          "kind",
+          "text",
+          "evidenceRefs",
+          "provenance"
+        ],
+        "title": "ProvenancedClaim",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "outcome": {
+        "enum": [
+          "answer",
+          "partial",
+          "clarification"
+        ],
+        "title": "Outcome",
+        "type": "string"
+      },
+      "answer": {
+        "minLength": 1,
+        "title": "Answer",
+        "type": "string"
+      },
+      "findings": {
+        "items": {
+          "$ref": "#/$defs/Finding"
+        },
+        "title": "Findings",
+        "type": "array"
+      },
+      "evidenceIds": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Evidenceids",
+        "type": "array"
+      },
+      "limitations": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Limitations",
+        "type": "array"
+      },
+      "courses": {
+        "anyOf": [
+          {
+            "items": {
+              "$ref": "#/$defs/Course"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Courses"
+      },
+      "provenanceVersion": {
+        "const": "1",
+        "title": "Provenanceversion",
+        "type": "string"
+      },
+      "claims": {
+        "items": {
+          "$ref": "#/$defs/ProvenancedClaim"
+        },
+        "title": "Claims",
+        "type": "array"
+      }
+    },
+    "required": [
+      "outcome",
+      "answer",
+      "findings",
+      "evidenceIds",
+      "limitations",
+      "courses",
+      "provenanceVersion",
+      "claims"
+    ],
+    "title": "ProvenancedAnalysisResult",
+    "type": "object"
+  },
   "Equipment": {
     "additionalProperties": false,
     "properties": {
@@ -805,7 +1138,8 @@
           "systemId": {
             "enum": [
               "atcis",
-              "knccs"
+              "knccs",
+              "logistics"
             ],
             "title": "Systemid",
             "type": "string"
@@ -887,7 +1221,8 @@
       "systemId": {
         "enum": [
           "atcis",
-          "knccs"
+          "knccs",
+          "logistics"
         ],
         "title": "Systemid",
         "type": "string"
@@ -930,7 +1265,8 @@
           "systemId": {
             "enum": [
               "atcis",
-              "knccs"
+              "knccs",
+              "logistics"
             ],
             "title": "Systemid",
             "type": "string"
@@ -1021,7 +1357,8 @@
       "systemId": {
         "enum": [
           "atcis",
-          "knccs"
+          "knccs",
+          "logistics"
         ],
         "title": "Systemid",
         "type": "string"
@@ -1165,6 +1502,136 @@
       "knccs"
     ],
     "title": "SourceSnapshotSet",
+    "type": "object"
+  },
+  "SourceSnapshotSetV5": {
+    "$defs": {
+      "SnapshotRef": {
+        "additionalProperties": false,
+        "properties": {
+          "datasetId": {
+            "minLength": 1,
+            "title": "Datasetid",
+            "type": "string"
+          },
+          "epochId": {
+            "minLength": 1,
+            "title": "Epochid",
+            "type": "string"
+          },
+          "snapshotId": {
+            "minLength": 1,
+            "title": "Snapshotid",
+            "type": "string"
+          },
+          "sequence": {
+            "minimum": 0,
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "sourceTime": {
+            "title": "Sourcetime",
+            "type": "string"
+          },
+          "stableDataHash": {
+            "minLength": 1,
+            "title": "Stabledatahash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "datasetId",
+          "epochId",
+          "snapshotId",
+          "sequence",
+          "sourceTime",
+          "stableDataHash"
+        ],
+        "title": "SnapshotRef",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "atcis": {
+        "$ref": "#/$defs/SnapshotRef"
+      },
+      "knccs": {
+        "$ref": "#/$defs/SnapshotRef"
+      },
+      "logistics": {
+        "$ref": "#/$defs/SnapshotRef"
+      }
+    },
+    "required": [
+      "atcis",
+      "knccs",
+      "logistics"
+    ],
+    "title": "SourceSnapshotSetV5",
+    "type": "object"
+  },
+  "SessionInput": {
+    "additionalProperties": false,
+    "properties": {
+      "mode": {
+        "title": "Mode",
+        "type": "string"
+      }
+    },
+    "required": [
+      "mode"
+    ],
+    "title": "SessionInput",
+    "type": "object"
+  },
+  "ObjectRequest": {
+    "additionalProperties": false,
+    "properties": {
+      "systemId": {
+        "title": "Systemid",
+        "type": "string"
+      },
+      "recordType": {
+        "title": "Recordtype",
+        "type": "string"
+      },
+      "nativeId": {
+        "title": "Nativeid",
+        "type": "string"
+      },
+      "graphVersion": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Graphversion"
+      },
+      "sourceSnapshotSet": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Sourcesnapshotset"
+      }
+    },
+    "required": [
+      "systemId",
+      "recordType",
+      "nativeId"
+    ],
+    "title": "ObjectRequest",
     "type": "object"
   },
   "Question": {

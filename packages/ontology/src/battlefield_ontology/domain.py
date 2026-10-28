@@ -14,7 +14,7 @@ def catalog_hash(version=DOMAIN_VERSION):
     return digest(
         [
             version,
-            "4.0.0" if version == "4.0.0" else ADAPTER_VERSION,
+            version if version in ("4.0.0", "5.0.0") else ADAPTER_VERSION,
             json.loads(Path(__file__).with_name("domain_rules.json").read_text(encoding="utf-8")),
             json.loads(
                 Path(__file__).with_name("domain_documents.json").read_text(encoding="utf-8")
@@ -28,13 +28,18 @@ def build_domain(sources, knowledge_documents=None, knowledge_manifest=None):
     reviewed_documents = json.loads(
         Path(__file__).with_name("domain_documents.json").read_text(encoding="utf-8")
     )
-    if set(sources) != {"atcis", "knccs"}:
+    v5 = "logistics" in sources
+    if set(sources) != ({"atcis", "knccs", "logistics"} if v5 else {"atcis", "knccs"}):
         raise ValueError("complete native source set required")
-    domain_version = "4.0.0" if knowledge_manifest else DOMAIN_VERSION
+    domain_version = "5.0.0" if v5 else "4.0.0" if knowledge_manifest else DOMAIN_VERSION
     if any(s.get("sourceSchemaVersion") != domain_version for s in sources.values()):
         raise ValueError("unsupported native schema")
     if {s["datasetId"] for s in sources.values()} != {
-        "c2-domain-demo-v4" if knowledge_manifest else "c2-domain-demo-v3"
+        "c2-logistics-demo-v5"
+        if v5
+        else "c2-domain-demo-v4"
+        if knowledge_manifest
+        else "c2-domain-demo-v3"
     }:
         raise ValueError("dataset mismatch")
     nodes, edges, documents = {}, [], {}
@@ -80,6 +85,8 @@ def build_domain(sources, knowledge_documents=None, knowledge_manifest=None):
         return key
 
     for system, source in sources.items():
+        if system == "logistics":
+            continue
         for doc in (
             [d["document"] for d in knowledge_documents if d["namespace"] == system]
             if knowledge_documents is not None
@@ -330,6 +337,11 @@ def build_domain(sources, knowledge_documents=None, knowledge_manifest=None):
                     },
                 }
 
+    if v5:
+        from battlefield_ontology.logistics import extend_logistics
+
+        extend_logistics(sources, knowledge_documents, knowledge_manifest, nodes, edges, node, ref)
+
     # Source records and assertions are explicit graph objects, distinct from sensors.
     for original in list(nodes.values()):
         if original["label"] not in {
@@ -356,7 +368,7 @@ def build_domain(sources, knowledge_documents=None, knowledge_manifest=None):
             "end": original["key"],
             "sourceRefs": [source_ref],
             "provenanceKind": "native_record_reference",
-            "adapterVersion": "4.0.0" if knowledge_manifest else ADAPTER_VERSION,
+            "adapterVersion": domain_version if knowledge_manifest else ADAPTER_VERSION,
         }
         edges.append({**body, "evidenceId": "assert-" + digest(body)[:32]})
     for assertion in edges:

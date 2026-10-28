@@ -1,0 +1,206 @@
+{
+  "datasetId": "c2-logistics-demo-v5",
+  "sourceSchemaVersion": "5.0.0",
+  "sourceTime": "2026-10-20T09:10:00Z",
+  "records": {
+    "units": [
+      {
+        "unitCode": "D1",
+        "name": "모의 1사단",
+        "parentCode": null
+      },
+      {
+        "unitCode": "B11",
+        "name": "모의 11여단",
+        "parentCode": "D1"
+      },
+      {
+        "unitCode": "C111",
+        "name": "모의 111중대",
+        "previousName": "모의 해안중대",
+        "parentCode": "B11"
+      }
+    ],
+    "equipment": [
+      {
+        "equipmentId": "L-T01",
+        "classCode": "TK",
+        "maintenanceCode": "FMC",
+        "ownerCode": "B11",
+        "role": "ORG",
+        "position": {
+          "x": 126.5,
+          "y": 37.2
+        },
+        "vector": {
+          "east": 1,
+          "north": 0
+        },
+        "side": "F"
+      },
+      {
+        "equipmentId": "L-T02",
+        "classCode": "TK",
+        "maintenanceCode": "PMC",
+        "limitation": "정기 점검 필요: 연습 제한 가용",
+        "ownerCode": "C111",
+        "role": "ATT",
+        "position": {
+          "x": 126.51,
+          "y": 37.21
+        },
+        "vector": {
+          "east": 0,
+          "north": 1
+        },
+        "side": "F"
+      },
+      {
+        "equipmentId": "L-V01",
+        "classCode": "AAV",
+        "maintenanceCode": "FMC",
+        "ownerCode": "C111",
+        "role": "ORG",
+        "position": {
+          "x": 126.52,
+          "y": 37.22
+        },
+        "vector": {
+          "east": 0,
+          "north": 0
+        },
+        "side": "F"
+      },
+      {
+        "equipmentId": "L-C01",
+        "classCode": "LOG",
+        "maintenanceCode": "NMC",
+        "ownerCode": "B11",
+        "role": "ORG",
+        "position": {
+          "x": 126.53,
+          "y": 37.23
+        },
+        "vector": {
+          "east": 0,
+          "north": 0
+        },
+        "side": "F"
+      },
+      {
+        "equipmentId": "L-U01",
+        "classCode": "UAS",
+        "maintenanceCode": "FMC",
+        "ownerCode": "B11",
+        "role": "SUP",
+        "position": {
+          "x": 126.54,
+          "y": 37.24
+        },
+        "vector": {
+          "east": 1,
+          "north": 1
+        },
+        "side": "F"
+      }
+    ],
+    "relations": [
+      {
+        "id": "AR-1",
+        "subject": "B11",
+        "predicate": "PARENT",
+        "object": "D1",
+        "validFrom": "2026-10-20T00:00:00Z",
+        "validTo": null
+      },
+      {
+        "id": "AR-2",
+        "subject": "C111",
+        "predicate": "PARENT",
+        "object": "B11",
+        "validFrom": "2026-10-20T00:00:00Z",
+        "validTo": null
+      }
+    ],
+    "reports": [
+      {
+        "reportId": "R0",
+        "revision": 1,
+        "incidentId": "INC-1",
+        "unitCode": "C111",
+        "occurredAt": "2026-10-20T08:59:00Z",
+        "knownAt": "2026-10-20T09:00:00Z",
+        "text": "기준보고: SURFACE 접촉을 함정으로 임시 표기. 식별 미완료.",
+        "recordRef": "NORTH/007"
+      },
+      {
+        "reportId": "R1",
+        "revision": 1,
+        "incidentId": "INC-1",
+        "unitCode": "C111",
+        "knownAt": "2026-10-20T09:02:00Z",
+        "text": "L-V01 현장 확인 완료. 식별 작업은 계속 중.",
+        "recordRef": "L-V01"
+      },
+      {
+        "reportId": "R2",
+        "revision": 1,
+        "incidentId": "INC-1",
+        "unitCode": "C111",
+        "knownAt": "2026-10-20T09:04:00Z",
+        "text": "R1 재전파",
+        "derivedFrom": "R1"
+      },
+      {
+        "reportId": "R3",
+        "revision": 1,
+        "incidentId": "INC-1",
+        "unitCode": "C111",
+        "knownAt": "2026-10-20T09:06:00Z",
+        "text": "해안중대의 현 명칭은 모의 111중대. 원소속 변경 없음."
+      },
+      {
+        "reportId": "R4",
+        "revision": 2,
+        "incidentId": "INC-1",
+        "unitCode": "C111",
+        "knownAt": "2026-10-20T09:08:00Z",
+        "text": "기준보고 정정: NORTH/007은 함정이 아닌 L-V01 관측이다.",
+        "supersedes": "R0",
+        "recordRef": "L-V01"
+      }
+    ],
+    "journal": [
+      {
+        "entryId": "J1",
+        "incidentId": "INC-1",
+        "knownAt": "2026-10-20T09:05:00Z",
+        "text": "모의 111중대 명칭 이력 확인"
+      }
+    ],
+    "activities": [
+      {
+        "activityId": "A1",
+        "incidentId": "INC-1",
+        "stepCode": "SITE_CHECK",
+        "state": "DONE",
+        "evidenceReport": "R1",
+        "knownAt": "2026-10-20T09:02:00Z"
+      },
+      {
+        "activityId": "A2",
+        "incidentId": "INC-1",
+        "stepCode": "IDENTIFICATION",
+        "state": "IN_PROGRESS",
+        "knownAt": "2026-10-20T09:03:00Z"
+      },
+      {
+        "activityId": "A3",
+        "incidentId": "INC-1",
+        "stepCode": "REVIEW",
+        "state": "NOT_STARTED",
+        "knownAt": "2026-10-20T09:03:00Z"
+      }
+    ]
+  }
+}

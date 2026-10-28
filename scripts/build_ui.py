@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 for ui, service, package in [
     ("mock-c4i", "mock-c4i", "mock_c4i"),
+    ("mock-logistics", "mock-logistics", "mock_logistics"),
     ("mock-atcis", "mock-atcis", "mock_atcis"),
     ("mock-knccs", "mock-knccs", "mock_knccs"),
     ("platform-web", "platform-api", "platform_api"),

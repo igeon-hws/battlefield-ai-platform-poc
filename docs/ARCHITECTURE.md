@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-현재 기준: c2-domain-demo-v4, source/ontology/adapter 4.0.0, 비교 정책 4-knowledge-abc. v3(문서 허용 OFF/ON)는 호환 이력으로 보존한다. 기술 설계의 단일 기준이다. 요구사항·데모는 [PRD](PRD.md), 화면은 [UI_GUIDE](UI_GUIDE.md), 실측·한계는 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md), 선택 이유는 [ADR](ADR.md)에 둔다.
+현재 기준: c2-logistics-demo-v5, source/ontology/adapter5.0.0, 비교 정책5-logistics-abc. v4(두 원천 A/B/C)·v3(문서 허용 OFF/ON)는 호환 이력으로 보존한다. 기술 설계의 단일 기준이다. 요구사항·데모는 [PRD](PRD.md), 화면은 [UI_GUIDE](UI_GUIDE.md), 실측·한계는 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md), 선택 이유는 [ADR](ADR.md)에 둔다.
 
 ## 1. 구성과 책임
 
@@ -8,13 +8,17 @@
 flowchart LR
   A[Mock ATCIS · UI/API/DB/Simulator] --> F[Data Fabric · 표시/분석 기준]
   N[Mock KNCCS · UI/API/DB/Simulator] --> F
+  L[Mock LOGISTICS · UI/API/DB/Simulator] --> F
   F --> P[분석 플랫폼 · 단일 Agent]
   P --> AM[ATCIS MCP]
   P --> NM[KNCCS MCP]
+  P --> LM[LOGISTICS MCP]
   AM --> A
   NM --> N
+  LM --> L
   A --> B[Python Graph Builder]
   N --> B
+  L --> B
   O[Ontology/규칙/문서 검토 목록] --> B
   B --> G[(Neo4j)]
   G --> S[Semantic API/Core]
@@ -27,12 +31,14 @@ flowchart LR
   P --> L[OpenAI Responses API]
 ```
 
-화살표는 정보 흐름이다. Builder/Fabric은 원천 공개 API를 조회한다. 제품 영역은 두 원천, Data Fabric, 분석 플랫폼의 네 개다. 각 원천은 독립 UI·Python 서버·SQLite·시뮬레이터를 가지며 상대 체계·플랫폼·MCP·Neo4j·LLM·Node 없이 실행한다. 합성 데이터·가상 스키마만 사용한다. 프론트엔드 외 실행 로직은 Python이다.
+화살표는 정보 흐름이다. Builder/Fabric은 원천 공개 API를 조회한다. 제품 영역은 세 원천, Data Fabric, 분석 플랫폼의 다섯 개다. 각 원천은 독립 UI·Python 서버·SQLite·시뮬레이터를 가지며 상대 체계·플랫폼·MCP·Neo4j·LLM·Node 없이 실행한다. 합성 데이터·가상 스키마만 사용한다. 프론트엔드 외 실행 로직은 Python이다.
 
 | 모듈 | 기본 주소 | 책임 |
 | --- | --- | --- |
 | mock_atcis.app | :4100 | 지상 native API/UI/시뮬레이터/DB |
 | mock_knccs.app | :4110 | 해상 native API/UI/시뮬레이터/DB |
+| mock_logistics.app | :4120 | 군수 native API/UI/시뮬레이터/DB |
+| mock_logistics.mcp | :4220/mcp | 군수 공개 API 읽기 어댑터 |
 | atcis_mcp.server | :4200/mcp | ATCIS 공개 API 읽기 어댑터 |
 | knccs_mcp.server | :4210/mcp | KNCCS 공개 API 읽기 어댑터 |
 | platform_api.app | :4300 | 분석 UI·대화·큐·Agent·비교 |
@@ -46,12 +52,12 @@ Python3.12/uv workspace, FastAPI/Uvicorn, HTTPX/asyncio, Pydantic, MCP 공식 Py
 
 구현 위치:
 
-- services/mock-atcis, services/mock-knccs: native 모델·SQL·API·시뮬레이터.
+- services/mock-atcis, services/mock-knccs, services/mock-logistics: native 모델·SQL·API·시뮬레이터.
 - packages/source-runtime: ledger.py의 인증/snapshot/event/저장 공통 기능, native_mcp.py의 공개 HTTP 읽기 어댑터. 공통 runtime이 도메인 의미를 소유하지 않는다.
 - packages/ontology: 명시적 Python adapter, domain_rules.json, 검토 문서 version/hash 목록 domain_documents.json.
 - services/graph-builder, packages/semantic-core, services/semantic-api, services/semantic-mcp: 생성·저장/탐색·API·MCP 경계.
-- services/platform-api: v4 knowledge_runtime.py/agent/knowledge_tools.py, v3 domain_runtime.py, 공통 multi_runtime.py, Agent·근거·대화·로그.
-- frontend: 원천2/Fabric/플랫폼/legacy 정적 앱. scripts/build_ui.py가 Python package 정적 경로에 복사한다.
+- services/platform-api: v5/v4 knowledge_runtime.py/agent/knowledge_tools.py, v3 domain_runtime.py, 공통 multi_runtime.py, Agent·근거·대화·로그.
+- frontend: 원천3/Fabric/플랫폼/legacy 정적 앱. scripts/build_ui.py가 Python package 정적 경로에 복사한다.
 
 ## 2. 이종 원천 계약
 
@@ -71,6 +77,33 @@ Python3.12/uv workspace, FastAPI/Uvicorn, HTTPX/asyncio, Pydantic, MCP 공식 Py
 좌표는 WGS84, GeoJSON 배열은 경도→위도다. 누락 위치를 (0,0)으로 만들지 않는다. 해상 course는 북쪽0도/시계 방향이며 mps=knots×1852/3600, east=mps×sin(course), north=mps×cos(course)다. Python 시뮬레이터가 매초 원천 위치를 갱신하고 브라우저는 벡터·표시 보간을 그린다. 지도 projection은 도메인 추론이 아니며 OFF 분석 근거로 자동 첨부하지 않는다.
 
 각 원천은 자체 master/state/report SQL을 가진다. 단독 wheel은 빌드된 UI와 source-runtime 및 공개 의존성을 포함/설치한다. v4 원천 실행에는 ontology/Neo4j/OpenAI/MCP/상대 원천이 필요 없다. 원천 DB를 다른 서비스가 직접 읽지 않는다.
+
+## v5 세 체계·객체 상세·페이지 context
+
+v5는 기존 v4 경로를 확장하되 별도 seed/DB/dataset/policy로 실행한다. `mock-logistics` wheel은 독립 Ledger 기반 원천 서버와 별도 프로세스로 실행하는 MCP adapter를 포함한다. 원천 API 실행에는 다른 원천·ontology·Graph·OpenAI가 필요 없다. `logistics_records`와 snapshot/event/state SQL을 소유한다. KNCCS는 별도 `navy_transports` 업무 테이블을 소유한다. 군수 상태 변경과 수송 지연은 immutable snapshot을 만들고, live 상태/예정 시각만 바뀌면 stable hash를 바꾸지 않는다.
+
+원천 MCP는 ATCIS7·KNCCS10·LOGISTICS8 도구이며 모두 공개 HTTP 읽기만 한다. source ID는 `logistics`, 기본 :4120/:4220이다. 군수 API는 assets/work-orders/parts/inventory/reservations/supply-requests/cargo를 snapshotId·offset·limit로 읽는다. KNCCS transports는 기존 continuation envelope를 따른다. 수정은 별도 control 토큰의 work-orders PATCH와 transports PATCH(delayHours), 기존 simulation 제어다. Agent에 수정 도구를 노출하지 않는다.
+
+`knowledge_documents_v5.json`과 불변 archive는 기존9개+군수 LOG-01의10개 문서다. 기본 catalog 선택은 contract5에서만 바뀌고 명시적 archive 읽기는 유지한다. B/C는 같은 manifest/hash를 고정한다. `battlefield_ontology/logistics.py`는 검토된 문서와 명시적 등록·업무 참조를 검증해 SAME_AS/MAINTAINS/REQUIRES/STOCK_OF/RESERVES/FOR_WORK/FULFILLED_BY/CARRIED_BY/CONTAINS_PART를 만든다. 신규 노드는 LogisticsAsset/WorkOrder/Part/Inventory/Reservation/SupplyRequest/Cargo/Transport다. 상태·재고·ETA는 stable Graph에 현재값으로 복제하지 않는다.
+
+Semantic의 동일성 조회는 군수 등록 기간·복수 후보/충돌을 확인하고 같은 sourceRef 의미를 UI와 MCP가 재사용한다. `SourceSnapshotSetV5`는 세 원천을 요구한다. Builder는 공개 stable-export·지식 API를 검증하고 세 입력 hash·지식·catalog에 고정된 READY Graph를 발행한다. v4의 두 원천 snapshot 계약은 별도 타입으로 보존한다.
+
+### 객체 상세의 책임과 계약
+
+`semantic_core/objects.py`의 ObjectService는 모델 의존성이 없는 조회 서비스다. Fabric의 `POST /v1/object-details` 입력은 systemId/recordType/nativeId, 선택 graphVersion/sourceSnapshotSet이다. Graph를 지정하지 않은 C 최초 조회는 세 원천 capture와 관리 build를 준비한다. 지정한 Graph 조회는 현재 원천의 dataset/epoch/stable hash와 맞는지 확인한다. Semantic은 동일성·관계·근거를 해소하고 Fabric이 공개 원천 snapshot을 조회/조합한다. Agent는 이 live 상세 API를 원천 MCP의 대체 경로로 사용하지 않는다. Semantic MCP는 고정된 의미/참조를 제공하고 Agent의 현재 사실 조회는 각 원천 MCP다.
+
+응답은 identityStatus/canonicalId, graphVersion·knowledgeSetVersion/hash·adapterVersion, 출처별 records(sourceRef/snapshotId/sourceTime/recordUpdatedAt/lastReceivedAt), links(관계·근거·규칙/문서), coverage/partial이다. 기준 불일치(stale)는 연결을 확정하지 않고 선택 원천 기본 정보만 반환한다. unresolved/ambiguous/conflict도 임의 병합하지 않는다. 기존 Graph가 있으면 일부 원천 단절에도 조회 가능한 원천과 관계 provenance를 반환한다. 최초 Graph 준비의 전체 원천/Builder 장애는 오류로 보존한다. depth7·200노드·300관계 상한과 graphCompleteness로 제한 결과를 표시한다. lastReceivedAt은 원천 HTTP 성공 수신 시각이며 원천 기준/상태 변경 시각과 다르다. 누락된 변경 시각은 만들어 내지 않는다.
+
+### 페이지와 서버 capability
+
+v5 `/`는 조건 선택, `/demo/a|b|c|compare`는 동일 KnowledgeApp shell의 고정 조건이다. `platform_api/demo.py`의 `POST /api/v1/demo-sessions`가 요청한 명시적 진입 조건과 policy/dataset에 대응하는 임시 context를 만든다. opaque sessionId는 `x-demo-session`으로 전달하고 서버가8시간·최대1,000개를 메모리에 관리한다. 재시작/새로고침 진입은 새 context를 얻는다. URL이나 body의 knowledgeMode만 신뢰하지 않는다. 이는 로컬 데모 조건 분리이며 외부 사용자 인증/역할 인가를 구현한 것은 아니다. 사용자는 C/비교에 명시적으로 다시 진입할 수 있다.
+
+- 세 조건 공통: `/api/v1/native-records/{system}/{resource}`에서 공개 원천 API를 조회한다. 페이지/검색·원천 snapshot·수신 시각을 제공하고 Semantic helper는 호출하지 않는다.
+- B/C만: `/api/v1/knowledge/{path}`가 Fabric 문서를 proxy한다. 전체 Fabric 토큰을 브라우저에 전달하지 않는다.
+- C만: `/api/v1/objects/detail`가 독립 Fabric 상세를 proxy한다. A/B에서 직접 요청해도 거부한다.
+- compare만: 비교 생성/이력·해당 비교 run 조회를 허용한다. 개별 mode는 자기 mode의 비비교 run/대화만 열고 mode/body·conversation 불일치를 거부한다. SSE 이력 우회는 차단하고 화면은 범위가 고정된 polling을 사용한다.
+
+페이지별 storage key·대화·선택/상세·문서·요청 수명은 격리한다. 객체 선택은 모델에 자동 주입하지 않고 명시적 질문 초안에는 원천 ID만 쓴다. 공식 비교는 세 원천 pins·같은 질문/기준보고·B/C 지식 집합·C Graph를 고정하며 세 대화를 비운다. C UI 결과를 A/B 질문에 자동 첨부하지 않는다. 단일 KnowledgeRuntime/native tool loop를 유지한다.
 
 ## 3. Fabric과 기준 시점
 
@@ -125,7 +158,7 @@ JSON+Python 조건 DSL(AND/OR/EQ/EXISTS/BEFORE 등), 타입 매핑·정책·절�
 
 Semantic core→API→MCP로 나누어 Agent 밖에서도 재사용한다. 7개 도구는 interpret_concept, resolve_unit_scope, find_equipment_refs, resolve_entity, get_semantic_evidence, query_relations, get_procedure_definition이다. graphVersion 고정·bounded 읽기만 제공하며 임의 Cypher/Graph 쓰기는 없다.
 
-사단 전차 질문은 Semantic에서 조직 범위·배정·정의 근거를 읽고 현재 상태는 ATCIS MCP에서 읽는다. Graph가 현재 가용 목록을 대신 확정하지 않는다. Fabric 콘솔은 공통 선택기로 실제 READY v3/v4 graphVersion을 고정한다. active는 /v1/builds/active 조회 별칭이며 모든 의미 조회에서 쓰는 버전 별칭은 아니다.
+사단 전차 질문은 Semantic에서 조직 범위·배정·정의 근거를 읽고 현재 상태는 ATCIS MCP에서 읽는다. Graph가 현재 가용 목록을 대신 확정하지 않는다. Fabric 콘솔은 공통 선택기로 실제 READY v3/v4/v5 graphVersion을 고정한다. active는 /v1/builds/active 조회 별칭이며 모든 의미 조회에서 쓰는 버전 별칭은 아니다.
 
 ### Fabric Graph 탐색 읽기 API
 
@@ -133,7 +166,7 @@ Semantic core→API→MCP로 나누어 Agent 밖에서도 재사용한다. 7개 
 
 | 경로 | 계약 |
 | --- | --- |
-| GET /v1/graph-builds | READY v3/v4 목록, q/dataset/date(UTC 날짜)/cursor, limit 기본20·최대50. 생성 시각 내림차순/전체 ID 오름차순의 keyset 페이지, 실제 activeGraphVersion·입력 snapshot 메타데이터 |
+| GET /v1/graph-builds | READY v3/v4/v5 목록, q/dataset/date(UTC 날짜)/cursor, limit 기본20·최대50. 생성 시각 내림차순/전체 ID 오름차순의 keyset 페이지, 실제 activeGraphVersion·입력 snapshot 메타데이터 |
 | GET /v1/graph-summary | graphVersion의 build 메타데이터·domain 노드/관계 유형별 정확한 개수. 내부 GraphBuild/GraphState 제외 |
 | GET /v1/graph-nodes | graphVersion, q(키/저장 payload 문자열), system, type, cursor, limit 기본30·최대100. key 순 요약 목록 |
 | GET /v1/graph-node | graphVersion/nodeKey의 저장 payload·원천 참조 상세 |
@@ -207,18 +240,18 @@ uv run python scripts/dev.py --profile full
 
 | 프로필 | 실행 범위 |
 | --- | --- |
-| sources | 원천2만, MCP/Graph/LLM 불필요 |
-| fabric | 원천 MCP2+Fabric API+Builder+Semantic MCP, 원천 별도 실행 |
+| sources | v5 원천3만, MCP/Graph/LLM 불필요 |
+| fabric | v5 원천 MCP3+Fabric API+Knowledge MCP+Builder+Semantic MCP, 원천 별도 실행 |
 | platform | 플랫폼만, 외부 Fabric/MCP 주소 필요 |
-| off | 원천2+원천 MCP2+Fabric core+플랫폼, Neo4j 불필요 |
-| full | v4 Python9개(Knowledge MCP 포함)+별도 Docker Neo4j; v3는8개 |
+| off | v5 원천3+원천 MCP3+Fabric core+Knowledge MCP+플랫폼, Neo4j 불필요 |
+| full | v5 Python11개+별도 Docker Neo4j; v4는9개·v3는8개 |
 | legacy | 기존 C4I/MCP/플랫폼3개, 프로필 생략 시 기본값 |
 
-현재 데모는 --profile full을 명시한다. 비legacy launcher는 기본 contract4다. --contract-version 3/2는 원래 정책·DB의 호환 경로다. v4 기본 DB는 var/atcis-v4.db, var/knccs-v4.db, var/platform-v4.db이며 ATCIS_V4_DB/KNCCS_V4_DB/PLATFORM_V4_DB로 변경한다. 이전 DB/Graph/대화는 자동 reset하지 않는다.
+현재 데모는 --profile full을 명시한다. --contract-version 5는 기본값이며 v4는 명시적으로 선택한다. 비legacy launcher는 기본 contract5다. v5 DB는 var/atcis-v5.db, var/knccs-v5.db, var/logistics-v5.db, var/platform-v5.db다. LOGISTICS_DB와 ATCIS_V5_DB/KNCCS_V5_DB/PLATFORM_V5_DB로 지정한다. --contract-version 4/3/2는 원래 정책·DB의 호환 경로다. v4 기본 DB는 var/atcis-v4.db, var/knccs-v4.db, var/platform-v4.db이며 ATCIS_V4_DB/KNCCS_V4_DB/PLATFORM_V4_DB로 변경한다. 이전 DB/Graph/대화는 자동 reset하지 않는다.
 
 단독 CLI: uv run --package mock-atcis mock-atcis / uv run --package mock-knccs mock-knccs. 기본 v4이며 단독 source CLI도 ATCIS_V4_DB/KNCCS_V4_DB를 사용해 기존 generic v2/v3 DB 경로를 보호한다. 독립 v2 handler 설치에는 source-runtime의 legacy extra가 필요하다. 읽기 토큰을 해당 MCP/Fabric과 일치시킨다. 포트가 사용 중이면 원인을 확인하거나 --port-offset 1000을 사용한다. offset은 Python만 바꾸고 Neo4j는 그대로다. Ctrl+C는 launcher가 시작한 프로세스만 종료한다. 사용자 프로세스·데이터·volume을 임의 삭제하지 않는다.
 
-원천은 처음 정지 상태다. UI :4100/:4110에서1초 진행/시작/정지·상태 변경, Fabric :4400에서 근거 확인, 플랫폼 :4300에서 F1~F7/기준보고·동일 기준 비교를 사용한다.
+원천은 처음 정지 상태다. UI :4100/:4110/:4120에서1초 진행/시작/정지·업무 상태를 바꾼다. 군수 단독 실행은 uv run --package mock-logistics mock-logistics다. Fabric :4400은 운영자 근거 조회, 플랫폼 :4300은 A/B/C 진입·L0~L5/별도 동일 기준 비교다. v4 호환 화면은 F1~F7를 유지한다.
 
 ### 검증
 

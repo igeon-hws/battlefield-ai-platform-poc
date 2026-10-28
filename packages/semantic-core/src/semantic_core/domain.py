@@ -10,8 +10,8 @@ from battlefield_ontology.domain import DOMAIN_VERSION, build_domain, catalog_ha
 
 def publish_domain(repo, sources, graph_version=None, knowledge=None):
     """Publish an immutable validated build; READY reuse requires identical semantic inputs."""
-    v4 = any(s.get("sourceSchemaVersion") == "4.0.0" for s in sources.values())
-    version_number = "4.0.0" if v4 else DOMAIN_VERSION
+    v4 = any(s.get("sourceSchemaVersion") in ("4.0.0", "5.0.0") for s in sources.values())
+    version_number = "5.0.0" if "logistics" in sources else "4.0.0" if v4 else DOMAIN_VERSION
     if v4:
         from semantic_core.knowledge import KnowledgeCatalog
 
@@ -123,7 +123,7 @@ class DomainService:
 
     def model(self, version):
         info = self.repo.require_ready(version)
-        if info["ontologyVersion"] not in (DOMAIN_VERSION, "4.0.0"):
+        if info["ontologyVersion"] not in (DOMAIN_VERSION, "4.0.0", "5.0.0"):
             raise ValueError("unsupported domain build")
         nodes = [
             json.loads(r["body"])
@@ -300,6 +300,47 @@ class DomainService:
 
     def resolve_entity(self, version, system, native_id):
         info, nodes, edges = self.model(version)
+        if info["ontologyVersion"] == "5.0.0":
+            from semantic_core.objects import resolve_identity
+
+            matches = [
+                n
+                for n in nodes
+                if n.get("sourceRef", {}).get("systemId") == system
+                and n["sourceRef"].get("nativeId") == native_id
+                and n["label"] not in {"SourceRecord", "SourceDocument", "InterpretationRule"}
+            ]
+            if len(matches) != 1:
+                return self.response(
+                    info,
+                    status="ambiguous" if matches else "unresolved",
+                    canonicalId=None,
+                    candidates=[n["key"] for n in matches],
+                    sourceRefs=[],
+                    evidenceRefs=[],
+                )
+            target = matches[0]
+            if target["label"] not in {"Equipment", "LogisticsAsset", "ContactObservation"}:
+                return self.response(
+                    info,
+                    status="resolved",
+                    canonicalId=target["key"],
+                    objectType=target["label"],
+                    sourceRefs=[target["sourceRef"]],
+                    evidenceRefs=[
+                        e["evidenceId"] for e in edges if target["key"] in (e["start"], e["end"])
+                    ],
+                )
+            kind = target["sourceRef"]["recordType"]
+            result = resolve_identity(
+                nodes,
+                edges,
+                system,
+                kind,
+                native_id,
+                info["inputSnapshotSet"][system]["sourceTime"],
+            )
+            return self.response(info, **result)
         direct = [
             n
             for n in nodes
@@ -364,7 +405,22 @@ class DomainService:
         return self.response(info, assertion=found[0])
 
     def query_relations(self, version, subject, relation_types, depth=2, limit=100):
-        allowed = {"SUBORDINATE_TO", "ASSIGNED_TO", "REFERS_TO", "DERIVED_FROM", "SUPERSEDES"}
+        allowed = {
+            "SUBORDINATE_TO",
+            "ASSIGNED_TO",
+            "REFERS_TO",
+            "DERIVED_FROM",
+            "SUPERSEDES",
+            "SAME_AS",
+            "MAINTAINS",
+            "REQUIRES",
+            "STOCK_OF",
+            "RESERVES",
+            "FOR_WORK",
+            "FULFILLED_BY",
+            "CARRIED_BY",
+            "CONTAINS_PART",
+        }
         if not set(relation_types) <= allowed or not 0 <= depth <= 8 or not 1 <= limit <= 100:
             raise ValueError("invalid bounded relation query")
         info, nodes, edges = self.model(version)

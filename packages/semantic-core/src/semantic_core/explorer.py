@@ -8,6 +8,14 @@ import json
 from hashlib import sha256
 
 NODE_TYPES = {
+    "LogisticsAsset",
+    "WorkOrder",
+    "Part",
+    "Inventory",
+    "Reservation",
+    "SupplyRequest",
+    "Cargo",
+    "Transport",
     "System",
     "SourceRecord",
     "Unit",
@@ -32,6 +40,15 @@ RELATIONS = {
     "SUPERSEDES",
     "FROM_SYSTEM",
     "OBSERVES",
+    "SAME_AS",
+    "MAINTAINS",
+    "REQUIRES",
+    "STOCK_OF",
+    "RESERVES",
+    "FOR_WORK",
+    "FULFILLED_BY",
+    "CARRIED_BY",
+    "CONTAINS_PART",
 }
 
 
@@ -70,7 +87,7 @@ class GraphExplorer:
 
     def ready(self, version):
         info = self.repo.require_ready(version)
-        if info["ontologyVersion"] not in ("3.0.0", "4.0.0"):
+        if info["ontologyVersion"] not in ("3.0.0", "4.0.0", "5.0.0"):
             raise ValueError("Only READY v3/v4 graphs can be explored")
         return info
 
@@ -86,7 +103,7 @@ class GraphExplorer:
             ):
                 raise ValueError("invalid build cursor")
         rows = self.repo.query(
-            "MATCH (b:GraphBuild) WHERE b.status='READY' AND b.ontologyVersion IN ['3.0.0','4.0.0'] "
+            "MATCH (b:GraphBuild) WHERE b.status='READY' AND b.ontologyVersion IN ['3.0.0','4.0.0','5.0.0'] "
             "AND toLower(b.graphVersion + coalesce(b.inputSnapshotSetJson,'') + coalesce(b.builtAt,'')) CONTAINS toLower($q) "
             "AND coalesce(b.inputSnapshotSetJson,'') CONTAINS $dataset "
             "AND coalesce(b.builtAt,'') STARTS WITH $date "

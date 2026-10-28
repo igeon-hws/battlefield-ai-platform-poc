@@ -2,12 +2,13 @@
 name = "battlefield-poc"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
-dependencies = ["mock-c4i", "c4i-mcp", "platform-api", "battlefield-ontology", "mock-atcis", "mock-knccs", "atcis-mcp", "knccs-mcp", "battlefield-semantic-core", "graph-builder", "semantic-api", "semantic-mcp"]
+dependencies = ["mock-logistics", "mock-c4i", "c4i-mcp", "platform-api", "battlefield-ontology", "mock-atcis", "mock-knccs", "atcis-mcp", "knccs-mcp", "battlefield-semantic-core", "graph-builder", "semantic-api", "semantic-mcp"]
 
 [tool.uv.workspace]
 members = ["services/*", "packages/*"]
 
 [tool.uv.sources]
+mock-logistics = { workspace = true }
 mock-c4i = { workspace = true }
 c4i-mcp = { workspace = true }
 platform-api = { workspace = true }

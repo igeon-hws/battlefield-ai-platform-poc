@@ -38,7 +38,22 @@ type Summary = {
 };
 type Get = (path: string) => Promise<any>;
 const pretty = (value: unknown) => JSON.stringify(value, null, 2);
-const kinds = ['SUBORDINATE_TO', 'ASSIGNED_TO', 'REFERS_TO', 'DERIVED_FROM', 'SUPERSEDES'];
+const kinds = [
+  'SUBORDINATE_TO',
+  'ASSIGNED_TO',
+  'REFERS_TO',
+  'DERIVED_FROM',
+  'SUPERSEDES',
+  'SAME_AS',
+  'MAINTAINS',
+  'REQUIRES',
+  'STOCK_OF',
+  'RESERVES',
+  'FOR_WORK',
+  'FULFILLED_BY',
+  'CARRIED_BY',
+  'CONTAINS_PART',
+];
 const time = (value?: string) =>
   value && !Number.isNaN(Date.parse(value))
     ? new Intl.DateTimeFormat('sv-SE', {
@@ -502,6 +517,9 @@ export default function GraphExplorer({
               >
                 <option value={kinds.join(',')}>전체 도메인 관계</option>
                 <option value="SUBORDINATE_TO,ASSIGNED_TO">조직·장비 배정</option>
+                <option value="SAME_AS,MAINTAINS,REQUIRES,STOCK_OF,RESERVES,FOR_WORK,FULFILLED_BY,CARRIED_BY,CONTAINS_PART">
+                  군수·정비·수송
+                </option>
                 <option value="REFERS_TO">동일성·원천 참조</option>
                 <option value="DERIVED_FROM,SUPERSEDES">보고 계보</option>
               </select>

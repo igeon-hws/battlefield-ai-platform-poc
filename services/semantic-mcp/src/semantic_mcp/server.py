@@ -86,6 +86,11 @@ def create_app():
 
     @server.tool(
         description="Resolve source systemId/nativeId to explicit canonical identity at graphVersion. Only verified exercise identifiers establish identity; unresolved/conflict are not proofs. Returns all source refs and rule evidence, not an explanation of live status disagreement."
+        + (
+            " V5 also resolves explicit work-order, part, inventory, cargo and transport record IDs to their graph keys; read current facts via the respective source MCP."
+            if os.getenv("C4I_CONTRACT_VERSION") == "5"
+            else ""
+        )
     )
     async def resolve_entity(graphVersion: str, systemId: str, nativeId: str) -> dict:
         return await request(
@@ -101,10 +106,15 @@ def create_app():
             "/v1/evidence/" + quote(evidenceId, safe=""), {"graphVersion": graphVersion}
         )
 
-    if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4"):
+    if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4", "5"):
 
         @server.tool(
             description="Explore verified organization/report/incident/activity relations at graphVersion. subject is a canonical key returned by Semantic tools. relationTypes allowed: SUBORDINATE_TO,ASSIGNED_TO,REFERS_TO,DERIVED_FROM,SUPERSEDES. Bounded traversal returns source/document/rule proofs and partial coverage when truncated. No live state inference."
+            + (
+                " V5 also allows SAME_AS,MAINTAINS,REQUIRES,STOCK_OF,RESERVES,FOR_WORK,FULFILLED_BY,CARRIED_BY,CONTAINS_PART. Use resolve_entity to obtain a source record graph key, then traverse explicit dependencies."
+                if os.getenv("C4I_CONTRACT_VERSION") == "5"
+                else ""
+            )
         )
         async def query_relations(
             graphVersion: str,

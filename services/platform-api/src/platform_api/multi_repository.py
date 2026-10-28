@@ -45,7 +45,7 @@ class MultiRepository(Repository):
             "comparisonId": None,
             "semanticPolicyVersion": self.policy_version,
             "sourceToolContractVersion": self.source_contract,
-            **({"knowledgeMode": "native"} if self.source_contract == "4" else {}),
+            **({"knowledgeMode": "native"} if self.source_contract in ("4", "5") else {}),
         }
 
     async def enqueue(
@@ -62,7 +62,7 @@ class MultiRepository(Repository):
         # New modes/policies must not inherit another mode's interpreted conversation.
         if mode not in ("off", "on"):
             raise ValueError("invalid semantic mode")
-        if self.source_contract == "4" and knowledge_mode not in (
+        if self.source_contract in ("4", "5") and knowledge_mode not in (
             "native",
             "documents",
             "structured",
@@ -75,7 +75,7 @@ class MultiRepository(Repository):
                 matching = [r for r in previous if r["conversationId"] == conversation_id]
                 if not matching:
                     raise ConversationNotFound("conversation not found")
-                if self.source_contract == "4" and any(
+                if self.source_contract in ("4", "5") and any(
                     r.get("knowledgeMode") != knowledge_mode for r in matching
                 ):
                     raise ValueError("knowledge mode switch requires a new conversation")

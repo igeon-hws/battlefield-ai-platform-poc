@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 
@@ -22,7 +23,11 @@ class KnowledgeCatalog:
         path = (
             Path(__file__).with_name("knowledge_sets") / (version + ".json")
             if version
-            else Path(__file__).with_name("knowledge_documents.json")
+            else Path(__file__).with_name(
+                "knowledge_documents_v5.json"
+                if os.getenv("C4I_CONTRACT_VERSION") == "5"
+                else "knowledge_documents.json"
+            )
         )
         if not path.exists():
             raise KeyError("knowledge set not found")

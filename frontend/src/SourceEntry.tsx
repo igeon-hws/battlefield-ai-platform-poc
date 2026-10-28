@@ -12,7 +12,7 @@ export default function SourceEntry({ system }: { system: 'atcis' | 'knccs' }) {
   }, []);
   return version === null ? (
     <p>연결 중</p>
-  ) : ['3.0.0', '4.0.0'].includes(version) ? (
+  ) : ['3.0.0', '4.0.0', '5.0.0'].includes(version) ? (
     <NativeSourceApp system={system} />
   ) : (
     <SourceApp system={system} />

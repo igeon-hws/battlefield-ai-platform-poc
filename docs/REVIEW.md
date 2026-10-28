@@ -6,5 +6,11 @@
 이를 기반으로 문서에 다음 구현 plan을 IMPLEMENTATION.PLAN.md에 기록한다.
 
 ### 내용 
-- 이전 UI처럼 챗 UI는 Battlefield UI 상황판이랑 같이 있어야함 (따로 상황판에 진입하게 하는 것이 아니라)
-- GOTHAM, LATTICE 처럼 전장 AI 분석 서비스와, ChatGPT 같은 채팅형 서비스의 UI를 참고하여, 전장 상황에서 AI 채팅 통한 분석 서비스와 비슷한 UI 디자인 형식을 가질 것  
+
+기존 Semantic Layer 및 데이터 통합 아키텍처는 유지하되, 사용자 중심 UI/UX 개선과 Semantic Layer의 실질적 효용 입증에 집중할 것.
+
+1. 객체 조회 UI/UX 개선
+- 현재 원천 시스템별 레코드를 단순 나열하여 사용자 관점에서 가독성이 떨어짐.
+- 핵심 정보 위주 객체 조회 UI 
+- 상태 코드(PMC, WAIT_PART 등)는 한국 분석관이 이해하기 쉬운 의미로 우선 표시.
+- 세부 매핑 규칙, Evidence ID, 원천 JSON, 버전 정보 등은 토글로 제공.

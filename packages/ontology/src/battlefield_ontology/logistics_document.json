@@ -1,0 +1,19 @@
+{
+  "documentKey": "logistics:LOG-01",
+  "namespace": "logistics",
+  "appliesTo": [
+    "atcis",
+    "knccs",
+    "logistics"
+  ],
+  "reviewRevision": "review-1",
+  "document": {
+    "documentId": "LOG-01",
+    "version": "1.0",
+    "issuer": "합성 군수 체계 설계",
+    "section": "자산 연결·부품·시간 판정",
+    "knownAt": "2026-10-20T08:00:00Z",
+    "text": "합성 규칙 LOG-LINK-01: assets.externalSystem/externalId는 등록 근거 registrationId와 validFrom 이상 validTo 미만 기간에만 같은 자산을 연결한다. 명칭/좌표 유사성으로 연결하지 않는다. work-orders.assetId는 정비 대상, requirements는 필요 부품과 EA 수량이다. applicableAssets에 포함된 부품만 적용한다. inventory onHand 중 reservations가 특정 workOrderId에 예약한 양은 다른 작업이 사용할 수 없다. reserved 합계는 예약 상세와 대조하며 불일치는 정보 부족이다. 공급 요청의 cargoId는 cargo.transportId를 통해 KNCCS transports.transportId에 연결한다. 입항 arrivalAt와 인도 deliveryAt는 다르며 인도 이후 laborHours를 더한 시간이 컷오프 이하여야 복구 시간 조건을 충족한다. 재고는 작업 ID 순으로 중복 사용하지 않고 배분 근거를 남긴다. 다른 미해결 고장 없음이 확인되어야 복구 조건 충족이며 조건/수량/시점 누락은 정보 부족이다. 입항/인도/정비 DONE이 ATCIS 운용 상태를 자동 변경하지 않는다. 지연 분석은 가정일 뿐 원천 수정이 아니다.",
+    "hash": "0bcb3a34976121b7f96d3292b5842923df03d0629c35e4d13385e98bac31304e"
+  }
+}

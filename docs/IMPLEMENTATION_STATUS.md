@@ -2,7 +2,40 @@
 
 ## 현재 상태
 
-2026-10-27 Fabric 지식 분리·A/B/C 비교에 이어 REVIEW 기반 지도·AI 채팅 통합 화면의 구현·검증을 완료해 **Human Review 대기**다. 현재 기본은 c2-domain-demo-v4, source/ontology/adapter4.0.0, 정책4-knowledge-abc다. 실제 GPT 효과 비교는 미측정이며 기존 v3 OFF/ON 실측을 대체하지 않는다. [ARCHITECTURE](ARCHITECTURE.md)는 구현 구조/실행 방법, [PLAN](IMPLEMENTATION_PLAN.md)은 다음 유효 작업이다. 이 문서는 실제 결과·제약·주요 이력만 관리한다.
+2026-10-28 세 체계 군수 Mock·Agent 독립 객체 상세·A/B/C 별도 진입의 구현과 관련 검증을 완료해 **Human Review 대기**다. 현재 기본은 c2-logistics-demo-v5, source/ontology/adapter5.0.0, 정책5-logistics-abc다. v4/v3 구현·실측은 각 버전의 이력으로 보존한다. v5 실제 GPT 효과 비교는 미측정이다. [ARCHITECTURE](ARCHITECTURE.md)는 구조/실행, [PLAN](IMPLEMENTATION_PLAN.md)은 다음 유효 작업이며 이 문서는 실제 결과·제약만 관리한다.
+
+## 세 체계 군수·독립 객체 상세·페이지 구분 — 2026-10-28
+
+2026-10-27 Review 대화의 세 가지 방향을 구현했다. 군수 원천을 독립 Python/DB/UI/시뮬레이터와 읽기 MCP로 추가하고, Semantic의 명시적 연결을 Fabric 상세와 Agent가 재사용하며, A/B/C를 공통 화면의 별도 페이지로 시연한다. 기존 v4 데이터·Graph·fixture/gold·DB를 수정해 새 정답으로 바꾸지 않았다. 설명 문서는 Fabric 소유이며 v5의 B/C는 기존9개+LOG-01의 같은10개 집합을 고정한다.
+
+| 요청 | 실제 구현 |
+| --- | --- |
+| 군수 Mock과 세 체계 질의 | :4120 원천·:4220 MCP, 자산/정비/부품/재고·예약/보급·화물, KNCCS 수송/인도. 원천마다 별도 SQL·snapshot·제어/읽기 토큰. 군수 정비 상태와 해군6시간 지연 제어 |
+| 차량 클릭의 통합 정보·시점·연결 규칙 | C의 L-T02→EQ-781/M-17→P-08/재고→C-12→N-21. ObjectService가 모델 없이 조회하며 기준/변경/수신 시각·Graph/지식/adapter·원천 근거를 표시 |
+| Semantic 책임 분리 | Graph는 명시적 동일성/업무 관계·기간·근거, Fabric은 공개 원천 조회/조합, 원천은 live 상태·재고·시각. 군수 현재 미해결 고장 값도 stable export에서 제거. Agent는 실제 원천 MCP를 유지하고 live Fabric 상세로 우회하지 않음 |
+| A/B/C 별도 페이지 | `/demo/a`, `/demo/b`, `/demo/c`, `/demo/compare`. composer 전환 제거·조건 고정. 대화/이력/저장·상세/문서·늦은 요청 분리. 세 조건 모두 원천과 원천에 실제 있는 매핑을 읽음 |
+| 서버 경계 | opaque demo context의 mode/policy/dataset·만료를 검사. A/B의 직접 구조화 API/간접 helper·모드 변조/다른 대화·run/비교·SSE 우회 차단. 내부 Fabric 토큰은 브라우저에 전달하지 않음 |
+| 공정 비교와 호환 | 세 원천 snapshot·동일 질문/기준보고·B/C 지식 hash·C Graph 고정. 새 dataset/DB/policy/독립 fixture·L0~L5 gold. v4/v3 명시적 실행 경로 유지 |
+
+선행 실패와 수정: 군수 모듈/Graph·객체 서비스·별도 진입 부재를 확인하고 구현했다. 실제 통합에서 두 원천으로 제한된 공통 runner와 Builder snapshot 타입을 발견해 v5 계약을 확장했다. 선택 상세가 상태 변경 후 이전 레코드를 보이는 오류, 현재 미해결 고장이 stable Graph에 포함되는 오류도 실패 테스트로 재현해 수정했다. 수송/정비/부품 ID는 이름 추측 없이 명시적 sourceRef에서 graph key를 얻도록 resolver를 확장했다. 브라우저 검사 중 중복 accessible label과 테스트 들여쓰기 오류는 선택자를 role로 지정하고 수정한 후 통과했다.
+
+| 이번 실행 검증 | 결과 |
+| --- | --- |
+| 최종 계약·독립 wheel·원천/MCP/launcher·기존 v4 경계·지도/채팅·원천/Fabric UI | **47 passed,2 deselected /73.46초**. `test_logistics_v5`, `test_logistics_ui`, `test_workspace_ui`, `test_domain_ui`, `test_knowledge_v4`, `test_domain_sources`, `test_domain_mcp`, `test_dev`, marker not neo4j |
+| Fabric Graph 버전/탐색 UI 회귀 | **5 passed /13.64초**. 군수 관계 필터/프리셋 추가 후 기존 탐색 경로 확인 |
+| 실제 v5 세 원천·MCP·Neo4j·UI | **1 passed /206.92초**. 공통 pins/hash·비교, C 상세/문서, 모바일 비교 확대·A 원천 탐색, 군수 단독 UI. 결정론적 provider, 실제 GPT 호출 없음 |
+| 실제 v5 A/B 서비스 부재 | 초기 통합 실행의 두 parametrized case 모두 통과. Semantic MCP URL을 실제 없는 endpoint로 지정하고 Neo4j/Builder 없이 실행. A는 Knowledge MCP도 없는 상태에서 실행. 같은 실행의 뒤이은 UI selector 실패는 위 최종 v5 실제 검사에서 수정/재검증 |
+| 실제 v4 MCP·Neo4j·비교·Fabric 호환 | **1 passed,2 deselected /84.92초**. v5와 다른 기존 입력/정책의 실제 경로 |
+| 실제 수송 의미 조회 MCP | **1 passed,3 deselected /41.50초**. 모델 없이 N-21 canonical ID와 CARRIED_BY/FULFILLED_BY 의존 경로를 실제 MCP→Semantic API→Neo4j에서 확인 |
+| 최종 수송 resolver·v5/v4 지식 경계 | **20 passed,1 deselected /7.62초**. 명시적 N-21 graph key, 군수 자산/시점·충돌/미연결·오래된 Graph·부분 단절, 원천/문서/Graph 경계 |
+| 군수 단독 상태 제어 UI | **2 passed /7.05초**(v5 진입 포함). 선택 상세가 새 snapshot의 DONE을 표시 |
+| 정적·배포 | Ruff check·136파일 format, mypy79 source files, 계약 export·TypeScript, 전체6개 UI production build·최종 플랫폼/군수/Fabric 재빌드·정적 패키징 통과. MapLibre 포함 chunk 크기 경고는 남음 |
+
+캡처를 직접 확인했다: `artifacts/logistics-v5-c-desktop.png`, `logistics-v5-c-mobile.png`(고정 근거 문서), `logistics-v5-a-mobile.png`, `logistics-v5-comparison-mobile.png`. 실제 배경 지도와10개 원천 표시 객체, C 상세·근거 문서 본문 우선 배치·모바일 별도 원천 조회/비교를 확인했다. 같은 viewport의 지도/채팅 shell과 v4 상태 복원 회귀도 통과했다. docs는8개만 유지하고 REVIEW 원문은 보존한다.
+
+한계: 이 구현은 합성 PoC다. opaque context는 데모 조건 분리이며 운영 인증/역할 권한이 아니다. 사용자는 명시적으로 C/비교에 들어갈 수 있다. 최초 C 상세는 세 원천과 Graph 준비가 필요하고 실패 시 오류를 보존한다. 이후 기존 Graph의 부분 조회와 기준 불일치를 구분한다. 깊이/개수 상한과 일부 수집 실패는 partial로 표시한다. L0~L5의 자연어 정답률·지연/usage 우열은 실제 GPT로 측정하지 않았다. 복구 전망은 원천/문서에 근거한 조건부 분석이며 현재 운용 상태를 변경하지 않는다. 실기기 키보드/접근성 전체 감사는 미검증이다.
+
+실측 도구는 `scripts/evaluate_knowledge.py --contract-version 5 --live --output <새 경로>`이며 L0~L5를 선택할 수 있다. --live 없이 모델을 실행하지 않고 기존 결과를 덮어쓰지 않는다. 이번에는 비용을 쓰는 효과 측정을 실행하지 않았다. PRD/ARCHITECTURE/UI_GUIDE/ADR·README·환경 예제는 구현과 정합화했다.
 
 ## 지도·AI 채팅 통합 화면 — 2026-10-27
 
@@ -23,11 +56,11 @@ REVIEW의 ‘상황판과 챗 UI를 함께’는 상시 MapLibre 지도+대화 �
 
 ## 구현 범위
 
-- 독립 육군/해군 native UI·API·SQL·시뮬레이터. 공유 runtime은 ledger/auth/snapshot/event 등 기계 기능이다.
-- 원천 MCP2(ATCIS7/KNCCS9도구), Fabric 지식 catalog/API·독립 Knowledge MCP3도구·projection/분석 context, Neo4j Builder, Semantic MCP7도구. 공개 API·실제 MCP 경계를 유지한다.
+- 독립 육군/해군/군수 native UI·API·SQL·시뮬레이터. 공유 runtime은 ledger/auth/snapshot/event 등 기계 기능이다.
+- 원천 MCP3(ATCIS7/KNCCS10/LOGISTICS8도구), Fabric 지식 catalog/API·독립 Knowledge MCP3도구·projection/분석 context, Neo4j Builder, Semantic MCP7도구. 공개 API·실제 MCP 경계를 유지한다.
 - 검토 문서 hash/version·adapter·규칙 분리, 명시적 association ER, 안정 Graph와 live 상태 소유권 분리.
 - 단일 native tool loop, A 원천/B 문서/C 구조화 지식 경계, C 현재-run 근거 평가·집계·유형×상태 계산, 기준보고/T0·B/C 지식 집합 고정과 비교 대화 격리. v3 문서 허용 OFF/ON은 호환 정책이다.
-- F1~F7·주장 배지·계산 표·비교 조건·세 방책 선택. 제품4개와 legacy의 정적 UI5개.
+- v5 L0~L5·별도 조건 진입·구조화 객체 상세, v4 F1~F7 호환·주장/근거·계산 표·비교 조건·방책 선택. 제품5개와 legacy의 정적 UI6개.
 - 실행별 UTF-8 파일 로그와 핵심 경계 주석. 로그는 기본 var/logs/agent/<runId>.log이며 전체 근거는 DB/UI trace가 기준이다.
 
 ## Fabric 지식 분리·A/B/C 비교 — 2026-10-27

@@ -1,0 +1,1 @@
+"""Independent synthetic logistics source."""

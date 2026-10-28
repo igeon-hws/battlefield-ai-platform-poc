@@ -25,7 +25,7 @@ class Model(BaseModel):
 
 
 class SourceRef(Model):
-    system_id: Literal["atcis", "knccs"]
+    system_id: Literal["atcis", "knccs", "logistics"]
     dataset_id: str = Field(min_length=1)
     epoch_id: str = Field(min_length=1)
     record_type: Literal["unit", "equipment"]
@@ -50,7 +50,7 @@ class RelationType(StrEnum):
 
 
 class System(Model):
-    system_id: Literal["atcis", "knccs"]
+    system_id: Literal["atcis", "knccs", "logistics"]
     name: str = Field(min_length=1)
     synthetic: Literal[True] = True
 
@@ -83,6 +83,10 @@ class SnapshotRef(Model):
 class SourceSnapshotSet(Model):
     atcis: SnapshotRef
     knccs: SnapshotRef
+
+
+class SourceSnapshotSetV5(SourceSnapshotSet):
+    logistics: SnapshotRef
 
 
 class Equipment(Model):
@@ -189,7 +193,7 @@ def normalize_equipment(system_id: str, raw: dict) -> Equipment:
 
 def stable_payload(export: dict) -> dict:
     """Whitelist stable fields, never hash observation time or live movement/state."""
-    if export.get("sourceSchemaVersion") in ("3.0.0", "4.0.0"):
+    if export.get("sourceSchemaVersion") in ("3.0.0", "4.0.0", "5.0.0"):
         return {
             k: export[k]
             for k in ("systemId", "datasetId", "epochId", "sourceSchemaVersion", "records")

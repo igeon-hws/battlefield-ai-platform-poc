@@ -9,13 +9,16 @@ from battlefield_ontology import (
     SnapshotRef,
     SourceRef,
     SourceSnapshotSet,
+    SourceSnapshotSetV5,
     System,
     Unit,
 )
 from c4i_contracts import Entity, EntityFilter, EntityPatch
+from platform_api.demo import SessionInput
 from platform_api.multi_app import ComparisonInput, Question
-from platform_contracts.models import AnalysisResult
+from platform_contracts.models import AnalysisResult, ProvenancedAnalysisResult
 from pydantic import BaseModel
+from semantic_api.objects import ObjectRequest
 
 root = Path(__file__).resolve().parents[1]
 models: list[type[BaseModel]] = [
@@ -23,6 +26,7 @@ models: list[type[BaseModel]] = [
     EntityFilter,
     EntityPatch,
     AnalysisResult,
+    ProvenancedAnalysisResult,
     Equipment,
     Unit,
     System,
@@ -30,6 +34,9 @@ models: list[type[BaseModel]] = [
     SourceRef,
     SnapshotRef,
     SourceSnapshotSet,
+    SourceSnapshotSetV5,
+    SessionInput,
+    ObjectRequest,
     Question,
     ComparisonInput,
 ]

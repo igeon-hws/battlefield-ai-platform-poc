@@ -68,10 +68,10 @@ class GraphBuilder:
                 ):
                     raise ValueError("stable data hash mismatch")
                 exports[system] = data
-            if set(exports) != {"atcis", "knccs"}:
+            if set(exports) != set(self.sources):
                 raise ValueError("incomplete source coverage")
             knowledge = None
-            if any(d.get("sourceSchemaVersion") == "4.0.0" for d in exports.values()):
+            if any(d.get("sourceSchemaVersion") in ("4.0.0", "5.0.0") for d in exports.values()):
                 if knowledge_version is None:
                     from semantic_core.knowledge import KnowledgeCatalog
 
@@ -200,9 +200,9 @@ class GraphBuilder:
             "mappingVersion": MAPPING_VERSION,
             "resolutionRuleVersion": RESOLUTION_VERSION,
         }
-        if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4"):
+        if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4", "5"):
             expected = {k: os.environ["C4I_CONTRACT_VERSION"] + ".0.0" for k in expected}
-        if os.getenv("C4I_CONTRACT_VERSION") == "4" and not knowledge_version:
+        if os.getenv("C4I_CONTRACT_VERSION") in ("4", "5") and not knowledge_version:
             raise ValueError("knowledgeSetVersion required")
         if versions != expected:
             raise ValueError("unsupported rule versions")
@@ -231,7 +231,7 @@ class GraphBuilder:
 
     @staticmethod
     def domain_catalog():
-        if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4"):
+        if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4", "5"):
             from battlefield_ontology.domain import catalog_hash
 
             return catalog_hash(os.environ["C4I_CONTRACT_VERSION"] + ".0.0")

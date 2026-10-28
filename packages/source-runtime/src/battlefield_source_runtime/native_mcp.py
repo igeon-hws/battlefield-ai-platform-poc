@@ -13,8 +13,9 @@ from battlefield_source_runtime.mcp import TokenMiddleware
 
 
 def create_native_mcp(system, url, read_token="", mcp_token=""):
+    contract_version = "5" if system == "logistics" else os.getenv("C4I_CONTRACT_VERSION", "3")
     server = FastMCP(
-        f"Synthetic {system.upper()} native v{os.getenv('C4I_CONTRACT_VERSION', '3')}",
+        f"Synthetic {system.upper()} native v{contract_version}",
         stateless_http=True,
         json_response=True,
     )
@@ -85,6 +86,18 @@ def create_native_mcp(system, url, read_token="", mcp_token=""):
             "activities": "Read activityId/stepCode/state/evidenceReport/knownAt. No inferred completion.",
             "documents": "Read versioned native reference documents/codebooks including full text, hash, issuer and section.",
         },
+        "logistics": {
+            r: "Read native logistics records with original IDs and source units."
+            for r in (
+                "assets",
+                "work-orders",
+                "parts",
+                "inventory",
+                "reservations",
+                "supply-requests",
+                "cargo",
+            )
+        },
         "knccs": {
             "formations": "Read formationRef/designation/superior.",
             "own-forces": "Read registered own pennant/hullClass/formationRef, engineering and mission fields, lat/lon, knots and course.",
@@ -97,16 +110,18 @@ def create_native_mcp(system, url, read_token="", mcp_token=""):
             "documents": "Read versioned native codebook/reference text with source hash and section.",
         },
     }
+    if os.getenv("C4I_CONTRACT_VERSION") == "5" and system == "knccs":
+        resources[system]["transports"] = "Read source-owned transport arrival/delivery records."
     for resource, description in resources[system].items():
-        if os.getenv("C4I_CONTRACT_VERSION") == "4" and resource == "documents":
+        if os.getenv("C4I_CONTRACT_VERSION") in ("4", "5") and resource == "documents":
             continue
-        if os.getenv("C4I_CONTRACT_VERSION") == "4":
+        if os.getenv("C4I_CONTRACT_VERSION") in ("4", "5"):
             description = (
                 "Read native "
                 + resource
                 + " records using their original field names, IDs and source units."
             )
-        (land_tool if system == "atcis" else sea_tool)(resource, description)
+        (sea_tool if system == "knccs" else land_tool)(resource, description)
     app = server.streamable_http_app()
     app.state.tool_server = server
     app.add_middleware(TokenMiddleware, token=mcp_token)
@@ -116,7 +131,7 @@ def create_native_mcp(system, url, read_token="", mcp_token=""):
             {
                 "status": "ok",
                 "service": system + "-mcp",
-                "sourceToolContractVersion": os.getenv("C4I_CONTRACT_VERSION", "3"),
+                "sourceToolContractVersion": contract_version,
             }
         )
 

@@ -41,15 +41,21 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
     sources = sources or {
         s: {
             "url": os.getenv(
-                f"{s.upper()}_BASE_URL", f"http://127.0.0.1:{4100 if s == 'atcis' else 4110}"
+                f"{s.upper()}_BASE_URL",
+                f"http://127.0.0.1:{({'atcis': 4100, 'knccs': 4110, 'logistics': 4120})[s]}",
             ),
             "mcpUrl": os.getenv(
-                f"{s.upper()}_MCP_URL", f"http://127.0.0.1:{4200 if s == 'atcis' else 4210}/mcp"
+                f"{s.upper()}_MCP_URL",
+                f"http://127.0.0.1:{({'atcis': 4200, 'knccs': 4210, 'logistics': 4220})[s]}/mcp",
             ),
             "token": os.getenv(f"{s.upper()}_READ_TOKEN", ""),
             "mcpToken": os.getenv(f"{s.upper()}_MCP_TOKEN", ""),
         }
-        for s in ("atcis", "knccs")
+        for s in (
+            ("atcis", "knccs", "logistics")
+            if os.getenv("C4I_CONTRACT_VERSION") == "5"
+            else ("atcis", "knccs")
+        )
     }
     semantic = semantic or {
         "url": os.getenv("SEMANTIC_BASE_URL", "http://127.0.0.1:4400"),
@@ -59,8 +65,9 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
         "builderUrl": os.getenv("BUILDER_BASE_URL", "http://127.0.0.1:4420"),
         "adminToken": os.getenv("BUILDER_ADMIN_TOKEN", ""),
     }
-    v4 = os.getenv("C4I_CONTRACT_VERSION") == "4"
-    domain = os.getenv("C4I_CONTRACT_VERSION") in ("3", "4")
+    v5 = os.getenv("C4I_CONTRACT_VERSION") == "5"
+    v4 = os.getenv("C4I_CONTRACT_VERSION") in ("4", "5")
+    domain = os.getenv("C4I_CONTRACT_VERSION") in ("3", "4", "5")
     repository_type = MultiRepository
     if v4:
         from platform_api.knowledge_runtime import KnowledgeRepository
@@ -71,7 +78,9 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
             path
             or os.getenv(
                 "PLATFORM_VNEXT_DB",
-                "var/platform-v4.db"
+                "var/platform-v5.db"
+                if v5
+                else "var/platform-v4.db"
                 if v4
                 else "var/platform-v3.db"
                 if domain
@@ -79,8 +88,14 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
             )
         ),
         os.getenv("AUTO_SEMANTIC_MODE", "off"),
-        "4-knowledge-abc" if v4 else "3-domain-native-off" if domain else "2-native-off",
-        "4" if v4 else "3" if domain else "2",
+        "5-logistics-abc"
+        if v5
+        else "4-knowledge-abc"
+        if v4
+        else "3-domain-native-off"
+        if domain
+        else "2-native-off",
+        "5" if v5 else "4" if v4 else "3" if domain else "2",
     )
     runtime_type = MultiRuntime
     if domain:
@@ -110,6 +125,11 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
 
     app = FastAPI(title="Heterogeneous Battlefield Analytical Platform", lifespan=lifespan)
     app.state.repository, app.state.runtime = repo, runtime
+
+    if v5:
+        from platform_api.demo import install_demo
+
+        install_demo(app, repo, runtime)
 
     @app.exception_handler(KeyError)
     async def missing(request, exc):
@@ -167,8 +187,20 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
             raise HTTPException(409, str(exc)) from exc
 
     @app.get("/api/v1/analyses")
-    async def runs():
-        return {"items": await repo.runs()}
+    async def runs(request: Request):
+        items = await repo.runs()
+        if v5:
+            mode = request.state.demo_mode
+            items = [
+                r
+                for r in items
+                if mode == "compare"
+                and r.get("comparisonId")
+                or mode != "compare"
+                and r.get("knowledgeMode") == mode
+                and not r.get("comparisonId")
+            ]
+        return {"items": items}
 
     @app.post("/api/v1/comparisons", status_code=202)
     async def compare(body: ComparisonInput):
@@ -286,6 +318,7 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
     if (static / "assets").exists():
         app.mount("/assets", StaticFiles(directory=static / "assets"), name="assets")
 
+    @app.get("/demo/{page}")
     @app.get("/")
     async def index():
         if (static / "index.html").exists():

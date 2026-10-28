@@ -55,7 +55,7 @@ class LandStore(Ledger):
         CREATE TABLE IF NOT EXISTS land_relations(relation_id TEXT PRIMARY KEY, body TEXT);
         CREATE TABLE IF NOT EXISTS land_documents(document_id TEXT, version TEXT, hash TEXT, body TEXT, PRIMARY KEY(document_id,version));
         """
-        if self.seed["sourceSchemaVersion"] == "4.0.0":
+        if self.seed["sourceSchemaVersion"] in ("4.0.0", "5.0.0"):
             schema = "\n".join(line for line in schema.splitlines() if "_documents(" not in line)
         await self.db.executescript(schema)
 
@@ -70,7 +70,10 @@ class LandStore(Ledger):
             "land_relations",
             "land_documents",
         ):
-            if table.endswith("_documents") and self.seed["sourceSchemaVersion"] == "4.0.0":
+            if table.endswith("_documents") and self.seed["sourceSchemaVersion"] in (
+                "4.0.0",
+                "5.0.0",
+            ):
                 continue
             await self.db.execute(f"DELETE FROM {table}")
         r = state["records"]
@@ -285,10 +288,13 @@ def install(app, store, read, control):
 
 
 def create_app(path=None, *, tick_enabled=True, token=None, control_token=None):
-    v4 = os.getenv("C4I_CONTRACT_VERSION") == "4"
+    v5 = os.getenv("C4I_CONTRACT_VERSION") == "5"
+    v4 = os.getenv("C4I_CONTRACT_VERSION") in ("4", "5")
     seed = json.loads(
         Path(__file__)
-        .with_name("native_seed_v4.json" if v4 else "native_seed.json")
+        .with_name(
+            "native_seed_v5.json" if v5 else "native_seed_v4.json" if v4 else "native_seed.json"
+        )
         .read_text(encoding="utf-8")
     )
     for doc in seed["records"].get("documents", []):
@@ -300,7 +306,10 @@ def create_app(path=None, *, tick_enabled=True, token=None, control_token=None):
             r for r in baseline["records"][key] if r["knownAt"] <= baseline["sourceTime"]
         ]
     store = LandStore(
-        path or os.getenv("ATCIS_DB", "var/atcis-v4.db" if v4 else "var/atcis-v3.db"),
+        path
+        or os.getenv(
+            "ATCIS_DB", "var/atcis-v5.db" if v5 else "var/atcis-v4.db" if v4 else "var/atcis-v3.db"
+        ),
         "atcis",
         seed,
         stable,

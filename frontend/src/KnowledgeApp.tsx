@@ -20,6 +20,19 @@ import { RunPanel, type Run } from './NextApp';
 import { domainScenarios } from './domainScenarios';
 import { formatTime } from './time';
 import './KnowledgeApp.css';
+import {
+  NativeBrowser,
+  DocumentsPanel,
+  ObjectContext,
+  logisticsScenarios,
+} from './LogisticsPanels';
+import './Logistics.css';
+let demoSession = '';
+export function configureDemo(session: string) {
+  demoSession = session;
+}
+const workspaceStorageKey = () =>
+  demoSession ? 'battlefield.v5.workspace.' + location.pathname : 'battlefield.v4.workspace';
 
 type Mode = 'native' | 'documents' | 'structured';
 const modes: Mode[] = ['native', 'documents', 'structured'];
@@ -61,11 +74,11 @@ type View = { center: [number, number]; zoom: number; bearing: number };
 type Focus = { mode: Mode; conversation: string | null; comparison: string | null };
 type UI = Focus & { view?: View; selected?: string | null; scroll?: Record<string, number> };
 type MapEntity = EntityView & { nativeId?: string; nativeStatus?: unknown };
-const storageKey = 'battlefield.v4.workspace';
+
 const pretty = (v: unknown) => JSON.stringify(v, null, 2);
 function restore(): UI {
   try {
-    const v = JSON.parse(sessionStorage.getItem(storageKey) || '{}');
+    const v = JSON.parse(sessionStorage.getItem(workspaceStorageKey()) || '{}');
     const view = v.view;
     return {
       mode: modes.includes(v.mode) ? v.mode : 'native',
@@ -107,8 +120,18 @@ class ApiError extends Error {
 }
 async function api(path: string, body?: unknown, method = 'POST', signal?: AbortSignal) {
   const r = await fetch('/api/v1/' + path, {
+    headers: demoSession
+      ? { 'x-demo-session': demoSession, 'Content-Type': 'application/json' }
+      : {},
     ...(body
-      ? { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      ? {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(demoSession ? { 'x-demo-session': demoSession } : {}),
+          },
+          body: JSON.stringify(body),
+        }
       : {}),
     signal,
   });
@@ -148,10 +171,32 @@ function progress(run: KnowledgeRun) {
 
 export default function KnowledgeApp({
   fabricUrl = 'http://localhost:4400',
+  fixedMode,
+  comparePage = false,
 }: {
   fabricUrl?: string;
+  fixedMode?: Mode;
+  comparePage?: boolean;
 }) {
-  const [initial] = useState(restore);
+  const [initial] = useState(() => {
+    const r = restore();
+    return fixedMode
+      ? {
+          ...r,
+          mode: fixedMode,
+          conversation: comparePage ? null : r.conversation,
+          comparison: comparePage ? r.comparison : null,
+        }
+      : r;
+  });
+  const v5 = Boolean(fixedMode);
+  const scenarios = v5 ? logisticsScenarios : domainScenarios;
+  const [aux, setAux] = useState<'native' | 'documents' | null>(null);
+  const [knowledgeTarget, setKnowledgeTarget] = useState<{ key: string; version: string } | null>(
+    null,
+  );
+  const [detailOpen, setDetailOpen] = useState(true);
+  const demoAPI = useCallback((path: string, body?: unknown) => api(path, body), []);
   const [focus, setFocus] = useState<Focus>({
     mode: initial.mode,
     conversation: initial.conversation,
@@ -201,7 +246,7 @@ export default function KnowledgeApp({
   const persist = useCallback((f: Focus, v: View, s: string | null) => {
     try {
       sessionStorage.setItem(
-        storageKey,
+        workspaceStorageKey(),
         JSON.stringify({ ...f, view: v, selected: s, scroll: positions.current }),
       );
     } catch {
@@ -247,7 +292,9 @@ export default function KnowledgeApp({
     const poll = async () => {
       const result = await Promise.allSettled(
         ['analyses', 'comparisons', 'situation', 'sources'].map((p) =>
-          api(p, undefined, 'GET', controller.signal),
+          v5 && !comparePage && p === 'comparisons'
+            ? Promise.resolve({ items: [] })
+            : api(p, undefined, 'GET', controller.signal),
         ),
       );
       if (!active) return;
@@ -396,7 +443,7 @@ export default function KnowledgeApp({
       };
     }
   }, [expanded]);
-  const submit = async (compare = false) => {
+  const submit = async (compare = comparePage) => {
     const text = question.trim();
     if (!text || posting.current || (!compare && conversationBusy)) return;
     posting.current = true;
@@ -439,6 +486,7 @@ export default function KnowledgeApp({
     await api(`analyses/${runId}/selection`, { courseId }, 'PUT');
   };
   const groups = useMemo(() => {
+    if (comparePage) return [];
     const map = new Map<string, KnowledgeRun>();
     for (const run of [...runs].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
       if (modes.includes(run.knowledgeMode) && !map.has(run.conversationId))
@@ -494,7 +542,11 @@ export default function KnowledgeApp({
           {modes.map((m) => (
             <div key={m} className={mobile === m ? 'mobile-current' : ''}>
               <h4>{names[m]}</h4>
-              <RunPanel run={runs.find((r) => r.runId === current.runIds[m])} onSelect={select} />
+              <RunPanel
+                run={runs.find((r) => r.runId === current.runIds[m])}
+                onSelect={select}
+                loadEvidence={demoAPI}
+              />
             </div>
           ))}
         </div>
@@ -506,7 +558,7 @@ export default function KnowledgeApp({
     );
 
   return (
-    <div className="bf-shell knowledge-platform">
+    <div className={'bf-shell knowledge-platform' + (v5 ? ' has-demo' : '')}>
       <header className="bf-header">
         <button
           className="bf-icon"
@@ -523,9 +575,9 @@ export default function KnowledgeApp({
           <span>BATTLEFIELD INTELLIGENCE</span>
           <h1>전장 상황판</h1>
         </div>
-        <span className="bf-exercise">합성 연습 · v4</span>
+        <span className="bf-exercise">합성 연습 · {v5 ? 'v5' : 'v4'}</span>
         <div className="bf-connections">
-          {['atcis', 'knccs'].map((s) => (
+          {(v5 ? ['atcis', 'knccs', 'logistics'] : ['atcis', 'knccs']).map((s) => (
             <span
               key={s}
               className={
@@ -551,9 +603,35 @@ export default function KnowledgeApp({
             </span>
           ))}
         </div>
-        <a className="bf-fabric" href={fabricUrl} target="_blank" rel="noreferrer">
-          Data Fabric <ArrowUpRight size={13} />
-        </a>
+        {v5 && (
+          <nav className="bf-v5-links">
+            <a href="/" aria-label="조건 선택으로">
+              조건 선택
+            </a>
+            <span className="bf-v5-label">
+              {comparePage ? '동일 기준 비교' : names[focus.mode]}
+            </span>
+            <button
+              aria-label="원천 기록 탐색"
+              onClick={() => setAux(aux === 'native' ? null : 'native')}
+            >
+              원천 탐색
+            </button>
+            {!comparePage && fixedMode !== 'native' && (
+              <button
+                aria-label="지식 문서 열기"
+                onClick={() => setAux(aux === 'documents' ? null : 'documents')}
+              >
+                문서
+              </button>
+            )}
+          </nav>
+        )}
+        {!v5 && (
+          <a className="bf-fabric" href={fabricUrl} target="_blank" rel="noreferrer">
+            Data Fabric <ArrowUpRight size={13} />
+          </a>
+        )}
       </header>
       <main className="bf-workspace">
         <section className="bf-map" role="region" aria-label="전장 상황판">
@@ -578,7 +656,10 @@ export default function KnowledgeApp({
             <SituationMap
               entities={visible}
               selected={selected}
-              onSelect={setSelected}
+              onSelect={(id) => {
+                setSelected(id);
+                setDetailOpen(true);
+              }}
               focus={mapFocus}
               view={view}
               onView={acceptView}
@@ -623,6 +704,7 @@ export default function KnowledgeApp({
                     aria-pressed={selected === e.entityId}
                     onClick={() => {
                       setSelected(e.entityId);
+                      setDetailOpen(true);
                       setObjectsOpen(false);
                     }}
                   >
@@ -671,6 +753,43 @@ export default function KnowledgeApp({
                 <Target size={12} /> 대상 위치로 이동
               </button>
             </aside>
+          )}
+          {v5 && aux === 'native' && <NativeBrowser api={demoAPI} onClose={() => setAux(null)} />}
+          {v5 && aux === 'documents' && fixedMode !== 'native' && (
+            <DocumentsPanel
+              api={demoAPI}
+              target={knowledgeTarget}
+              onClose={() => {
+                setAux(null);
+                setKnowledgeTarget(null);
+              }}
+            />
+          )}
+          {v5 && fixedMode === 'structured' && selectedEntity && detailOpen && !aux && (
+            <ObjectContext
+              onDocument={(key, version) => {
+                setKnowledgeTarget({ key, version });
+                setAux('documents');
+              }}
+              api={demoAPI}
+              source={selectedEntity.source || 'atcis'}
+              nativeId={selectedEntity.nativeId || selectedEntity.entityId}
+              recordType={
+                selectedEntity.source === 'knccs'
+                  ? selectedEntity.nativeId?.includes('/')
+                    ? 'contact'
+                    : 'own-force'
+                  : 'equipment'
+              }
+              onClose={() => setDetailOpen(false)}
+              onQuestion={() => {
+                setQuestion(
+                  (selectedEntity.nativeId || selectedEntity.entityId) +
+                    '의 정비·부품·수송 현황과 근거를 정리해줘.',
+                );
+                editor.current?.focus();
+              }}
+            />
           )}
           <div className="bf-map-caption">
             <span>
@@ -761,7 +880,7 @@ export default function KnowledgeApp({
                         {progress(run)}
                       </p>
                     )}
-                    <RunPanel run={run} onSelect={select} />
+                    <RunPanel run={run} onSelect={select} loadEvidence={demoAPI} />
                     <details className="bf-conditions">
                       <summary>실행 조건·버전</summary>
                       <pre>
@@ -787,19 +906,20 @@ export default function KnowledgeApp({
                 </p>
                 <button
                   onClick={() => {
-                    setQuestion(domainScenarios[5][1]);
+                    setQuestion(scenarios[v5 ? 2 : 5][1]);
                     editor.current?.focus();
                   }}
                 >
-                  가용 전차와 제한 사항 <ArrowUpRight size={13} />
+                  {v5 ? '부품·수송을 고려한 복구 전망' : '가용 전차와 제한 사항'}{' '}
+                  <ArrowUpRight size={13} />
                 </button>
                 <button
                   onClick={() => {
-                    setQuestion(domainScenarios[2][1]);
+                    setQuestion(scenarios[v5 ? 3 : 2][1]);
                     editor.current?.focus();
                   }}
                 >
-                  사건 진행 상황 <ArrowUpRight size={13} />
+                  {v5 ? '수송 지연의 영향' : '사건 진행 상황'} <ArrowUpRight size={13} />
                 </button>
               </div>
             )}
@@ -826,29 +946,40 @@ export default function KnowledgeApp({
               </p>
             )}
             <div className="bf-composer-controls">
-              <label className="bf-mode-select">
-                <select
-                  aria-label="지식 제공 방식"
-                  title={descriptions[focus.mode]}
-                  value={focus.mode}
-                  onChange={(e) =>
-                    navigate({ mode: e.target.value as Mode, conversation: null, comparison: null })
-                  }
-                >
-                  {modes.map((m) => (
-                    <option value={m} key={m}>
-                      {names[m]}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {!v5 && (
+                <label className="bf-mode-select">
+                  <select
+                    aria-label="지식 제공 방식"
+                    title={descriptions[focus.mode]}
+                    value={focus.mode}
+                    onChange={(e) =>
+                      navigate({
+                        mode: e.target.value as Mode,
+                        conversation: null,
+                        comparison: null,
+                      })
+                    }
+                  >
+                    {modes.map((m) => (
+                      <option value={m} key={m}>
+                        {names[m]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {v5 && (
+                <span className="bf-v5-label">
+                  {comparePage ? '세 원천 snapshot·같은 지식으로 비교' : names[focus.mode]}
+                </span>
+              )}
               <details className="bf-quick">
                 <summary aria-label="분석 옵션">
                   <ChevronDown size={14} /> 옵션
                 </summary>
                 <div>
                   <h3>빠른 질문</h3>
-                  {domainScenarios.map(([id, text]) => (
+                  {scenarios.map(([id, text]) => (
                     <button
                       key={id}
                       title={text}
@@ -909,23 +1040,25 @@ export default function KnowledgeApp({
                 </span>
                 <button
                   className="bf-send"
-                  aria-label="분석 실행"
+                  aria-label={comparePage ? '비교 실행' : '분석 실행'}
                   title="Enter 전송 · Shift+Enter 줄바꿈"
                   disabled={busy || !question.trim() || conversationBusy}
-                  onClick={() => void submit()}
+                  onClick={() => void submit(comparePage)}
                 >
                   <Send size={16} />
                 </button>
               </div>
             </div>
-            <button
-              className="bf-compare-action"
-              aria-label="동일 기준 A/B/C 비교"
-              disabled={busy || !question.trim()}
-              onClick={() => void submit(true)}
-            >
-              <Layers size={13} /> 동일 기준 A/B/C 비교 <ArrowUpRight size={12} />
-            </button>
+            {(!v5 || comparePage) && (
+              <button
+                className="bf-compare-action"
+                aria-label="동일 기준 A/B/C 비교"
+                disabled={busy || !question.trim()}
+                onClick={() => void submit(true)}
+              >
+                <Layers size={13} /> 동일 기준 A/B/C 비교 <ArrowUpRight size={12} />
+              </button>
+            )}
           </div>
         </section>
       </main>
@@ -945,7 +1078,7 @@ export default function KnowledgeApp({
           />
           <aside className="bf-history" aria-label="대화 및 비교 이력">
             <div className="bf-panel-title">
-              <h2>대화 이력</h2>
+              <h2>{comparePage ? '비교 이력' : '대화 이력'}</h2>
               <button
                 className="bf-icon"
                 aria-label="이력 닫기"
@@ -977,8 +1110,8 @@ export default function KnowledgeApp({
                   <span>{r.question}</span>
                 </button>
               ))}
-              {!groups.length && <p className="bf-meta">아직 대화가 없습니다.</p>}
-              <h3>비교 이력</h3>
+              {!comparePage && !groups.length && <p className="bf-meta">아직 대화가 없습니다.</p>}
+              {(!v5 || comparePage) && <h3>비교 이력</h3>}
               {comparisons.map((c) => (
                 <button
                   key={c.comparisonId}

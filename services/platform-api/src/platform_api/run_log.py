@@ -21,6 +21,7 @@ LABELS = {
     "tool_completed": "도구 결과",
     "tool_failed": "도구 실패",
     "validation_failed": "출력 검증 실패",
+    "claim_provenance": "주장 출처 확인",
     "loop_failed": "모델/루프 실패",
     "loop_stopped": "루프 종료",
     "recovery_interrupted": "서버 재시작으로 중단 확인",

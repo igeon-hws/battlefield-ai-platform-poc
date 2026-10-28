@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { SituationMap, type EntityView } from './App';
-import type { AnalysisResult, SourceSnapshotSet } from '../generated/contracts';
+import type {
+  AnalysisResult,
+  Claim,
+  ClaimProvenance,
+  SourceSnapshotSet,
+} from '../generated/contracts';
 import { formatTime } from './time';
 import './style.css';
 import './NextApp.css';
@@ -25,7 +30,13 @@ export type Run = {
   createdAt: string;
   error?: string;
   selectedCourseId: string | null;
-  result: AnalysisResult | null;
+  result:
+    | (Omit<AnalysisResult, 'claims'> & {
+        claims?: (Claim & {
+          provenance?: ClaimProvenance;
+        })[];
+      })
+    | null;
   evidence: Evidence[];
   toolCalls: { name: string; status: string; arguments: unknown; response: unknown }[];
   iterations: { usage?: { input_tokens?: number; output_tokens?: number } }[];
@@ -123,9 +134,11 @@ async function api<T>(path: string, body?: object, method = 'POST'): Promise<T> 
 export function RunPanel({
   run,
   onSelect,
+  loadEvidence = api,
 }: {
   run?: Run;
   onSelect: (runId: string, courseId: string) => Promise<void>;
+  loadEvidence?: (path: string) => Promise<unknown>;
 }) {
   const [selectionError, setSelectionError] = useState('');
   const [proof, setProof] = useState<unknown>(null);
@@ -173,11 +186,45 @@ export function RunPanel({
                   }[claim.kind]
                 }
               </b>
+              {claim.provenance && (
+                <p>
+                  <small>
+                    모델의 주장 분류 · 서버 확인 출처:{' '}
+                    {claim.provenance.sources
+                      .map(
+                        (s) =>
+                          ({
+                            source: '원천',
+                            document: '문서',
+                            semantic: 'Semantic',
+                            calculation: '계산 도구',
+                          })[s] || s,
+                      )
+                      .join(' · ') || '인용 없음'}
+                  </small>
+                </p>
+              )}
               <p>{claim.text}</p>
               <small>
                 {claim.evidenceRefs.join(' · ')}
                 {claim.ruleRefs?.length ? ` · 규칙 ${claim.ruleRefs.join(', ')}` : ''}
               </small>
+              {claim.provenance?.documents.map((doc, i) => (
+                <p key={i}>
+                  <small>
+                    문서 {doc.documentKey} · v{doc.version} · 집합 {doc.knowledgeSetVersion} · hash{' '}
+                    {doc.hash}
+                  </small>
+                </p>
+              ))}
+              {!!claim.provenance?.documentRuleRefs.length && (
+                <p>문서 내 규칙 표기: {claim.provenance.documentRuleRefs.join(', ')}</p>
+              )}
+              {!!claim.provenance?.unverifiedRuleRefs.length && (
+                <p role="status">
+                  확인되지 않은 규칙 표기: {claim.provenance.unverifiedRuleRefs.join(', ')}
+                </p>
+              )}
             </section>
           ))}
         </details>
@@ -258,7 +305,9 @@ export function RunPanel({
                     key={id}
                     onClick={() => {
                       setProofError('');
-                      void api(`analyses/${run.runId}/semantic-evidence/${encodeURIComponent(id)}`)
+                      void loadEvidence(
+                        `analyses/${run.runId}/semantic-evidence/${encodeURIComponent(id)}`,
+                      )
                         .then(setProof)
                         .catch((error) => setProofError(String(error)));
                     }}

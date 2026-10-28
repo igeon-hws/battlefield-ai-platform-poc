@@ -26,7 +26,7 @@ class KnowledgeRepository(MultiRepository):
                     "SELECT 1 FROM sqlite_master WHERE type='table' AND name='runs'"
                 ).fetchone()
                 if has_runs and any(
-                    json.loads(row[0]).get("sourceToolContractVersion") != "4"
+                    json.loads(row[0]).get("sourceToolContractVersion") != self.source_contract
                     for row in db.execute("SELECT body FROM runs")
                 ):
                     raise ValueError(
@@ -129,7 +129,7 @@ class KnowledgeRuntime(DomainRuntime):
                 },
             )
         if strict and (
-            set(context["sourceSnapshotSet"]) != {"atcis", "knccs"}
+            set(context["sourceSnapshotSet"]) != set(self.sources)
             or any(context["sourceRunning"].values())
             and context["captureSpanSeconds"] > 2
         ):
@@ -153,7 +153,7 @@ class KnowledgeRuntime(DomainRuntime):
             json={
                 "knowledgeMode": "native",
                 "sourceSnapshotSet": pins,
-                "allowPartial": len(pins) < 2,
+                "allowPartial": len(pins) < len(self.sources),
             },
         )
         return context["baselineSourceSnapshotSet"]
@@ -188,7 +188,7 @@ class KnowledgeRuntime(DomainRuntime):
                     "knowledgeMode": mode,
                     "sourceSnapshotSet": pins,
                     "knowledgeSetVersion": run.get("knowledgeSetVersion"),
-                    "allowPartial": mode != "structured" and len(pins) < 2,
+                    "allowPartial": mode != "structured" and len(pins) < len(self.sources),
                 },
             )
             run.update(
@@ -239,10 +239,10 @@ class KnowledgeRuntime(DomainRuntime):
                 **self.last_capture,
                 "knowledgeSetVersion": docs["knowledgeSetVersion"],
                 "knowledgeSetHash": docs["knowledgeSetHash"],
-                "comparisonPolicyVersion": POLICY,
+                "comparisonPolicyVersion": self.policy_version,
                 "knowledgePreparationSeconds": docs["preparationSeconds"],
-                "semanticPolicyVersion": POLICY,
-                "sourceToolContractVersion": "4",
+                "semanticPolicyVersion": self.policy_version,
+                "sourceToolContractVersion": self.source_contract,
                 "agentBudget": self.agent_limits,
                 "modelId": getattr(self.provider, "model", "test:" + type(self.provider).__name__),
                 "systemPromptVersion": digest(INSTRUCTIONS),

@@ -8,6 +8,7 @@ from battlefield_ontology import (
     ONTOLOGY_VERSION,
     RESOLUTION_VERSION,
     SourceSnapshotSet,
+    SourceSnapshotSetV5,
 )
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -20,7 +21,7 @@ from graph_builder.worker import GraphBuilder
 class BuildInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     knowledgeSetVersion: str | None = None
-    snapshots: SourceSnapshotSet
+    snapshots: SourceSnapshotSet | SourceSnapshotSetV5
     ontologyVersion: str = ONTOLOGY_VERSION
     mappingVersion: str = MAPPING_VERSION
     resolutionRuleVersion: str = RESOLUTION_VERSION
@@ -39,11 +40,16 @@ def create_app(repository=None, sources=None, admin_token=None):
         or {
             s: {
                 "url": os.getenv(
-                    f"{s.upper()}_BASE_URL", f"http://127.0.0.1:{4100 if s == 'atcis' else 4110}"
+                    f"{s.upper()}_BASE_URL",
+                    f"http://127.0.0.1:{({'atcis': 4100, 'knccs': 4110, 'logistics': 4120})[s]}",
                 ),
                 "token": os.getenv(f"{s.upper()}_READ_TOKEN", ""),
             }
-            for s in ("atcis", "knccs")
+            for s in (
+                ("atcis", "knccs", "logistics")
+                if os.getenv("C4I_CONTRACT_VERSION") == "5"
+                else ("atcis", "knccs")
+            )
         },
     )
     token = os.getenv("BUILDER_ADMIN_TOKEN", "") if admin_token is None else admin_token

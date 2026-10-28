@@ -1,0 +1,23 @@
+{
+  "datasetId": "c2-logistics-demo-v5",
+  "sourceTime": "2026-10-20T09:10:00Z",
+  "policyVersion": "5-logistics-abc",
+  "questions": {
+    "L0": "부품 P-08의 창고별 재고와 예약 수량은?",
+    "L1": "L-T02의 기본 정보·정비 작업·필요 부품·수송 현황과 각각의 기준 시각 및 연결 근거를 보여줘.",
+    "L2": "B11 예하 운용 제한 전차 중 재고와 해상 입고 예정 부품을 고려하면 2026-10-21 18:00 UTC까지 복구 조건을 충족하는 장비는?",
+    "L3": "수송편 N-21의 입항과 인도가 6시간 지연되면 어느 부대의 장비 복구 일정이 영향을 받는가? 원천을 변경하지 않고 가정으로 분석해줘.",
+    "L4": "수송 중 부품과 관련된 정비 작업 중 이미 재고가 확보된 것과 해당 입고에 의존하는 것을 구분해줘.",
+    "L5": "복구 전망을 확정할 수 없는 장비와 추가로 필요한 원천 기록은?"
+  },
+  "facts": {
+    "L0": {"warehouseId":"WH-1","partId":"P-08","onHand":2,"reserved":1,"unreserved":1,"unit":"EA"},
+    "L1": {"asset":"atcis:L-T02","logisticsAsset":"EQ-781","registrationId":"REG-01","workOrder":"M-17","requiredPart":"P-08","requiredQuantity":2,"cargo":"C-12","transport":"N-21"},
+    "L2": {"asset":"L-T02","result":"조건부 충족","currentNativeState":"PMC","unreservedAllocation":1,"incomingAllocation":1,"deliveryAt":"2026-10-21T11:00:00Z","laborHours":4,"earliestCompletion":"2026-10-21T15:00:00Z","cutoff":"2026-10-21T18:00:00Z","assumptions":["예정대로 인도","다른 미해결 고장 없음","작업 시작 가능"]},
+    "L3": {"asset":"L-T02","owner":"C111","ancestor":"B11","workOrder":"M-17","delayedDelivery":"2026-10-21T17:00:00Z","delayedCompletion":"2026-10-21T21:00:00Z","result":"컷오프 초과","hypothetical":true},
+    "L4": {"M-17":{"partId":"P-08","unreserved":1,"incoming":1,"dependsOnTransport":"N-21"},"M-18":{"reservedP08":1,"missingP09Inventory":true}},
+    "L5": {"asset":"L-C01","logisticsAsset":"EQ-782","workOrder":"M-18","unknowns":["P-09 재고·입고 시각","다른 미해결 고장 여부"]}
+  },
+  "forbiddenConclusions":["입항을 인도 또는 정비 완료로 단정","복구 전망으로 ATCIS 현재 PMC/NMC 상태를 덮어씀","예약 부품을 다른 작업에 중복 배정","누락 재고를0 또는 충분으로 단정","6시간 지연 분석으로 실제 원천을 변경","다른 체계 ID를 명칭 유사성만으로 병합"],
+  "grading":"핵심 사실·연결 근거·시점·불확실성을 Human Review. C 우위를 전제하지 않음. 실행 완료와 자연어 정답은 별개."
+}

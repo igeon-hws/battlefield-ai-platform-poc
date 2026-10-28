@@ -46,7 +46,24 @@ class AgentLoop:
             if self.on_progress:
                 await self.on_progress(state)
 
+        result_format: dict[str, Any] = RESULT_FORMAT
+        if getattr(self.runner, "knowledge_mode", None):
+            from copy import deepcopy
+
+            result_format = deepcopy(RESULT_FORMAT)
+            result_format["schema"]["$defs"]["Claim"]["properties"]["kind"]["enum"] = [
+                "observation",
+                "inference",
+                "calculation",
+            ]
         inputs = list(history or []) + [{"role": "user", "content": question}]
+        if getattr(self.runner, "knowledge_mode", None):
+            inputs.append(
+                {
+                    "role": "developer",
+                    "content": "이번 A/B/C 실행의 claim.kind는 observation/inference/calculation만 사용한다. 의미를 해석했더라도 semantic으로 분류하지 않는다. 실제 원천/문서/Semantic/계산 출처는 서버가 인용 근거에서 산출한다. 문서 해석은 inference로 쓰고 문서 evidenceId를 인용한다. 문서 본문의 규칙 이름은 주장 본문에 언급할 수 있지만 ruleRefs에는 구조화된 도구 결과의 실제 ruleId만 넣는다. 답변 타당성과 가정은 별도로 설명한다.",
+                }
+            )
         if self.runner.snapshot:
             inputs.append(
                 {
@@ -99,7 +116,7 @@ class AgentLoop:
                         inputs,
                         instructions=INSTRUCTIONS,
                         tools=self.runner.definitions,
-                        result_format=RESULT_FORMAT,
+                        result_format=result_format,
                     )
                     await self.event(
                         "model_completed",
@@ -216,6 +233,8 @@ class AgentLoop:
                             ids.update(finding["evidenceIds"])
                         for claim in result["claims"]:
                             ids.update(claim["evidenceRefs"])
+                            if getattr(self.runner, "knowledge_mode", None):
+                                continue
                             if (
                                 claim["kind"] == "semantic"
                                 and getattr(self.runner, "mode", None) == "off"
@@ -246,6 +265,13 @@ class AgentLoop:
                                 )
                         if ids - self.runner.evidence.keys():
                             raise ValueError("invalid evidence reference")
+                        if getattr(self.runner, "knowledge_mode", None):
+                            from platform_api.agent.provenance import annotate_result
+
+                            annotate_result(
+                                result, self.runner.evidence, self.runner.knowledge_mode
+                            )
+                            await self.event('claim_provenance',{'version':'1','claims':[{'kind':c['kind'],'evidenceRefs':c['evidenceRefs'],'ruleRefs':c['ruleRefs'],**c['provenance']} for c in result['claims']]})
                         if result["courses"] and len({c["id"] for c in result["courses"]}) != 3:
                             raise ValueError("course IDs must be unique")
                         state["result"] = result

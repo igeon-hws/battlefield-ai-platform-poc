@@ -11,7 +11,7 @@ from playwright.async_api import async_playwright, expect
 
 @contextmanager
 def ui_server():
-    code = "import uvicorn,platform_api; from pathlib import Path; from fastapi import FastAPI; from fastapi.staticfiles import StaticFiles; from fastapi.responses import FileResponse; app=FastAPI(); root=Path(platform_api.__file__).parent/'web_static'; app.get('/health')(lambda:{'status':'ok'}); app.get('/')(lambda:FileResponse(root/'index.html')); app.mount('/assets',StaticFiles(directory=root/'assets')); uvicorn.run(app,host='127.0.0.1',port=PORT,log_level='error')"
+    code = "import uvicorn,platform_api; from pathlib import Path; from fastapi import FastAPI; from fastapi.staticfiles import StaticFiles; from fastapi.responses import FileResponse; app=FastAPI(); root=Path(platform_api.__file__).parent/'web_static'; app.get('/health')(lambda:{'status':'ok'}); app.get('/')(lambda:FileResponse(root/'index.html')); app.get('/demo/{page}')(lambda page:FileResponse(root/'index.html')); app.mount('/assets',StaticFiles(directory=root/'assets')); uvicorn.run(app,host='127.0.0.1',port=PORT,log_level='error')"
     with server(code) as url:
         yield url
 

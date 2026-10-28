@@ -1,0 +1,10 @@
+[project]
+name = "mock-logistics"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["battlefield-source-runtime==0.1.0", "httpx>=0.28", "mcp>=1.9"]
+[project.scripts]
+mock-logistics = "mock_logistics.app:main"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -26,18 +26,32 @@ def main():
         action="store_true",
         help="Explicitly authorize billable model runs on the configured platform",
     )
+    parser.add_argument("--contract-version", choices=("4", "5"), default="4")
+    logistics_questions = json.loads(
+        (
+            Path(__file__).resolve().parents[1]
+            / "tests/fixtures/c2-logistics-demo-v5/expected.json"
+        ).read_text(encoding="utf-8")
+    )["questions"]
     parser.add_argument("--url", default="http://127.0.0.1:4300")
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--scenario", choices=list(QUESTIONS), action="append")
+    parser.add_argument(
+        "--scenario", choices=list(QUESTIONS) + list(logistics_questions), action="append"
+    )
     args = parser.parse_args()
     if not args.live:
         parser.error("--live is required; this calls the configured real model")
     if args.output.exists():
         parser.error("output exists; choose a new path")
+    questions = logistics_questions if args.contract_version == "5" else QUESTIONS
+    if any(q not in questions for q in args.scenario or []):
+        parser.error("scenario does not belong to selected contract")
     modes = ("native", "documents", "structured")
     report: dict[str, Any] = {
-        "sourceToolContractVersion": "4",
-        "comparisonPolicyVersion": "4-knowledge-abc",
+        "sourceToolContractVersion": args.contract_version,
+        "comparisonPolicyVersion": "5-logistics-abc"
+        if args.contract_version == "5"
+        else "4-knowledge-abc",
         "model": None,
         "comparisons": [],
         "records": [],
@@ -51,13 +65,17 @@ def main():
     with httpx.Client(base_url=args.url, timeout=60) as client:
         config = client.get("/api/v1/config")
         config.raise_for_status()
-        if config.json()["sourceToolContractVersion"] != "4":
-            raise ValueError("requires v4 platform")
-        for index, scenario in enumerate(args.scenario or QUESTIONS):
+        if config.json()["sourceToolContractVersion"] != args.contract_version:
+            raise ValueError("platform contract mismatch")
+        if args.contract_version == "5":
+            session = client.post("/api/v1/demo-sessions", json={"mode": "compare"})
+            session.raise_for_status()
+            client.headers["x-demo-session"] = session.json()["sessionId"]
+        for index, scenario in enumerate(args.scenario or questions):
             response = client.post(
                 "/api/v1/comparisons",
                 json={
-                    "question": QUESTIONS[scenario],
+                    "question": questions[scenario],
                     "firstKnowledgeMode": modes[index % 3],
                     "baselineReportRef": "atcis:report:R0" if scenario == "F5" else None,
                 },

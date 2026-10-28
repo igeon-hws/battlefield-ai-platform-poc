@@ -41,7 +41,7 @@ def create_app(repository=None, token=None):
         else UnavailableRepository()
     )
     service: Any = SemanticService(repo)
-    if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4"):
+    if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4", "5"):
         from semantic_core.domain import DomainService
 
         service = DomainService(repo)
@@ -107,7 +107,7 @@ def create_app(repository=None, token=None):
 
     @app.get("/v1/entities/resolve", dependencies=[Depends(read)])
     async def resolve(graphVersion: str, systemId: str, nativeId: str):
-        if systemId not in ("atcis", "knccs"):
+        if systemId not in ("atcis", "knccs", "logistics"):
             raise HTTPException(422, "unknown source")
         return await asyncio.to_thread(service.resolve_entity, graphVersion, systemId, nativeId)
 
@@ -127,7 +127,7 @@ def create_app(repository=None, token=None):
 
     install_knowledge(app, read)
 
-    if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4"):
+    if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4", "5"):
         from semantic_api.explorer import install_explorer
         from semantic_api.fabric import install_fabric
 
@@ -148,9 +148,21 @@ def create_app(repository=None, token=None):
                     "/internal/build-requests",
                     json={
                         "snapshots": snapshots,
-                        "ontologyVersion": "4.0.0" if knowledge_version else "3.0.0",
-                        "mappingVersion": "4.0.0" if knowledge_version else "3.0.0",
-                        "resolutionRuleVersion": "4.0.0" if knowledge_version else "3.0.0",
+                        "ontologyVersion": (
+                            "5.0.0" if os.getenv("C4I_CONTRACT_VERSION") == "5" else "4.0.0"
+                        )
+                        if knowledge_version
+                        else "3.0.0",
+                        "mappingVersion": (
+                            "5.0.0" if os.getenv("C4I_CONTRACT_VERSION") == "5" else "4.0.0"
+                        )
+                        if knowledge_version
+                        else "3.0.0",
+                        "resolutionRuleVersion": (
+                            "5.0.0" if os.getenv("C4I_CONTRACT_VERSION") == "5" else "4.0.0"
+                        )
+                        if knowledge_version
+                        else "3.0.0",
                         "knowledgeSetVersion": knowledge_version,
                     },
                 )
@@ -177,6 +189,10 @@ def create_app(repository=None, token=None):
                         await asyncio.sleep(0.2)
 
         install_fabric(app, read, ensure_graph)
+        if os.getenv("C4I_CONTRACT_VERSION") == "5":
+            from semantic_api.objects import install_objects
+
+            install_objects(app, read, service)
         from battlefield_source_runtime.ledger import mount_ui
 
         mount_ui(app, Path(__file__).parent / "web_static")

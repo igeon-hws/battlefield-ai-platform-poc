@@ -17,6 +17,7 @@ members = [
     "mock-atcis",
     "mock-c4i",
     "mock-knccs",
+    "mock-logistics",
     "platform-api",
     "platform-contracts",
     "semantic-api",
@@ -173,6 +174,7 @@ dependencies = [
     { name = "mock-atcis" },
     { name = "mock-c4i" },
     { name = "mock-knccs" },
+    { name = "mock-logistics" },
     { name = "platform-api" },
     { name = "semantic-api" },
     { name = "semantic-mcp" },
@@ -201,6 +203,7 @@ requires-dist = [
     { name = "mock-atcis", editable = "services/mock-atcis" },
     { name = "mock-c4i", editable = "services/mock-c4i" },
     { name = "mock-knccs", editable = "services/mock-knccs" },
+    { name = "mock-logistics", editable = "services/mock-logistics" },
     { name = "platform-api", editable = "services/platform-api" },
     { name = "semantic-api", editable = "services/semantic-api" },
     { name = "semantic-mcp", editable = "services/semantic-mcp" },
@@ -714,6 +717,23 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "battlefield-source-runtime", editable = "packages/source-runtime" }]
+
+[[package]]
+name = "mock-logistics"
+version = "0.1.0"
+source = { editable = "services/mock-logistics" }
+dependencies = [
+    { name = "battlefield-source-runtime" },
+    { name = "httpx" },
+    { name = "mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "battlefield-source-runtime", editable = "packages/source-runtime" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "mcp", specifier = ">=1.9" },
+]
 
 [[package]]
 name = "mypy"

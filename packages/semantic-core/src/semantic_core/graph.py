@@ -71,7 +71,10 @@ class GraphRepository:
         return info
 
     def build(self, sources, graph_version=None, knowledge=None):
-        if any(data.get("sourceSchemaVersion") in ("3.0.0", "4.0.0") for data in sources.values()):
+        if any(
+            data.get("sourceSchemaVersion") in ("3.0.0", "4.0.0", "5.0.0")
+            for data in sources.values()
+        ):
             from semantic_core.domain import publish_domain
 
             return publish_domain(self, sources, graph_version, knowledge)

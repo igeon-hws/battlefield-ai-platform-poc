@@ -11,7 +11,7 @@ from typing import Literal
 
 from battlefield_source_runtime.ledger import Ledger, content_hash, create_ledger_app, mount_ui
 from fastapi import Depends, Query
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ForcePatch(BaseModel):
@@ -19,6 +19,11 @@ class ForcePatch(BaseModel):
     engineering: Literal["UP", "DOWN", "UNKNOWN"] | None = None
     mission: Literal["GO", "HOLD", "UNKNOWN"] | None = None
     formationRef: str | None = None
+
+
+class TransportPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    delayHours: float = Field(ge=0, le=168)
 
 
 class MessageInput(BaseModel):
@@ -51,11 +56,21 @@ class MaritimeStore(Ledger):
         CREATE TABLE IF NOT EXISTS navy_relations(relation_id TEXT PRIMARY KEY, body TEXT);
         CREATE TABLE IF NOT EXISTS navy_documents(document_id TEXT, version TEXT, hash TEXT, body TEXT, PRIMARY KEY(document_id,version));
         """
-        if self.seed["sourceSchemaVersion"] == "4.0.0":
+        if self.seed["sourceSchemaVersion"] in ("4.0.0", "5.0.0"):
             schema = "\n".join(line for line in schema.splitlines() if "_documents(" not in line)
         await self.db.executescript(schema)
+        if self.seed["sourceSchemaVersion"] == "5.0.0":
+            await self.db.execute(
+                "CREATE TABLE IF NOT EXISTS navy_transports(transport_id TEXT PRIMARY KEY,body TEXT)"
+            )
 
     async def persist_native(self, state):
+        if self.seed["sourceSchemaVersion"] == "5.0.0":
+            await self.db.execute("DELETE FROM navy_transports")
+            for row in state["records"]["transports"]:
+                await self.db.execute(
+                    "INSERT INTO navy_transports VALUES(?,?)", (row["transportId"], json.dumps(row))
+                )
         for table in (
             "navy_force_master",
             "navy_force_state",
@@ -69,7 +84,10 @@ class MaritimeStore(Ledger):
             "navy_relations",
             "navy_documents",
         ):
-            if table.endswith("_documents") and self.seed["sourceSchemaVersion"] == "4.0.0":
+            if table.endswith("_documents") and self.seed["sourceSchemaVersion"] in (
+                "4.0.0",
+                "5.0.0",
+            ):
                 continue
             await self.db.execute(f"DELETE FROM {table}")
         r = state["records"]
@@ -145,6 +163,9 @@ def stable(state):
     for row in records["contacts"]:
         for key in ("geo", "motion", "reportedAt"):
             row.pop(key, None)
+    for row in records.get("transports", []):
+        for key in ("arrivalAt", "deliveryAt", "status", "updatedAt"):
+            row.pop(key, None)
     records.pop("tracks")
     records.pop("delivery-events")
     return {
@@ -219,6 +240,25 @@ def install(app, store, read, control):
     for resource in store.seed["records"]:
         route(resource)
 
+    if store.seed["sourceSchemaVersion"] == "5.0.0":
+
+        @app.patch("/api/v1/transports/{transport_id}", dependencies=[Depends(control)])
+        async def delay_transport(transport_id: str, body: TransportPatch):
+            async with store.lock:
+                state = deepcopy(store.state)
+                row = next(
+                    (r for r in state["records"]["transports"] if r["transportId"] == transport_id),
+                    None,
+                )
+                if row is None:
+                    raise KeyError(transport_id)
+                for key in ("arrivalAt", "deliveryAt"):
+                    row[key] = (
+                        datetime.fromisoformat(row[key]) + timedelta(hours=body.delayHours)
+                    ).isoformat()
+                row["updatedAt"] = state["sourceTime"]
+                return await store.save(state, "transport.changed", {"transportId": transport_id})
+
     @app.post("/api/v1/messages", dependencies=[Depends(control)], status_code=201)
     async def receive_message(body: MessageInput):
         async with store.lock:
@@ -284,10 +324,13 @@ def install(app, store, read, control):
 
 
 def create_app(path=None, *, tick_enabled=True, token=None, control_token=None):
-    v4 = os.getenv("C4I_CONTRACT_VERSION") == "4"
+    v5 = os.getenv("C4I_CONTRACT_VERSION") == "5"
+    v4 = os.getenv("C4I_CONTRACT_VERSION") in ("4", "5")
     seed = json.loads(
         Path(__file__)
-        .with_name("native_seed_v4.json" if v4 else "native_seed.json")
+        .with_name(
+            "native_seed_v5.json" if v5 else "native_seed_v4.json" if v4 else "native_seed.json"
+        )
         .read_text(encoding="utf-8")
     )
     for doc in seed["records"].get("documents", []):
@@ -305,7 +348,10 @@ def create_app(path=None, *, tick_enabled=True, token=None, control_token=None):
             r for r in baseline["records"][key] if r[time_field] <= baseline["sourceTime"]
         ]
     store = MaritimeStore(
-        path or os.getenv("KNCCS_DB", "var/knccs-v4.db" if v4 else "var/knccs-v3.db"),
+        path
+        or os.getenv(
+            "KNCCS_DB", "var/knccs-v5.db" if v5 else "var/knccs-v4.db" if v4 else "var/knccs-v3.db"
+        ),
         "knccs",
         seed,
         stable,
