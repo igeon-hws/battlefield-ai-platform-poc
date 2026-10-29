@@ -2,7 +2,45 @@
 
 ## 현재 상태
 
-2026-10-28 세 체계 군수 Mock·Agent 독립 객체 상세·A/B/C 별도 진입의 구현과 관련 검증을 완료해 **Human Review 대기**다. 주장 분류·문서 규칙 인용 오류 수정에 이어 업무 UI·공통 표시 메타데이터·의미 관측 보기·반복 평가 도구의 구현과 무과금 검증을 완료했다. 이번 실제 모델 측정은 사용자 지시로 제외했다. 현재 기본은 c2-logistics-demo-v5, source/ontology/adapter5.0.0, 정책5-logistics-abc다. v4/v3 구현·실측은 각 버전의 이력으로 보존한다. 후속 사용자 허용으로 v5 GPT 사전 평가9 runs를 수행했다. 본 반복 측정과 일반적인 우열·일관성 검증은 미완료다. 이어서 사전 평가 REVIEW의 Semantic 조회 범위·run 내 근거 재사용을 구현하고 무과금 검증을 완료했다. [ARCHITECTURE](ARCHITECTURE.md)는 구조/실행, [PLAN](IMPLEMENTATION_PLAN.md)은 다음 유효 작업이며 이 문서는 실제 결과·제약만 관리한다.
+2026-10-28 세 체계 군수 Mock·Agent 독립 객체 상세·A/B/C 별도 진입의 구현과 관련 검증을 완료해 **Human Review 대기**다. 주장 분류·문서 규칙 인용 오류 수정에 이어 업무 UI·공통 표시 메타데이터·의미 관측 보기·반복 평가 도구의 구현과 무과금 검증을 완료했다. 이번 실제 모델 측정은 사용자 지시로 제외했다. 현재 기본은 c2-logistics-demo-v5, source/ontology/adapter5.0.0, 정책5-logistics-abc다. v4/v3 구현·실측은 각 버전의 이력으로 보존한다. 후속 사용자 허용으로 v5 GPT 사전 평가9 runs를 수행했다. 본 반복 측정과 일반적인 우열·일관성 검증은 미완료다. 이어서 사전 평가 REVIEW의 Semantic 조회 범위·run 내 근거 재사용을 구현하고 무과금 검증을 완료했다. 2026-10-29 지식베이스 효용 시연(v6 선언적 온톨로지·업무 질의·Fabric 정의 발행·근거 추적·v6 평가 도구)을 구현하고 무과금 검증을 마쳐 Human Review 대기다. dev.py 기본은 v6 지식 계층이다. [ARCHITECTURE](ARCHITECTURE.md)는 구조/실행, [PLAN](IMPLEMENTATION_PLAN.md)은 다음 유효 작업이며 이 문서는 실제 결과·제약만 관리한다.
+
+## 지식베이스 효용 시연(v6) — 2026-10-29
+
+발표 메시지("같은 지식이라도 지식베이스로 구조화하면, 더 일관되고, 추적 가능하고, 바꾸기 쉬운 답을 얻는다")를 위한 PLAN M1·M2a·M2b·M3을 사용자 지시로 한 번에 구현했다. 유료 모델 평가는 실행하지 않았으며 ①의 실제 효과는 미측정이다.
+
+구현:
+
+- M1: 선언 `ontology_v6.json`(규칙13·업무 질의3·편집 항목1)과 `declaration.py`(검증·렌더링·편집·diff·영향). 선언을 Fabric 문서 ONTOLOGY-01로 담은 v6 기본 지식 집합 `knowledge-52b73da405a6e1cd0a83f8bb`(v5 문서11+1). `build_domain`이 선언 규칙·OntologyDeclaration·BusinessQuery·APPLIES_RULE을 컴파일하고 v6 `interpret_concept`가 선언 용어를 읽는다. 업무 질의 3종을 Semantic API/MCP로 제공하고 C만 허용한다. 정책 라벨을 `comparison_policy()`로 통일했다.
+- M2a: 진입 카드 B/C 문구, 주장별 근거 추적 체인(업무 질의→선언·규칙→그래프 간선→원천 기록), Fabric 딥링크(`?graphVersion=&node=`).
+- M2b: Fabric "온톨로지 정의 · 검토 · 발행" 화면과 drafts/approve API, 로컬 store(`FABRIC_KNOWLEDGE_STORE`), 발행 이력, 발행 직후 새 Graph 백그라운드 준비.
+- M3: v6 fixture(K1~K9, 그룹·hold-out·expectedQueries·변경 gold), 자동 판정·반복 일관성·추적 완결성·업무 질의 선택 정확도·새 정의 준수율 지표, `evaluate_knowledge.py --ontology-profile 6 --variant-knowledge-set`. 스크립트 정책 라벨을 인자로 정하고 플랫폼 정책과 다르면 중단한다.
+- 0절: 기존 실패 `test_graph_sync`의 대체 build를 `ensure_build(body, knowledge)` 계약에 맞춰 통과시켰다.
+- 부수 수정: Fabric catalog가 계약5에서 `c2-domain-demo-v3`로 표시되던 기존 버그를 `c2-logistics-demo-v5`로 고쳤다. 추적 링크 대비를 높였다.
+
+확인된 효과(무과금, 결정론적): 업무 질의 결과에 구조화 ruleId가 실려, 이를 인용한 주장의 규칙 근거가 검증되고 답변이 partial로 강등되지 않는다(사용자 예시의 "부분 결과"는 `provenance.py`가 미확인 규칙 경고 시 outcome을 partial로 바꾸던 동작이었다). 기본 가용 기준을 P1→P2로 발행하면 같은 질문의 C 업무 질의 결과가 가용 전차 1→2대로, B의 ONTOLOGY-01 본문이 P1→P2로 함께 바뀌고, 이전 Graph·이전 문서 버전은 1대/P1을 유지했다. 영향 분석은 AGGREGATION-POLICY-01→asset-availability-summary→C 가용 현황 답변으로 계산됐다.
+
+| 이번 실행의 검증 | 실제 결과 |
+| --- | --- |
+| 신규 단위/API 테스트(선언 8, 업무 질의 9, API 3, 평가 지표 6) | 실패 확인 후 통과 |
+| 전체 무과금 비UI·비Neo4j 회귀 | 214 passed, 58 deselected / 372.83초 |
+| 실제 Neo4j 통합(UI·live 제외, v6 통합·graph_sync 포함) | 18 passed / 597.09초 |
+| v6 브라우저 시연 흐름(실제 세 원천·Neo4j·MCP, 결정론적 provider) | 통과 1회 / 292.91초. 근거 추적·Fabric 딥링크·편집·영향 분석·승인·발행·모바일 390px·발행 후 새 대화 2대 확인 |
+| 이후 수정(평가 스크립트 정책 검사·v6 dry-run) 재검증 | 관련 단위 13 passed; v6 통합(dry-run 27 planned/0 executed 포함)+v5 MCP 통합 2 passed / 146.87초 |
+| 정적 UI 회귀(브라우저, Neo4j 제외) | 29 passed, 243 deselected / 152.44초 |
+| 정적 검사 | Ruff check/format, mypy 89 source files, TypeScript, 프론트 빌드·정적 패키징 통과 |
+
+캡처: `artifacts/ontology-v6/`의 c-trace, fabric-deeplink, fabric-impact, fabric-published, fabric-mobile, c-trace-after-publish.
+
+계획과 달라진 점: 새 원천 dataset 대신 v5 원천을 재사용했다(원천 변경 위험 회피, 기존 함정 자산 사용). 업무 질의 후보 중 보고 계보·절차 진행은 구현하지 않았고 미포함 그룹(K7·K8)으로 평가한다. contract6 대신 계약5 원천 + 지식 profile 6으로 분리했다. 의존 규칙에 FORCE-SCOPE-01→ORG-ROLE-01, AGGREGATION-POLICY-01→FORCE-SCOPE-01, REPORT-REVISION-01→REPORT-LINEAGE-01을 선언에 추가했다.
+
+제약·미검증:
+
+- 실제 모델의 일관성·정답률·비용 효과는 미측정이다. 업무 질의가 있다고 Agent가 이를 선택한다는 보장은 없다.
+- 브라우저 흐름 테스트 5회 중 3회는 첫 C 질문의 업무 질의 호출이 60초 넘게 끝나지 않아 실패했고, 원인은 확인하지 못했다(같은 경로의 직접 MCP 호출 통합 테스트는 매번 통과). 발표 전에는 서버 기동 후 C 화면에서 질문을 한 번 실행해 예열하고, 발행 직후에는 새 Graph 준비가 끝난 뒤 새 대화로 질문할 것을 권한다.
+- 자동 판정은 정규식 기반 참고값이며 한국어 서술 변형에 따라 오판할 수 있다.
+- 업무 질의 연산자 종류는 코드이며 선언으로 새 연산자를 만들 수 없다. 편집 가능 항목은 1개다.
+- Fabric 승인은 데모 capability이며 로컬 store의 동시 발행 직렬화·인증·발행 취소는 없다. 진행 중인 대화는 시작 시 버전을 유지한다.
+- 규모 효과는 다루지 않는다. Neo4j는 버전 고정 저장소로만 쓰인다.
 
 ## Semantic 조회 범위·run 내 근거 재사용 — 2026-10-28
 

@@ -1,6 +1,7 @@
 import KnowledgeDocuments from './KnowledgeDocuments';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import GraphExplorer from './GraphExplorer';
+import OntologyEditor from './OntologyEditor';
 import './Domain.css';
 
 const pretty = (value: unknown) => JSON.stringify(value, null, 2);
@@ -8,21 +9,23 @@ const titles: Record<string, string> = {
   Catalog: '데이터 목록',
   'Graph build': '연결 지식 생성 이력',
   'Graph 탐색': '연결 지식 탐색',
+  '온톨로지 정의': '온톨로지 정의 · 검토 · 발행',
 };
+const link = new URLSearchParams(window.location.search);
 export default function FabricApp() {
   const [catalog, setCatalog] = useState<{ datasetId?: string; layers?: string[] }>({});
   const [knowledgeTarget, setKnowledgeTarget] = useState<{ key: string; version: string } | null>(
     null,
   );
-  const [tab, setTab] = useState('원천 연결');
+  const [tab, setTab] = useState(link.get('graphVersion') ? 'Graph 탐색' : '원천 연결');
   const [data, setData] = useState<unknown>(null);
-  const [version, setVersion] = useState('');
+  const [version, setVersion] = useState(link.get('graphVersion') || '');
   const [term, setTerm] = useState('all');
   const [subject, setSubject] = useState('atcis:report:R2');
   const [error, setError] = useState('');
   const [token, setToken] = useState(sessionStorage.getItem('fabric.readToken') || '');
   const queryGeneration = useRef(0);
-  const userNavigated = useRef(false);
+  const userNavigated = useRef(Boolean(link.get('graphVersion')));
   const get = useCallback(
     async (path: string) => {
       const r = await fetch('/v1/' + path, { headers: { Authorization: `Bearer ${token}` } });
@@ -80,7 +83,7 @@ export default function FabricApp() {
           <h1>Data Fabric</h1>
           <span>{catalog.datasetId}</span>
         </div>
-        <span>읽기 전용 콘솔</span>
+        <span>조회 콘솔 · 정의 변경은 검토·승인 후 발행</span>
       </header>
       <div className="domain-credentials">
         <label>
@@ -99,6 +102,7 @@ export default function FabricApp() {
         <aside>
           <h2>탐색</h2>
           {[
+            '온톨로지 정의',
             '지식 문서',
             'Graph 탐색',
             '원천 연결',
@@ -134,8 +138,10 @@ export default function FabricApp() {
         </aside>
         <section>
           <h2>{titles[tab] || tab}</h2>
-          {tab !== '지식 문서' && (
+          {tab === '온톨로지 정의' && <OntologyEditor token={token} />}
+          {tab !== '지식 문서' && tab !== '온톨로지 정의' && (
             <GraphExplorer
+              focusNode={link.get('node') || undefined}
               get={get}
               version={version}
               onVersion={setVersion}
@@ -163,7 +169,7 @@ export default function FabricApp() {
               <input value={term} onChange={(e) => setTerm(e.target.value)} />
             </label>
           ) : null}
-          {!['Graph 탐색', '지식 문서'].includes(tab) && (
+          {!['Graph 탐색', '지식 문서', '온톨로지 정의'].includes(tab) && (
             <button onClick={() => void query()}>조회</button>
           )}
           {error && <p role="alert">{error}</p>}

@@ -159,3 +159,55 @@
     flex-direction: column;
   }
 }
+.onto {
+  display: grid;
+  gap: 14px;
+}
+.onto-card {
+  background: #1b2731;
+  border: 1px solid #34414d;
+  border-radius: 4px;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+.onto-card h3 {
+  margin: 4px 0 10px;
+  font-size: 15px;
+}
+.onto-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.onto-field select,
+.onto-field input {
+  max-width: 420px;
+  padding: 7px;
+}
+.onto table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+.onto th,
+.onto td {
+  border-bottom: 1px solid #34414d;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.onto-impact,
+.onto-rules {
+  margin: 8px 0;
+  padding-left: 18px;
+  line-height: 1.7;
+}
+.onto-version code,
+.onto-published code {
+  overflow-wrap: anywhere;
+}
+.onto-published {
+  padding: 12px;
+  background: #1f3a2c;
+  border: 1px solid #2f6b4a;
+}

@@ -101,6 +101,62 @@ function graphRefs(value: unknown): string[] {
     : [];
   return [...new Set([...direct, ...Object.values(object).flatMap(graphRefs)])];
 }
+type BusinessQueryData = {
+  queryId: string;
+  title: string;
+  params: Record<string, string>;
+  declarationVersion: string;
+  graphVersion: string;
+  appliedRules: { ruleId: string; title?: string }[];
+  graphEvidence: { evidenceId: string; kind: string; start: string; end: string }[];
+  sourceRecords: {
+    systemId: string;
+    recordType: string;
+    nativeId: string;
+    snapshotId?: string;
+    sourceTime?: string;
+  }[];
+};
+const businessQuery = (e?: Evidence) =>
+  e && typeof e.data.queryId === 'string' ? (e.data as unknown as BusinessQueryData) : null;
+
+function TraceChain({ data, fabricUrl }: { data: BusinessQueryData; fabricUrl: string }) {
+  const node = (key: string) =>
+    `${fabricUrl.replace(/\/$/, '')}/?${new URLSearchParams({ graphVersion: data.graphVersion, node: key })}`;
+  return (
+    <ol className="next-trace-chain" aria-label="근거 추적">
+      <li>
+        <b>업무 질의</b> {data.title}{' '}
+        <small>
+          {data.queryId} · {JSON.stringify(data.params)}
+        </small>
+      </li>
+      <li>
+        <b>온톨로지 정의</b> 선언 {data.declarationVersion} · 규칙{' '}
+        {data.appliedRules.map((r) => r.ruleId).join(', ')}
+      </li>
+      <li>
+        <b>지식그래프 연결</b> {data.graphEvidence.length}개
+        <div className="next-trace-edges">
+          {data.graphEvidence.slice(0, 8).map((e) => (
+            <a key={e.evidenceId} href={node(e.start)} target="_blank" rel="noreferrer">
+              {e.kind}: {e.start.split(':').slice(-1)[0]} → {e.end.split(':').slice(-1)[0]}
+            </a>
+          ))}
+          {data.graphEvidence.length > 8 && <small>외 {data.graphEvidence.length - 8}개</small>}
+        </div>
+      </li>
+      <li>
+        <b>원천 기록</b>{' '}
+        {data.sourceRecords.map((r) => `${r.systemId}/${r.recordType}/${r.nativeId}`).join(' · ')}
+        <small>
+          {' '}
+          · 고정 snapshot {[...new Set(data.sourceRecords.map((r) => r.snapshotId))].join(', ')}
+        </small>
+      </li>
+    </ol>
+  );
+}
 class ApiError extends Error {
   constructor(
     public status: number,
@@ -135,10 +191,12 @@ export function RunPanel({
   run,
   onSelect,
   loadEvidence = api,
+  fabricUrl = 'http://localhost:4400',
 }: {
   run?: Run;
   onSelect: (runId: string, courseId: string) => Promise<void>;
   loadEvidence?: (path: string) => Promise<unknown>;
+  fabricUrl?: string;
 }) {
   const [selectionError, setSelectionError] = useState('');
   const [proof, setProof] = useState<unknown>(null);
@@ -205,6 +263,24 @@ export function RunPanel({
                 </p>
               )}
               <p>{claim.text}</p>
+              {claim.evidenceRefs
+                .map((id) => businessQuery(run.evidence.find((e) => e.evidenceId === id)))
+                .filter((d): d is BusinessQueryData => d !== null)
+                .map((d, j) => (
+                  <TraceChain key={j} data={d} fabricUrl={fabricUrl} />
+                ))}
+              {claim.provenance &&
+                !claim.provenance.sources.includes('semantic') &&
+                claim.provenance.sources.includes('document') && (
+                  <p className="next-trace-note">
+                    정의 적용: 인용 문서를 읽은 모델의 해석(실행된 정의 아님)
+                  </p>
+                )}
+              {claim.provenance &&
+                claim.provenance.sources.length > 0 &&
+                claim.provenance.sources.every((s) => s === 'source') && (
+                  <p className="next-trace-note">원천 기록만 인용(추가 정의 없음)</p>
+                )}
               <small>
                 {claim.evidenceRefs.join(' · ')}
                 {claim.ruleRefs?.length ? ` · 규칙 ${claim.ruleRefs.join(', ')}` : ''}

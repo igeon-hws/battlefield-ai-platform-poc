@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from evaluation_metrics import measure_run, summarize, valid_context
+from evaluation_metrics import grade, measure_run, summarize, summarize_v6, valid_context
 
 QUESTIONS = {
     "F1": "육군·해군에 올라온 이 장비 내용 모아줘. L-V01 기준으로.",
@@ -36,6 +36,21 @@ def main():
             / "tests/fixtures/c2-logistics-demo-v5/expected.json"
         ).read_text(encoding="utf-8")
     )["questions"]
+    ontology_fixture = json.loads(
+        (
+            Path(__file__).resolve().parents[1] / "tests/fixtures/c2-ontology-demo-v6/expected.json"
+        ).read_text(encoding="utf-8")
+    )
+    parser.add_argument(
+        "--ontology-profile",
+        choices=("5", "6"),
+        default="5",
+        help="6 evaluates the declarative ontology profile with tests/fixtures/c2-ontology-demo-v6",
+    )
+    parser.add_argument(
+        "--variant-knowledge-set",
+        help="v6 only: knowledge set published from the Fabric ontology editor; reruns the definition-change group",
+    )
     parser.add_argument("--url", default="http://127.0.0.1:4300")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--repeat", type=int, default=1)
@@ -59,23 +74,44 @@ def main():
         help="Reuse a prior dry-run manifest with the exact pins/model/budgets",
     )
     parser.add_argument(
-        "--scenario", choices=list(QUESTIONS) + list(logistics_questions), action="append"
+        "--scenario",
+        choices=list(QUESTIONS) + list(logistics_questions) + list(ontology_fixture["questions"]),
+        action="append",
     )
     args = parser.parse_args()
     if not args.live and not args.dry_run:
         parser.error("--live is required; this calls the configured real model")
     if args.output.exists():
         parser.error("output exists; choose a new path")
-    questions = logistics_questions if args.contract_version == "5" else QUESTIONS
+    v6 = args.ontology_profile == "6"
+    if v6 and args.contract_version != "5":
+        parser.error("--ontology-profile 6 requires --contract-version 5")
+    if args.variant_knowledge_set and not v6:
+        parser.error("--variant-knowledge-set requires --ontology-profile 6")
+    questions = (
+        ontology_fixture["questions"]
+        if v6
+        else logistics_questions
+        if args.contract_version == "5"
+        else QUESTIONS
+    )
     if any(q not in questions for q in args.scenario or []):
         parser.error("scenario does not belong to selected contract")
     selected = args.scenario or list(questions)
-    if args.repeat < 1 or len(selected) * args.repeat * 3 > args.max_runs:
+    variants = (
+        [s for s in selected if s in ontology_fixture["groups"]["definitionChange"]]
+        if args.variant_knowledge_set
+        else []
+    )
+    planned = (len(selected) + len(variants)) * args.repeat * 3
+    if args.repeat < 1 or planned > args.max_runs:
         parser.error("repeat must be positive and planned runs must not exceed --max-runs")
     modes = ("native", "documents", "structured")
     report: dict[str, Any] = {
         "sourceToolContractVersion": args.contract_version,
-        "comparisonPolicyVersion": "5-logistics-abc"
+        "comparisonPolicyVersion": "6-ontology-abc"
+        if v6
+        else "5-logistics-abc"
         if args.contract_version == "5"
         else "4-knowledge-abc",
         "model": None,
@@ -86,7 +122,9 @@ def main():
         "phase": args.phase,
         "repeat": args.repeat,
         "scenarios": selected,
-        "plannedRuns": len(selected) * args.repeat * 3,
+        "plannedRuns": planned,
+        "ontologyProfile": args.ontology_profile,
+        "variantKnowledgeSetVersion": args.variant_knowledge_set,
         "caps": {
             "runs": args.max_runs,
             "modelResponses": args.max_model_responses,
@@ -94,7 +132,9 @@ def main():
             "boundary": "between ABC comparisons; no hidden re-run",
         },
         "reviewRubric": {
-            "gold": "tests/fixtures/c2-logistics-demo-v5/expected.json"
+            "gold": "tests/fixtures/c2-ontology-demo-v6/expected.json"
+            if v6
+            else "tests/fixtures/c2-logistics-demo-v5/expected.json"
             if args.contract_version == "5"
             else "tests/fixtures/c2-domain-demo-v4/expected.json",
             "accuracy": "Human review: required facts, prohibited conclusions, uncertainty and completeness; not provenance success",
@@ -112,8 +152,19 @@ def main():
             {"status": "preparing", "records": [], "plannedRuns": report["plannedRuns"]}, reserved
         )
 
+    def group_of(scenario):
+        if not v6:
+            return "simple" if scenario == "L0" else "complex"
+        return next(
+            name
+            for name, ids in ontology_fixture["groups"].items()
+            if name != "definitionChange" and scenario in ids
+        )
+
     def save():
         report["summary"] = summarize(report["records"])
+        if v6:
+            report["summaryV6"] = summarize_v6(report["records"], ontology_fixture)
         temp = args.output.with_suffix(args.output.suffix + ".tmp")
         temp.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         temp.replace(args.output)
@@ -123,6 +174,12 @@ def main():
         config.raise_for_status()
         if config.json()["sourceToolContractVersion"] != args.contract_version:
             raise ValueError("platform contract mismatch")
+        if config.json().get("semanticPolicyVersion") != report["comparisonPolicyVersion"]:
+            raise ValueError(
+                "platform policy mismatch: "
+                + str(config.json().get("semanticPolicyVersion"))
+                + " (check --ontology-profile)"
+            )
         if args.contract_version == "5":
             session = client.post("/api/v1/demo-sessions", json={"mode": "compare"})
             session.raise_for_status()
@@ -153,8 +210,15 @@ def main():
         if args.dry_run:
             print(f"Saved no-model manifest for {report['plannedRuns']} runs to {args.output}")
             return
-        schedule = [(repeat, scenario) for repeat in range(args.repeat) for scenario in selected]
-        for index, (repeat, scenario) in enumerate(schedule):
+        schedule = [
+            (repeat, scenario, variant)
+            for repeat in range(args.repeat)
+            for scenario, variant in [(s, False) for s in selected] + [(s, True) for s in variants]
+        ]
+        for index, (repeat, scenario, variant) in enumerate(schedule):
+            context = (
+                {**fixed, "knowledgeSetVersion": args.variant_knowledge_set} if variant else fixed
+            )
             responses = sum(r["metrics"]["modelResponses"] for r in report["records"])
             tokens = sum(
                 (r["metrics"]["inputTokens"] or 0) + (r["metrics"]["outputTokens"] or 0)
@@ -173,6 +237,7 @@ def main():
                 {
                     "scenario": scenario,
                     "repeat": repeat + 1,
+                    "variant": variant,
                     "executionOrder": list(modes[index % 3 :] + modes[: index % 3]),
                     "status": "requesting",
                 }
@@ -186,7 +251,7 @@ def main():
                         "firstKnowledgeMode": modes[index % 3],
                         "baselineReportRef": "atcis:report:R0" if scenario == "F5" else None,
                         "fixedContext": {
-                            k: fixed[k] for k in ("sourceSnapshotSet", "knowledgeSetVersion")
+                            k: context[k] for k in ("sourceSnapshotSet", "knowledgeSetVersion")
                         },
                     },
                 )
@@ -241,7 +306,8 @@ def main():
                     {
                         "scenario": scenario,
                         "repeat": repeat + 1,
-                        "group": "simple" if scenario == "L0" else "complex",
+                        "group": "definitionChange" if variant else group_of(scenario),
+                        "variant": variant,
                         "mode": mode,
                         "knowledgeMode": mode,
                         "state": run,
@@ -250,7 +316,19 @@ def main():
                         "inputTokens": measure_run(run)["inputTokens"],
                         "outputTokens": measure_run(run)["outputTokens"],
                         "comparisonWallSeconds": time.monotonic() - wall_started,
-                        "validContext": valid_context(run, fixed, mode),
+                        "validContext": valid_context(run, context, mode),
+                        **(
+                            {
+                                "autoGrade": grade(
+                                    run,
+                                    ontology_fixture["variantGold" if variant else "gold"][
+                                        scenario
+                                    ],
+                                )
+                            }
+                            if v6
+                            else {}
+                        ),
                     }
                 )
             save()

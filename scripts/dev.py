@@ -109,6 +109,12 @@ def main():
     )
     parser.add_argument("--contract-version", choices=("2", "3", "4", "5"), default="5")
     parser.add_argument("--port-offset", type=int, default=0)
+    parser.add_argument(
+        "--ontology-profile",
+        choices=("5", "6"),
+        default="6",
+        help="contract 5 knowledge layer: 6 = declarative ontology/business queries, 5 = v5 baseline",
+    )
     args = parser.parse_args()
     specs = service_specs(args.profile, args.port_offset, args.contract_version)
     check_ports(specs)
@@ -124,6 +130,11 @@ def main():
                     "PLATFORM_V" + version + "_DB", "var/platform-v" + version + ".db"
                 ),
             )
+            if version == "5" and args.ontology_profile == "6":
+                overrides.update(
+                    C4I_ONTOLOGY_PROFILE="6",
+                    PLATFORM_VNEXT_DB=os.getenv("PLATFORM_V6_DB", "var/platform-v6.db"),
+                )
     if args.port_offset:
         module_settings = {
             "mock_logistics.app": ("LOGISTICS_PORT", "LOGISTICS_BASE_URL"),

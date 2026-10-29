@@ -414,3 +414,26 @@
     grid-template-columns: 150px minmax(180px, 1fr);
   }
 }
+.next-trace-chain {
+  margin: 8px 0;
+  padding: 10px 10px 10px 28px;
+  border-left: 3px solid #4d8fbf;
+  background: rgba(77, 143, 191, 0.08);
+  line-height: 1.6;
+}
+.next-trace-chain li + li {
+  margin-top: 4px;
+}
+.next-trace-edges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 12px;
+}
+.next-trace-edges a {
+  overflow-wrap: anywhere;
+}
+.next-trace-note {
+  font-size: 12px;
+  opacity: 0.85;
+}

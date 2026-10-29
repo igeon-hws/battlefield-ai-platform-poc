@@ -16,6 +16,27 @@ def hash_value(value):
     ).hexdigest()
 
 
+def store_root():
+    """Fabric-published v6 knowledge sets; packaged archives stay read-only."""
+    return Path(os.getenv("FABRIC_KNOWLEDGE_STORE", "var/fabric-knowledge"))
+
+
+def current_path():
+    from battlefield_ontology.declaration import profile6
+
+    if profile6():
+        pointer = store_root() / "current.json"
+        if pointer.exists():
+            version = json.loads(pointer.read_text(encoding="utf-8"))["knowledgeSetVersion"]
+            return store_root() / "sets" / (version + ".json")
+        return Path(__file__).with_name("knowledge_documents_v6.json")
+    return Path(__file__).with_name(
+        "knowledge_documents_v5.json"
+        if os.getenv("C4I_CONTRACT_VERSION") == "5"
+        else "knowledge_documents.json"
+    )
+
+
 class KnowledgeCatalog:
     def __init__(self, version=None):
         if version is not None and not re.fullmatch(r"knowledge-[0-9a-f]{24}", version):
@@ -23,12 +44,10 @@ class KnowledgeCatalog:
         path = (
             Path(__file__).with_name("knowledge_sets") / (version + ".json")
             if version
-            else Path(__file__).with_name(
-                "knowledge_documents_v5.json"
-                if os.getenv("C4I_CONTRACT_VERSION") == "5"
-                else "knowledge_documents.json"
-            )
+            else current_path()
         )
+        if version and not path.exists():
+            path = store_root() / "sets" / (version + ".json")
         if not path.exists():
             raise KeyError("knowledge set not found")
         self.documents = json.loads(path.read_text(encoding="utf-8"))
@@ -56,7 +75,7 @@ class KnowledgeCatalog:
     @staticmethod
     def metadata(item):
         return {k: v for k, v in item.items() if k != "document"} | {
-            k: v for k, v in item["document"].items() if k != "text"
+            k: v for k, v in item["document"].items() if k not in ("text", "declaration")
         }
 
     def page(self, version, q="", cursor="", limit=20):

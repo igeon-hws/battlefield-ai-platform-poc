@@ -85,6 +85,7 @@ export default function GraphExplorer({
   visible,
   onRule,
   onDocument,
+  focusNode,
 }: {
   get: Get;
   version: string;
@@ -92,6 +93,7 @@ export default function GraphExplorer({
   visible: boolean;
   onRule: (rule: string) => void;
   onDocument?: (key: string, version: string) => void;
+  focusNode?: string;
 }) {
   const [builds, setBuilds] = useState<Build[]>([]);
   const [pinned, setPinned] = useState<Build[]>([]);
@@ -283,6 +285,13 @@ export default function GraphExplorer({
       if (id === generation.current) setBusy(false);
     }
   };
+  const focused = useRef('');
+  useEffect(() => {
+    // Deep link from an analysis trace: open the cited node at the run's pinned graphVersion.
+    if (!summary || !focusNode || focused.current === version + focusNode) return;
+    focused.current = version + focusNode;
+    void chooseNode(focusNode);
+  }, [summary, focusNode, version]);
   const chooseEdge = (value: Edge) => {
     generation.current++;
     setBusy(false);

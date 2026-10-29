@@ -23,6 +23,65 @@ def catalog_hash(version=DOMAIN_VERSION):
     )
 
 
+def _compile_declaration(declaration, declaration_version, nodes, edges, node, ref, ontology_ref):
+    """Graph nodes for logistics rules, the declaration and its business queries."""
+    version = declaration_version(declaration)
+    for rule in declaration["rules"]:
+        if rule["systemId"] != "logistics":
+            continue
+        native = rule["documentKey"].split(":", 1)[1]
+        node(
+            "logistics",
+            "rule",
+            rule["ruleId"],
+            "InterpretationRule",
+            {
+                **rule,
+                "documentId": native,
+                "version": version,
+                "documentRefs": [{**ref("logistics", "document", native)}, ontology_ref],
+            },
+        )
+    rule_keys = {
+        n["payload"]["ruleId"]: n["key"]
+        for n in nodes.values()
+        if n["label"] == "InterpretationRule"
+    }
+    summary = {
+        k: declaration[k] for k in ("ontologyId", "version", "revision", "terms", "editable")
+    }
+    key = "ontology:declaration"
+    nodes[key] = {
+        "key": key,
+        "label": "OntologyDeclaration",
+        "sourceRef": ontology_ref,
+        "payload": {
+            **summary,
+            "declarationVersion": version,
+            "dependsOn": {r["ruleId"]: r["dependsOn"] for r in declaration["rules"]},
+            "documentRefs": [ontology_ref],
+        },
+    }
+    for query in declaration["businessQueries"]:
+        query_key = "business-query:" + query["queryId"]
+        nodes[query_key] = {
+            "key": query_key,
+            "label": "BusinessQuery",
+            "sourceRef": ontology_ref,
+            "payload": {**query, "declarationVersion": version, "documentRefs": [ontology_ref]},
+        }
+        for rule_id in query["rules"]:
+            body = {
+                "kind": "APPLIES_RULE",
+                "start": query_key,
+                "end": rule_keys[rule_id],
+                "sourceRefs": [ontology_ref],
+                "provenanceKind": "ontology_declaration",
+                "declarationVersion": version,
+            }
+            edges.append({**body, "evidenceId": "assert-" + digest(body)[:32]})
+
+
 def build_domain(sources, knowledge_documents=None, knowledge_manifest=None):
     """Apply reviewed mappings to stable exports; never infer identity from proximity/text."""
     reviewed_documents = json.loads(
@@ -104,7 +163,31 @@ def build_domain(sources, knowledge_documents=None, knowledge_manifest=None):
             documents[(system, doc["documentId"])] = doc
             node(system, "document", doc["documentId"], "SourceDocument", doc)
 
-    rules = json.loads(Path(__file__).with_name("domain_rules.json").read_text(encoding="utf-8"))
+    from battlefield_ontology.declaration import (
+        DOCUMENT_KEY,
+        declaration_version,
+        from_documents,
+    )
+
+    declaration = from_documents(knowledge_documents) if v5 else None
+    if declaration:
+        # v6: the reviewed declaration, not a code-held table, defines interpretation rules.
+        rules = [
+            {**r, "documentId": r["documentKey"].split(":", 1)[1]}
+            for r in declaration["rules"]
+            if r["systemId"] != "logistics"
+        ]
+        ontology_item = next(d for d in knowledge_documents if d["documentKey"] == DOCUMENT_KEY)
+        ontology_ref = {
+            **ref("fabric", "document", "ONTOLOGY-01"),
+            "version": ontology_item["document"]["version"],
+            "hash": ontology_item["document"]["hash"],
+            "section": ontology_item["document"]["section"],
+        }
+    else:
+        rules = json.loads(
+            Path(__file__).with_name("domain_rules.json").read_text(encoding="utf-8")
+        )
     for rule in rules:
         doc = documents[(rule["systemId"], rule["documentId"])]
         if rule["section"] != doc["section"]:
@@ -130,9 +213,13 @@ def build_domain(sources, knowledge_documents=None, knowledge_manifest=None):
                     "section": supplement["section"],
                 }
             )
+        if declaration:
+            rule["documentRefs"].append(ontology_ref)
         node(rule["systemId"], "rule", rule["ruleId"], "InterpretationRule", rule)
     if knowledge_manifest:
         node("fabric", "document", "POLICY-01", "SourceDocument", supplement)
+    if declaration:
+        node("fabric", "document", "ONTOLOGY-01", "SourceDocument", ontology_item["document"])
     rule_map = {r["ruleId"]: r for r in rules}
 
     def edge(kind, start, end, system, resource, native_id, rule_id, **props):
@@ -341,6 +428,10 @@ def build_domain(sources, knowledge_documents=None, knowledge_manifest=None):
         from battlefield_ontology.logistics import extend_logistics
 
         extend_logistics(sources, knowledge_documents, knowledge_manifest, nodes, edges, node, ref)
+    if declaration:
+        _compile_declaration(
+            declaration, declaration_version, nodes, edges, node, ref, ontology_ref
+        )
 
     # Source records and assertions are explicit graph objects, distinct from sensors.
     for original in list(nodes.values()):

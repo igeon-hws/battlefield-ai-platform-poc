@@ -5,6 +5,7 @@ import time
 from typing import TypedDict
 from urllib.parse import quote
 
+from battlefield_ontology.declaration import comparison_policy
 from fastapi import HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
@@ -40,7 +41,7 @@ def install_demo(app, repo, runtime):
         return {
             "sessionId": token,
             "mode": body.mode,
-            "policyVersion": "5-logistics-abc",
+            "policyVersion": comparison_policy(),
             "datasetId": "c2-logistics-demo-v5",
         }
 

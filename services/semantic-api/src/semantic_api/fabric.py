@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 
 import httpx
 from battlefield_geo import decorate
+from battlefield_ontology.declaration import comparison_policy
 from c4i_contracts import Entity
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -249,11 +250,12 @@ def install_fabric(app, read, ensure_graph=None):
 
     @app.get("/v1/catalog", dependencies=[Depends(read)])
     async def catalog():
+        contract = os.getenv("C4I_CONTRACT_VERSION", "3")
         return {
-            "datasetId": "c2-domain-demo-v4"
-            if os.getenv("C4I_CONTRACT_VERSION") == "4"
-            else "c2-domain-demo-v3",
-            "sourceSchemaVersion": "4.0.0" if os.getenv("C4I_CONTRACT_VERSION") == "4" else "3.0.0",
+            "datasetId": {"4": "c2-domain-demo-v4", "5": "c2-logistics-demo-v5"}.get(
+                contract, "c2-domain-demo-v3"
+            ),
+            "sourceSchemaVersion": {"4": "4.0.0", "5": "5.0.0"}.get(contract, "3.0.0"),
             "layers": [
                 "format",
                 "entity",
@@ -300,9 +302,7 @@ def install_fabric(app, read, ensure_graph=None):
         result = await fabric.prepare("off", body.sourceSnapshotSet, body.allowPartial)
         result.update(
             knowledgeMode=body.knowledgeMode,
-            semanticPolicyVersion="5-logistics-abc"
-            if os.getenv("C4I_CONTRACT_VERSION") == "5"
-            else "4-knowledge-abc",
+            semanticPolicyVersion=comparison_policy(os.getenv("C4I_CONTRACT_VERSION", "4")),
             sourceToolContractVersion=os.getenv("C4I_CONTRACT_VERSION", "4"),
         )
         result.pop("semanticMode", None)

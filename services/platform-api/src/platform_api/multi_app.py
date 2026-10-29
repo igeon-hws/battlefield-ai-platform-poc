@@ -66,6 +66,8 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
         "builderUrl": os.getenv("BUILDER_BASE_URL", "http://127.0.0.1:4420"),
         "adminToken": os.getenv("BUILDER_ADMIN_TOKEN", ""),
     }
+    from battlefield_ontology.declaration import comparison_policy, profile6
+
     v5 = os.getenv("C4I_CONTRACT_VERSION") == "5"
     v4 = os.getenv("C4I_CONTRACT_VERSION") in ("4", "5")
     domain = os.getenv("C4I_CONTRACT_VERSION") in ("3", "4", "5")
@@ -79,7 +81,7 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
             path
             or os.getenv(
                 "PLATFORM_VNEXT_DB",
-                "var/platform-v5.db"
+                ("var/platform-v6.db" if profile6() else "var/platform-v5.db")
                 if v5
                 else "var/platform-v4.db"
                 if v4
@@ -89,7 +91,7 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
             )
         ),
         os.getenv("AUTO_SEMANTIC_MODE", "off"),
-        "5-logistics-abc"
+        comparison_policy()
         if v5
         else "4-knowledge-abc"
         if v4

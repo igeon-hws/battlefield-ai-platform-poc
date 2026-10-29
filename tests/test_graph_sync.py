@@ -48,7 +48,7 @@ async def test_builder_queues_and_restart_recovery_are_scoped_to_source_endpoint
         )
         processed = asyncio.Event()
 
-        async def build(refs):
+        async def build(refs, knowledge_version=None):
             assert refs == snapshots
             return {"graphVersion": "test-" + suffix}
 

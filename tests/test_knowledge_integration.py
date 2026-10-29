@@ -73,6 +73,7 @@ def v4_stack(
     provider_module="test_knowledge_integration",
     provider_class="CapabilityProvider",
     knowledge=True,
+    extra_env=None,
 ):
     from dotenv import load_dotenv
 
@@ -88,6 +89,7 @@ def v4_stack(
             "BUILDER_ADMIN_TOKEN": "test-admin",
             "PYTHONPATH": str(Path(__file__).parent.resolve()),
             "AGENT_LOG_ENABLED": "false",
+            **(extra_env or {}),
         }
         for system in systems:
             env[system.upper() + "_READ_TOKEN"] = ""

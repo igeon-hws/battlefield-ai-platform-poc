@@ -1,0 +1,948 @@
+[
+ {
+  "documentKey": "atcis:REF-01",
+  "namespace": "atcis",
+  "appliesTo": [
+   "atcis"
+  ],
+  "reviewRevision": "review-1",
+  "document": {
+   "documentId": "REF-01",
+   "version": "1",
+   "issuer": "PoC reference catalog",
+   "sourceLevel": "public_reference",
+   "sourceUrl": "https://www.mimworld.org/portal/projects/welcome/wiki/Welcome",
+   "sourceSection": "공통 정보모델·교환 인터페이스 구별 (C4I_SYSTEM_DESIGN INT-1)",
+   "knownAt": "2026-10-20T00:00:00Z",
+   "effectiveFrom": "2026-10-20T00:00:00Z",
+   "section": "types",
+   "text": "공개 정보모델 참고와 합성 모델을 구별한다. 아래는 합성 연습의 정의다: 등록 장비와 관측/contact/track은 서로 다른 기록이며 SURFACE 관측 영역은 함정 유형이 아니다. 실제 체계 내부 스키마나 MIP 준수를 주장하지 않는다.",
+   "hash": "c2c09fd1fe27a653f03632f5dc8d376ec5dbbeece6915fe4c640acae282a11ad"
+  }
+ },
+ {
+  "documentKey": "atcis:ORG-01",
+  "namespace": "atcis",
+  "appliesTo": [
+   "atcis"
+  ],
+  "reviewRevision": "review-1",
+  "document": {
+   "documentId": "ORG-01",
+   "version": "1",
+   "issuer": "Exercise Control",
+   "sourceLevel": "exercise_directive",
+   "knownAt": "2026-10-20T00:00:00Z",
+   "effectiveFrom": "2026-10-20T00:00:00Z",
+   "section": "organization",
+   "text": "D1/B11/C111은 모의 사단/여단/중대. C111의 과거 명칭은 모의 해안중대. 명칭 변경은 부대 신설이 아니다. 원소속·배속·통제·지원·수신 관계를 구별한다.",
+   "hash": "30c724f48e83815c1d5cb1ff69c7a39df6d8556b7cf63dc6a1f9e83d75a83c96"
+  }
+ },
+ {
+  "documentKey": "atcis:EX-01",
+  "namespace": "atcis",
+  "appliesTo": [
+   "atcis"
+  ],
+  "reviewRevision": "review-1",
+  "document": {
+   "documentId": "EX-01",
+   "version": "1",
+   "issuer": "Exercise Control",
+   "sourceLevel": "exercise_directive",
+   "knownAt": "2026-10-20T00:00:00Z",
+   "effectiveFrom": "2026-10-20T00:00:00Z",
+   "section": "mapping",
+   "text": "합성 연습 규칙. TK=전차,AAV=장갑차,LOG=지원 차량,UAS=UAV. FMC=available,PMC=limited,NMC=unavailable,UNK/누락=unknown. ORG/ATT는 편성 집계 포함,SUP는 지원 별도 표시하되 합계에 포함. 통제/수신만으로 포함하지 않는다. P1은 available만,P2는 available+limited. 상태 자체는 변경하지 않는다. NORTH/077=L-U01,NORTH/007=L-V01. SOUTH/007 동일성 미확인. L-U01은 B11과 F1을 비전속 지원한다.",
+   "hash": "0a0515358433659a321d3f13d78f8ba7397d428d1b1e492fb636601038d72d25"
+  }
+ },
+ {
+  "documentKey": "atcis:SOP-01",
+  "namespace": "atcis",
+  "appliesTo": [
+   "atcis"
+  ],
+  "reviewRevision": "review-1",
+  "document": {
+   "documentId": "SOP-01",
+   "version": "1",
+   "issuer": "Exercise Control",
+   "sourceLevel": "synthetic_sop",
+   "knownAt": "2026-10-20T00:00:00Z",
+   "effectiveFrom": "2026-10-20T00:00:00Z",
+   "section": "incident",
+   "text": "합성 절차: 현장확인 SITE_CHECK 완료 근거는 해당 활동 DONE과 원 보고다. IDENTIFICATION과 REVIEW는 각각 별도 완료 근거가 필요하다. 세 단계 완료 근거 없이는 종결하지 않는다. ACK는 전문 수신이며 활동 완료나 독립 관측이 아니다. 재전파는 원 보고의 추가 독립 확인이 아니다. 정정은 수신 후 시점에서만 적용한다.",
+   "hash": "66921dc117bd470fd4e7c844bb4cb63cf663e41d9ee90ef88d7f368d07600ce0"
+  }
+ },
+ {
+  "documentKey": "knccs:REF-01",
+  "namespace": "knccs",
+  "appliesTo": [
+   "knccs"
+  ],
+  "reviewRevision": "review-1",
+  "document": {
+   "documentId": "REF-01",
+   "version": "1",
+   "issuer": "PoC reference catalog",
+   "sourceLevel": "public_reference",
+   "sourceUrl": "https://journal.kci.go.kr/jksci/archive/articlePdf?artiId=ART002524973",
+   "sourceSection": "2019년 2장 pp.220~221 (C4I_SYSTEM_DESIGN KR-1)",
+   "knownAt": "2026-10-20T00:00:00Z",
+   "effectiveFrom": "2026-10-20T00:00:00Z",
+   "section": "types",
+   "text": "공개 연구의 상황도·전문과 센서 접촉 처리 구별을 참고한다. 아래는 합성 연습의 정의다: 자군 등록 자산과 관측/contact/track은 서로 다르며 SURFACE는 관측 영역이다. 실제 KNCCS 내부 스키마나 현행 배치를 재현하지 않는다.",
+   "hash": "0bcb2e9f92fa9ee7c38853cde66b7813e5bc2eaf90d4083a1b810671f9698859"
+  }
+ },
+ {
+  "documentKey": "knccs:ORG-01",
+  "namespace": "knccs",
+  "appliesTo": [
+   "knccs"
+  ],
+  "reviewRevision": "review-1",
+  "document": {
+   "documentId": "ORG-01",
+   "version": "1",
+   "issuer": "Exercise Control",
+   "sourceLevel": "exercise_directive",
+   "knownAt": "2026-10-20T00:00:00Z",
+   "effectiveFrom": "2026-10-20T00:00:00Z",
+   "section": "organization",
+   "text": "F1은 모의 1함대, S11은 예하 모의 11기동편성. 고정 소속과 기간 있는 통제/지원, 수신 계통은 구별한다.",
+   "hash": "3800c5e2bb89f6585a06c69e34490ef376995e202fc6697fcf2ea3325233e18e"
+  }
+ },
+ {
+  "documentKey": "knccs:EX-01",
+  "namespace": "knccs",
+  "appliesTo": [
+   "knccs"
+  ],
+  "reviewRevision": "review-1",
+  "document": {
+   "documentId": "EX-01",
+   "version": "1",
+   "issuer": "Exercise Control",
+   "sourceLevel": "exercise_directive",
+   "knownAt": "2026-10-20T00:00:00Z",
+   "effectiveFrom": "2026-10-20T00:00:00Z",
+   "section": "mapping",
+   "text": "합성 규칙: FF/LP는 함정. engineering DOWN 또는 mission HOLD이면 unavailable, UP+GO이면 available, 그 외/누락은 unknown. COMPONENT_OF는 편성, SUPPORT는 비전속 지원. 원소속·배속과 지원 포함 집계, 통제/수신만으로 포함 금지. P1=available,P2=available+limited. NORTH/077=L-U01,NORTH/007=L-V01. SOUTH/007 미확인. L-U01은 B11/F1 비전속 지원이며 중복 집계하지 않는다.",
+   "hash": "2ae4f7f07693963fa3075c80d4f14931b59bf77f62da53c5358502979b60fe85"
+  }
+ },
+ {
+  "documentKey": "knccs:SOP-01",
+  "namespace": "knccs",
+  "appliesTo": [
+   "knccs"
+  ],
+  "reviewRevision": "review-1",
+  "document": {
+   "documentId": "SOP-01",
+   "version": "1",
+   "issuer": "Exercise Control",
+   "sourceLevel": "synthetic_sop",
+   "knownAt": "2026-10-20T00:00:00Z",
+   "effectiveFrom": "2026-10-20T00:00:00Z",
+   "section": "incident",
+   "text": "합성 절차: SITE_CHECK,IDENTIFICATION,REVIEW 각각 DONE과 원 보고 근거가 필요하다. ACK는 전문 수신이며 사건 종결이나 독립 확인이 아니다. 정정은 수신 이후만 적용한다.",
+   "hash": "d143bac979e9c9ef38850bd41d29382b96d1d21b1e3de153508ed128cec536f9"
+  }
+ },
+ {
+  "documentKey": "fabric:POLICY-01",
+  "namespace": "fabric",
+  "appliesTo": [
+   "atcis",
+   "knccs"
+  ],
+  "reviewRevision": "review-1",
+  "document": {
+   "documentId": "POLICY-01",
+   "version": "1",
+   "issuer": "Fabric PoC knowledge review",
+   "section": "reviewed-policy",
+   "knownAt": "2026-10-20T00:00:00Z",
+   "effectiveFrom": "2026-10-20T00:00:00Z",
+   "text": "Reviewed synthetic exercise policy supplement. Applies equally to document-only and structured-knowledge analysis.\nASSET-TYPE-01: classCode TK=tank, AAV=armored_vehicle, LOG=support_vehicle, UAS=uav; unlisted codes remain unknown. ASSET-TYPE-NAVAL-01: hullClass FF/LP=naval_vessel; missing or unlisted values remain unknown. Contact domain SURFACE is not a registered vessel classification.\nAVAIL-LAND-01: maintenanceCode FMC=available, PMC=limited, NMC=unavailable, all missing/unlisted codes=unknown. AVAIL-NAVAL-01: engineering DOWN or mission HOLD means unavailable; otherwise engineering UP and mission GO together mean available; all other/missing combinations remain unknown. Do not turn missing mission into available.\nFORCE-SCOPE-01: traverse explicit parent/subordinate relations, bounded to depth 8. Include ORG, ATT, SUP, ASSIGNED and SUPPORT assignments; label SUP/SUPPORT separately. Exclude CTRL and RECEIVER as membership evidence. Support validity uses inclusive start and exclusive end at the source snapshot time; expired support is excluded. Unknown scope or incomplete pages cannot establish a zero total.\nAGGREGATION-POLICY-01: count unique registered assets using verified explicit canonical references. Merge aliases only when explicit associations prove identity, never by name or proximity. P1 includes available only; P2 includes available and limited. Preserve original status categories. Contact/track/relay/message counts are not asset counts. Missing/conflicting identity is not inferred.\nENTITY-LINK-01: association must explicitly contain originator, trackNo (including leading zero), refSystem, refEquipment and documentId; preserve ambiguity/unresolved/conflict. UNIT-IDENTITY-01: same native unit code with changed name remains the same unit; previousName is only one historical name. ORG-ROLE-01: distinguish ORG, ATT, SUP, CTRL and RECEIVER; never collapse all roles into ownership.\nREPORT-LINEAGE-01: relay/retransmission is not independent confirmation; ACK is receipt, not activity completion. REPORT-REVISION-01: follow explicit supersedes at knownAt; a later timestamp alone is not correction. Preserve original reports and source times.\nACTIVITY-STEP-01: SITE_CHECK, IDENTIFICATION and REVIEW are distinct steps. Completion requires state DONE and an evidenceReport referring to an original report available at the same snapshot. Missing inputs remain unknown; invalid/relay-only proof cannot establish completion. Overall closure requires completion evidence for all three steps. Every claim must separate observation, model interpretation and deterministic evaluation.\nThese are synthetic PoC definitions, not certified military doctrine.",
+   "hash": "75387d5c406e6b60a736a09198f4a2761dc7c04a102adfc9356fc930674e962b"
+  }
+ },
+ {
+  "documentKey": "logistics:LOG-01",
+  "namespace": "logistics",
+  "appliesTo": [
+   "atcis",
+   "knccs",
+   "logistics"
+  ],
+  "reviewRevision": "review-1",
+  "document": {
+   "documentId": "LOG-01",
+   "version": "1.0",
+   "issuer": "합성 군수 체계 설계",
+   "section": "자산 연결·부품·시간 판정",
+   "knownAt": "2026-10-20T08:00:00Z",
+   "text": "합성 규칙 LOG-LINK-01: assets.externalSystem/externalId는 등록 근거 registrationId와 validFrom 이상 validTo 미만 기간에만 같은 자산을 연결한다. 명칭/좌표 유사성으로 연결하지 않는다. work-orders.assetId는 정비 대상, requirements는 필요 부품과 EA 수량이다. applicableAssets에 포함된 부품만 적용한다. inventory onHand 중 reservations가 특정 workOrderId에 예약한 양은 다른 작업이 사용할 수 없다. reserved 합계는 예약 상세와 대조하며 불일치는 정보 부족이다. 공급 요청의 cargoId는 cargo.transportId를 통해 KNCCS transports.transportId에 연결한다. 입항 arrivalAt와 인도 deliveryAt는 다르며 인도 이후 laborHours를 더한 시간이 컷오프 이하여야 복구 시간 조건을 충족한다. 재고는 작업 ID 순으로 중복 사용하지 않고 배분 근거를 남긴다. 다른 미해결 고장 없음이 확인되어야 복구 조건 충족이며 조건/수량/시점 누락은 정보 부족이다. 입항/인도/정비 DONE이 ATCIS 운용 상태를 자동 변경하지 않는다. 지연 분석은 가정일 뿐 원천 수정이 아니다.",
+   "hash": "0bcb3a34976121b7f96d3292b5842923df03d0629c35e4d13385e98bac31304e"
+  }
+ },
+ {
+  "documentKey": "fabric:DISPLAY-01",
+  "namespace": "fabric",
+  "appliesTo": [
+   "atcis",
+   "knccs",
+   "logistics"
+  ],
+  "reviewRevision": "review-display-2",
+  "document": {
+   "documentId": "DISPLAY-01",
+   "version": "1.1",
+   "issuer": "합성 의미 메타데이터 검토 목록",
+   "section": "표시 명칭·단위·원천 코드 의미",
+   "knownAt": "2026-10-20T08:00:00Z",
+   "text": "{\n  \"schemaVersion\": \"display-1\",\n  \"locale\": \"ko-KR\",\n  \"reviewRevision\": \"review-display-2\",\n  \"purpose\": \"표시와 문서 설명. 실제 상태 판정/동일성은 별도 검증된 규칙과 원천 근거를 사용한다. 미정의 값은 미확인이다. aliases는 동일성 근거가 아니다.\",\n  \"fields\": [\n    {\n      \"systemId\": \"atcis\",\n      \"recordType\": \"equipment\",\n      \"field\": \"classCode\",\n      \"displayName\": \"장비 종류\",\n      \"description\": \"장비 종류\",\n      \"aliases\": [\n        \"유형\",\n        \"장비 분류\"\n      ],\n      \"values\": {\n        \"TK\": \"전차\",\n        \"AAV\": \"장갑차\",\n        \"LOG\": \"지원 차량\",\n        \"UAS\": \"무인기\"\n      },\n      \"unit\": null,\n      \"quantityKind\": null,\n      \"ruleId\": null,\n      \"namespace\": \"atcis\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"atcis\",\n      \"recordType\": \"equipment\",\n      \"field\": \"maintenanceCode\",\n      \"displayName\": \"정비 상태\",\n      \"description\": \"정비 상태\",\n      \"aliases\": [],\n      \"values\": {\n        \"FMC\": \"가용\",\n        \"PMC\": \"운용 제한\",\n        \"NMC\": \"운용 불가\",\n        \"UNK\": \"미확인\"\n      },\n      \"unit\": null,\n      \"quantityKind\": null,\n      \"ruleId\": null,\n      \"namespace\": \"atcis\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"atcis\",\n      \"recordType\": \"equipment\",\n      \"field\": \"limitation\",\n      \"displayName\": \"운용 제한 사항\",\n      \"description\": \"운용 제한 사항\",\n      \"aliases\": [],\n      \"values\": {},\n      \"unit\": null,\n      \"quantityKind\": null,\n      \"ruleId\": null,\n      \"namespace\": \"atcis\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"atcis\",\n      \"recordType\": \"equipment\",\n      \"field\": \"ownerCode\",\n      \"displayName\": \"소속 부대\",\n      \"description\": \"소속 부대\",\n      \"aliases\": [],\n      \"values\": {},\n      \"unit\": null,\n      \"quantityKind\": null,\n      \"ruleId\": null,\n      \"namespace\": \"atcis\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"atcis\",\n      \"recordType\": \"equipment\",\n      \"field\": \"role\",\n      \"displayName\": \"배정 관계\",\n      \"description\": \"배정 관계\",\n      \"aliases\": [],\n      \"values\": {\n        \"ORG\": \"편제\",\n        \"ATT\": \"배속\",\n        \"SUP\": \"지원\",\n        \"CTRL\": \"통제\"\n      },\n      \"unit\": null,\n      \"quantityKind\": null,\n      \"ruleId\": null,\n      \"namespace\": \"atcis\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"knccs\",\n      \"recordType\": \"own-forces\",\n      \"field\": \"engineering\",\n      \"displayName\": \"기관 상태\",\n      \"description\": \"기관 상태\",\n      \"aliases\": [],\n      \"values\": {\n        \"UP\": \"기관 정상\",\n        \"DOWN\": \"기관 고장\",\n        \"UNKNOWN\": \"미확인\"\n      },\n      \"unit\": null,\n      \"quantityKind\": null,\n      \"ruleId\": null,\n      \"namespace\": \"knccs\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"knccs\",\n      \"recordType\": \"own-forces\",\n      \"field\": \"mission\",\n      \"displayName\": \"임무 상태\",\n      \"description\": \"임무 상태\",\n      \"aliases\": [],\n      \"values\": {\n        \"GO\": \"임무 가능\",\n        \"HOLD\": \"임무 보류\",\n        \"UNKNOWN\": \"미확인\"\n      },\n      \"unit\": null,\n      \"quantityKind\": null,\n      \"ruleId\": null,\n      \"namespace\": \"knccs\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"knccs\",\n      \"recordType\": \"contacts\",\n      \"field\": \"domain\",\n      \"displayName\": \"관측 영역\",\n      \"description\": \"관측 영역\",\n      \"aliases\": [],\n      \"values\": {\n        \"SURFACE\": \"수상 영역\",\n        \"AIR\": \"공중 영역\",\n        \"UNKNOWN\": \"미확인\"\n      },\n      \"unit\": null,\n      \"quantityKind\": null,\n      \"ruleId\": null,\n      \"namespace\": \"knccs\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"logistics\",\n      \"recordType\": \"work-orders\",\n      \"field\": \"status\",\n      \"displayName\": \"정비 진행\",\n      \"description\": \"정비 진행\",\n      \"aliases\": [],\n      \"values\": {\n        \"WAIT_PART\": \"부품 대기\",\n        \"IN_PROGRESS\": \"정비 중\",\n        \"DONE\": \"정비 완료\",\n        \"UNKNOWN\": \"미확인\"\n      },\n      \"unit\": null,\n      \"quantityKind\": null,\n      \"ruleId\": null,\n      \"namespace\": \"logistics\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"logistics\",\n      \"recordType\": \"work-orders\",\n      \"field\": \"laborHours\",\n      \"displayName\": \"정비 소요 시간\",\n      \"description\": \"인도 이후 필요한 경과 시간이다. 인시가 아니며 인원수로 나누지 않는다.\",\n      \"aliases\": [\n        \"경과 시간\",\n        \"작업 소요 시간\"\n      ],\n      \"values\": {},\n      \"unit\": \"h\",\n      \"quantityKind\": \"elapsed_time\",\n      \"ruleId\": null,\n      \"namespace\": \"logistics\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"logistics\",\n      \"recordType\": \"work-orders\",\n      \"field\": \"otherFaults\",\n      \"displayName\": \"다른 미해결 고장\",\n      \"description\": \"다른 미해결 고장\",\n      \"aliases\": [],\n      \"values\": {\n        \"true\": \"추가 고장 있음\",\n        \"false\": \"추가 고장 없음\"\n      },\n      \"unit\": null,\n      \"quantityKind\": null,\n      \"ruleId\": null,\n      \"namespace\": \"logistics\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"logistics\",\n      \"recordType\": \"inventory\",\n      \"field\": \"onHand\",\n      \"displayName\": \"보유 수량\",\n      \"description\": \"보유 수량\",\n      \"aliases\": [],\n      \"values\": {},\n      \"unit\": \"EA\",\n      \"quantityKind\": \"count\",\n      \"ruleId\": null,\n      \"namespace\": \"logistics\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"logistics\",\n      \"recordType\": \"inventory\",\n      \"field\": \"reserved\",\n      \"displayName\": \"예약 수량\",\n      \"description\": \"예약 수량\",\n      \"aliases\": [],\n      \"values\": {},\n      \"unit\": \"EA\",\n      \"quantityKind\": \"count\",\n      \"ruleId\": null,\n      \"namespace\": \"logistics\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"logistics\",\n      \"recordType\": \"cargo\",\n      \"field\": \"status\",\n      \"displayName\": \"화물 상태\",\n      \"description\": \"화물 상태\",\n      \"aliases\": [],\n      \"values\": {\n        \"IN_TRANSIT\": \"수송 중\",\n        \"DELIVERED\": \"인도 완료\",\n        \"UNKNOWN\": \"미확인\"\n      },\n      \"unit\": null,\n      \"quantityKind\": null,\n      \"ruleId\": null,\n      \"namespace\": \"logistics\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"knccs\",\n      \"recordType\": \"transports\",\n      \"field\": \"status\",\n      \"displayName\": \"수송 진행\",\n      \"description\": \"수송 진행\",\n      \"aliases\": [],\n      \"values\": {\n        \"EN_ROUTE\": \"항해 중\",\n        \"ARRIVED\": \"입항\",\n        \"DELIVERED\": \"인도 완료\",\n        \"UNKNOWN\": \"미확인\"\n      },\n      \"unit\": null,\n      \"quantityKind\": null,\n      \"ruleId\": null,\n      \"namespace\": \"knccs\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"knccs\",\n      \"recordType\": \"transports\",\n      \"field\": \"arrivalAt\",\n      \"displayName\": \"입항 예정 시각\",\n      \"description\": \"입항 예정 시각\",\n      \"aliases\": [],\n      \"values\": {},\n      \"unit\": \"UTC\",\n      \"quantityKind\": \"timestamp\",\n      \"ruleId\": null,\n      \"namespace\": \"knccs\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    },\n    {\n      \"systemId\": \"knccs\",\n      \"recordType\": \"transports\",\n      \"field\": \"deliveryAt\",\n      \"displayName\": \"인도 예정 시각\",\n      \"description\": \"인도 예정 시각\",\n      \"aliases\": [],\n      \"values\": {},\n      \"unit\": \"UTC\",\n      \"quantityKind\": \"timestamp\",\n      \"ruleId\": null,\n      \"namespace\": \"knccs\",\n      \"sourceSchemaVersion\": \"5.0.0\",\n      \"validFrom\": \"2026-10-20T00:00:00Z\",\n      \"validTo\": null\n    }\n  ]\n}",
+   "hash": "e53367a9993c81a79db8ad2354155860d36e8b6ef2f1807412fdd5a0b2ba3179"
+  }
+ },
+ {
+  "documentKey": "fabric:ONTOLOGY-01",
+  "namespace": "fabric",
+  "appliesTo": [
+   "atcis",
+   "knccs",
+   "logistics"
+  ],
+  "reviewRevision": "ontology-r1",
+  "document": {
+   "documentId": "ONTOLOGY-01",
+   "version": "6.0.0-r1",
+   "issuer": "Fabric 온톨로지 검토",
+   "section": "ontology",
+   "knownAt": "2026-10-20T08:00:00Z",
+   "effectiveFrom": "2026-10-20T00:00:00Z",
+   "text": "합성 C2·군수 경량 온톨로지 — 선언 6.0.0-r1 (ontologyId battlefield-c2-ontology).\n이 문서는 Fabric이 검토·발행한 온톨로지 선언을 그대로 풀어 쓴 것이며, 구조화 지식 조건이 실행하는 정의와 같다.\n기본 가용 집계 기준: P1 (가용(FMC)만). 질문이 기준을 명시하지 않으면 이 기준으로 '가용' 수를 답하고, 원래 상태 분류(available/limited/unavailable/unknown)는 바꾸지 않는다.\n\n[개념]\n- Unit(부대): 원천 atcis:units, knccs:formations, 동일성 규칙 UNIT-IDENTITY-01\n- Equipment(등록 장비/함정): 원천 atcis:equipment, knccs:own-forces, 동일성 규칙 ENTITY-LINK-01\n- ContactObservation(접촉 관측): 원천 knccs:contacts, 동일성 규칙 ENTITY-LINK-01\n- LogisticsAsset(군수 자산): 원천 logistics:assets, 동일성 규칙 LOG-LINK-01\n- WorkOrder(정비 작업): 원천 logistics:work-orders\n- Part(부품): 원천 logistics:parts\n- Inventory(창고 재고): 원천 logistics:inventory\n- Reservation(재고 예약): 원천 logistics:reservations\n- SupplyRequest(보급 요청): 원천 logistics:supply-requests\n- Cargo(화물): 원천 logistics:cargo\n- Transport(해상 수송): 원천 knccs:transports\n- Report(보고/전문): 원천 atcis:reports, knccs:messages\n- Activity(사고 처리 활동): 원천 atcis:activities\n\n[관계 유형]\n- SUBORDINATE_TO: Unit → Unit (예하), 규칙 ORG-ROLE-01\n- ASSIGNED_TO: Equipment → Unit (배정(역할 포함)), 규칙 FORCE-SCOPE-01\n- REFERS_TO: ContactObservation → Equipment (명시적 동일성/참조), 규칙 ENTITY-LINK-01\n- SAME_AS: LogisticsAsset → Equipment (군수 자산 등록 동일성), 규칙 LOG-LINK-01\n- MAINTAINS: WorkOrder → LogisticsAsset (정비 대상), 규칙 LOG-LINK-01\n- REQUIRES: WorkOrder → Part (필요 부품), 규칙 LOG-LINK-01\n- STOCK_OF: Inventory → Part (재고 품목), 규칙 LOG-LINK-01\n- RESERVES: Reservation → Inventory (재고 예약), 규칙 LOG-LINK-01\n- FOR_WORK: Reservation|SupplyRequest → WorkOrder (작업 전용), 규칙 LOG-LINK-01\n- FULFILLED_BY: SupplyRequest → Cargo (보급 화물), 규칙 LOG-LINK-01\n- CARRIED_BY: Cargo → Transport (수송 수단), 규칙 LOG-LINK-01\n- CONTAINS_PART: Cargo → Part (화물 품목), 규칙 LOG-LINK-01\n- DERIVED_FROM: Report → Report (전달/재전송), 규칙 REPORT-LINEAGE-01\n- SUPERSEDES: Report → Report (정정), 규칙 REPORT-REVISION-01\n\n[규칙]\n- ASSET-TYPE-01 지상 장비 유형 매핑 (출처 atcis:EX-01): {\"typeField\": \"classCode\", \"values\": {\"AAV\": \"armored_vehicle\", \"LOG\": \"support_vehicle\", \"TK\": \"tank\", \"UAS\": \"uav\"}}\n- ASSET-TYPE-NAVAL-01 해상 함정 유형 매핑 (출처 knccs:EX-01): {\"typeField\": \"hullClass\", \"values\": {\"FF\": \"naval_vessel\", \"LP\": \"naval_vessel\"}}\n- AVAIL-LAND-01 지상 장비 가용 상태 판정 (출처 atcis:EX-01): {\"cases\": [{\"field\": \"maintenanceCode\", \"op\": \"EQ\", \"result\": \"available\", \"value\": \"FMC\"}, {\"field\": \"maintenanceCode\", \"op\": \"EQ\", \"result\": \"limited\", \"value\": \"PMC\"}, {\"field\": \"maintenanceCode\", \"op\": \"EQ\", \"result\": \"unavailable\", \"value\": \"NMC\"}], \"default\": \"unknown\"}\n- AVAIL-NAVAL-01 해상 함정 가용 상태 판정 (출처 knccs:EX-01): {\"cases\": [{\"args\": [{\"field\": \"engineering\", \"op\": \"EQ\", \"value\": \"DOWN\"}, {\"field\": \"mission\", \"op\": \"EQ\", \"value\": \"HOLD\"}], \"op\": \"OR\", \"result\": \"unavailable\"}, {\"args\": [{\"field\": \"engineering\", \"op\": \"EQ\", \"value\": \"UP\"}, {\"field\": \"mission\", \"op\": \"EQ\", \"value\": \"GO\"}], \"op\": \"AND\", \"result\": \"available\"}], \"default\": \"unknown\"}\n- FORCE-SCOPE-01 부대 범위와 배정 역할 (출처 atcis:EX-01; 의존 ORG-ROLE-01): {\"excludedRoles\": [\"CTRL\", \"RECEIVER\"], \"includedRoles\": [\"ORG\", \"ATT\", \"SUP\", \"ASSIGNED\", \"SUPPORT\"], \"maxDepth\": 8, \"supportRoles\": [\"SUP\", \"SUPPORT\"]}\n- AGGREGATION-POLICY-01 가용 전력 집계 정책 (출처 atcis:EX-01; 의존 AVAIL-LAND-01, AVAIL-NAVAL-01, FORCE-SCOPE-01): {\"P1\": [\"available\"], \"P2\": [\"available\", \"limited\"], \"deduplication\": \"verified_canonical_reference\", \"defaultAvailablePolicy\": \"P1\", \"unit\": \"unique_registered_asset\"}\n- ENTITY-LINK-01 접촉-장비 명시적 동일성 (출처 knccs:EX-01): {\"method\": \"explicit_exercise_association\", \"requiredFields\": [\"originator\", \"trackNo\", \"refSystem\", \"refEquipment\", \"documentId\"]}\n- UNIT-IDENTITY-01 부대 동일성(개명 포함) (출처 atcis:ORG-01): {\"method\": \"same_native_unit_code\", \"nameChangeIsNewUnit\": false}\n- ORG-ROLE-01 편성 관계 구분 (출처 atcis:ORG-01): {\"separateRelations\": [\"ORG\", \"ATT\", \"SUP\", \"CTRL\", \"RECEIVER\"]}\n- REPORT-LINEAGE-01 보고 계보(전달·재전송) (출처 atcis:SOP-01): {\"ackIsCompletion\": false, \"relayIsIndependentObservation\": false}\n- REPORT-REVISION-01 보고 정정 (출처 atcis:SOP-01; 의존 REPORT-LINEAGE-01): {\"method\": \"explicit_supersedes\", \"timeField\": \"knownAt\"}\n- ACTIVITY-STEP-01 사고 처리 절차 단계 (출처 atcis:SOP-01): {\"closure\": \"all_steps_have_completion_evidence\", \"condition\": {\"args\": [{\"field\": \"state\", \"op\": \"EQ\", \"value\": \"DONE\"}, {\"field\": \"evidenceReport\", \"op\": \"EXISTS\"}], \"op\": \"AND\"}, \"steps\": [\"SITE_CHECK\", \"IDENTIFICATION\", \"REVIEW\"]}\n- LOG-LINK-01 군수 자산 동일성과 정비·부품·수송 연결 (출처 logistics:LOG-01): {\"identity\": \"assets.externalSystem/externalId within registration validFrom..validTo\", \"incomingRequiresDelivery\": true, \"reservationIsWorkOrderSpecific\": true}\n\n[용어]\n- 가용: AVAIL-LAND-01, AVAIL-NAVAL-01, AGGREGATION-POLICY-01\n- 가용성: AVAIL-LAND-01, AVAIL-NAVAL-01, AGGREGATION-POLICY-01\n- availability: AVAIL-LAND-01, AVAIL-NAVAL-01, AGGREGATION-POLICY-01\n- available: AVAIL-LAND-01, AVAIL-NAVAL-01, AGGREGATION-POLICY-01\n- 전차: ASSET-TYPE-01\n- tank: ASSET-TYPE-01\n- 탱크: ASSET-TYPE-01\n- 함정: ASSET-TYPE-NAVAL-01\n- 무인기: ASSET-TYPE-01\n- 조직: UNIT-IDENTITY-01, ORG-ROLE-01\n- 보고: REPORT-LINEAGE-01, REPORT-REVISION-01\n- 절차: ACTIVITY-STEP-01\n- 전력: FORCE-SCOPE-01, AGGREGATION-POLICY-01\n- 통합: ENTITY-LINK-01, UNIT-IDENTITY-01\n- 정비: LOG-LINK-01\n- 부품: LOG-LINK-01\n- 수송: LOG-LINK-01\n\n[업무 질의 정의]\n- asset-availability-summary 부대 범위 자산 가용 현황(unit, kind?): 부대(예하 포함) 범위의 고유 등록 자산을 유형·가용 상태별로 집계하고, 기본 가용 집계 기준(AGGREGATION-POLICY-01.defaultAvailablePolicy)으로 가용 수를 산출한다. 공동지원 자산은 검증된 동일성으로 한 번만 센다. 상태 미상은 0이나 가용으로 바꾸지 않는다. 규칙 FORCE-SCOPE-01, ORG-ROLE-01, ASSET-TYPE-01, ASSET-TYPE-NAVAL-01, AVAIL-LAND-01, AVAIL-NAVAL-01, AGGREGATION-POLICY-01; 관계 SUBORDINATE_TO, ASSIGNED_TO\n- asset-maintenance-chain 자산 정비·부품·수송 의존 체인(systemId, nativeId): 장비/함정/군수 자산 하나에서 등록 동일성(SAME_AS)→정비 작업→필요 부품→재고·예약→보급 요청→화물→수송까지 검증된 연결과 고정 시점 원천 기록을 함께 반환한다. 예약은 해당 작업 전용이며 도착 예정만으로 복구 완료를 확정하지 않는다. 규칙 LOG-LINK-01; 관계 SAME_AS, MAINTAINS, REQUIRES, STOCK_OF, RESERVES, FOR_WORK, FULFILLED_BY, CARRIED_BY\n- part-supply-status 부품 수급 구분(partId): 부품 하나의 창고별 보유·예약·비예약 수량, 작업별 예약 귀속, 입고 의존(보급 요청·화물·수송)을 구분해 반환한다. 다른 작업의 예약을 중복 배정하지 않는다. 규칙 LOG-LINK-01; 관계 STOCK_OF, RESERVES, FOR_WORK, REQUIRES, FULFILLED_BY, CONTAINS_PART, CARRIED_BY",
+   "declaration": {
+    "ontologyId": "battlefield-c2-ontology",
+    "version": "6.0.0",
+    "revision": 1,
+    "title": "합성 C2·군수 경량 온톨로지",
+    "effectiveFrom": "2026-10-20T00:00:00Z",
+    "knownAt": "2026-10-20T08:00:00Z",
+    "concepts": [
+     {
+      "id": "Unit",
+      "label": "부대",
+      "sources": [
+       "atcis:units",
+       "knccs:formations"
+      ],
+      "identity": "UNIT-IDENTITY-01"
+     },
+     {
+      "id": "Equipment",
+      "label": "등록 장비/함정",
+      "sources": [
+       "atcis:equipment",
+       "knccs:own-forces"
+      ],
+      "identity": "ENTITY-LINK-01"
+     },
+     {
+      "id": "ContactObservation",
+      "label": "접촉 관측",
+      "sources": [
+       "knccs:contacts"
+      ],
+      "identity": "ENTITY-LINK-01"
+     },
+     {
+      "id": "LogisticsAsset",
+      "label": "군수 자산",
+      "sources": [
+       "logistics:assets"
+      ],
+      "identity": "LOG-LINK-01"
+     },
+     {
+      "id": "WorkOrder",
+      "label": "정비 작업",
+      "sources": [
+       "logistics:work-orders"
+      ]
+     },
+     {
+      "id": "Part",
+      "label": "부품",
+      "sources": [
+       "logistics:parts"
+      ]
+     },
+     {
+      "id": "Inventory",
+      "label": "창고 재고",
+      "sources": [
+       "logistics:inventory"
+      ]
+     },
+     {
+      "id": "Reservation",
+      "label": "재고 예약",
+      "sources": [
+       "logistics:reservations"
+      ]
+     },
+     {
+      "id": "SupplyRequest",
+      "label": "보급 요청",
+      "sources": [
+       "logistics:supply-requests"
+      ]
+     },
+     {
+      "id": "Cargo",
+      "label": "화물",
+      "sources": [
+       "logistics:cargo"
+      ]
+     },
+     {
+      "id": "Transport",
+      "label": "해상 수송",
+      "sources": [
+       "knccs:transports"
+      ]
+     },
+     {
+      "id": "Report",
+      "label": "보고/전문",
+      "sources": [
+       "atcis:reports",
+       "knccs:messages"
+      ]
+     },
+     {
+      "id": "Activity",
+      "label": "사고 처리 활동",
+      "sources": [
+       "atcis:activities"
+      ]
+     }
+    ],
+    "relationTypes": [
+     {
+      "id": "SUBORDINATE_TO",
+      "from": "Unit",
+      "to": "Unit",
+      "label": "예하",
+      "rule": "ORG-ROLE-01"
+     },
+     {
+      "id": "ASSIGNED_TO",
+      "from": "Equipment",
+      "to": "Unit",
+      "label": "배정(역할 포함)",
+      "rule": "FORCE-SCOPE-01"
+     },
+     {
+      "id": "REFERS_TO",
+      "from": "ContactObservation",
+      "to": "Equipment",
+      "label": "명시적 동일성/참조",
+      "rule": "ENTITY-LINK-01"
+     },
+     {
+      "id": "SAME_AS",
+      "from": "LogisticsAsset",
+      "to": "Equipment",
+      "label": "군수 자산 등록 동일성",
+      "rule": "LOG-LINK-01"
+     },
+     {
+      "id": "MAINTAINS",
+      "from": "WorkOrder",
+      "to": "LogisticsAsset",
+      "label": "정비 대상",
+      "rule": "LOG-LINK-01"
+     },
+     {
+      "id": "REQUIRES",
+      "from": "WorkOrder",
+      "to": "Part",
+      "label": "필요 부품",
+      "rule": "LOG-LINK-01"
+     },
+     {
+      "id": "STOCK_OF",
+      "from": "Inventory",
+      "to": "Part",
+      "label": "재고 품목",
+      "rule": "LOG-LINK-01"
+     },
+     {
+      "id": "RESERVES",
+      "from": "Reservation",
+      "to": "Inventory",
+      "label": "재고 예약",
+      "rule": "LOG-LINK-01"
+     },
+     {
+      "id": "FOR_WORK",
+      "from": "Reservation|SupplyRequest",
+      "to": "WorkOrder",
+      "label": "작업 전용",
+      "rule": "LOG-LINK-01"
+     },
+     {
+      "id": "FULFILLED_BY",
+      "from": "SupplyRequest",
+      "to": "Cargo",
+      "label": "보급 화물",
+      "rule": "LOG-LINK-01"
+     },
+     {
+      "id": "CARRIED_BY",
+      "from": "Cargo",
+      "to": "Transport",
+      "label": "수송 수단",
+      "rule": "LOG-LINK-01"
+     },
+     {
+      "id": "CONTAINS_PART",
+      "from": "Cargo",
+      "to": "Part",
+      "label": "화물 품목",
+      "rule": "LOG-LINK-01"
+     },
+     {
+      "id": "DERIVED_FROM",
+      "from": "Report",
+      "to": "Report",
+      "label": "전달/재전송",
+      "rule": "REPORT-LINEAGE-01"
+     },
+     {
+      "id": "SUPERSEDES",
+      "from": "Report",
+      "to": "Report",
+      "label": "정정",
+      "rule": "REPORT-REVISION-01"
+     }
+    ],
+    "rules": [
+     {
+      "ruleId": "ASSET-TYPE-01",
+      "systemId": "atcis",
+      "section": "mapping",
+      "definition": {
+       "typeField": "classCode",
+       "values": {
+        "TK": "tank",
+        "AAV": "armored_vehicle",
+        "LOG": "support_vehicle",
+        "UAS": "uav"
+       }
+      },
+      "documentKey": "atcis:EX-01",
+      "title": "지상 장비 유형 매핑",
+      "dependsOn": []
+     },
+     {
+      "ruleId": "ASSET-TYPE-NAVAL-01",
+      "systemId": "knccs",
+      "section": "mapping",
+      "definition": {
+       "typeField": "hullClass",
+       "values": {
+        "FF": "naval_vessel",
+        "LP": "naval_vessel"
+       }
+      },
+      "documentKey": "knccs:EX-01",
+      "title": "해상 함정 유형 매핑",
+      "dependsOn": []
+     },
+     {
+      "ruleId": "AVAIL-LAND-01",
+      "systemId": "atcis",
+      "section": "mapping",
+      "definition": {
+       "cases": [
+        {
+         "field": "maintenanceCode",
+         "op": "EQ",
+         "value": "FMC",
+         "result": "available"
+        },
+        {
+         "field": "maintenanceCode",
+         "op": "EQ",
+         "value": "PMC",
+         "result": "limited"
+        },
+        {
+         "field": "maintenanceCode",
+         "op": "EQ",
+         "value": "NMC",
+         "result": "unavailable"
+        }
+       ],
+       "default": "unknown"
+      },
+      "documentKey": "atcis:EX-01",
+      "title": "지상 장비 가용 상태 판정",
+      "dependsOn": []
+     },
+     {
+      "ruleId": "AVAIL-NAVAL-01",
+      "systemId": "knccs",
+      "section": "mapping",
+      "definition": {
+       "cases": [
+        {
+         "op": "OR",
+         "args": [
+          {
+           "field": "engineering",
+           "op": "EQ",
+           "value": "DOWN"
+          },
+          {
+           "field": "mission",
+           "op": "EQ",
+           "value": "HOLD"
+          }
+         ],
+         "result": "unavailable"
+        },
+        {
+         "op": "AND",
+         "args": [
+          {
+           "field": "engineering",
+           "op": "EQ",
+           "value": "UP"
+          },
+          {
+           "field": "mission",
+           "op": "EQ",
+           "value": "GO"
+          }
+         ],
+         "result": "available"
+        }
+       ],
+       "default": "unknown"
+      },
+      "documentKey": "knccs:EX-01",
+      "title": "해상 함정 가용 상태 판정",
+      "dependsOn": []
+     },
+     {
+      "ruleId": "FORCE-SCOPE-01",
+      "systemId": "atcis",
+      "section": "mapping",
+      "definition": {
+       "includedRoles": [
+        "ORG",
+        "ATT",
+        "SUP",
+        "ASSIGNED",
+        "SUPPORT"
+       ],
+       "supportRoles": [
+        "SUP",
+        "SUPPORT"
+       ],
+       "excludedRoles": [
+        "CTRL",
+        "RECEIVER"
+       ],
+       "maxDepth": 8
+      },
+      "documentKey": "atcis:EX-01",
+      "title": "부대 범위와 배정 역할",
+      "dependsOn": [
+       "ORG-ROLE-01"
+      ]
+     },
+     {
+      "ruleId": "AGGREGATION-POLICY-01",
+      "systemId": "atcis",
+      "section": "mapping",
+      "definition": {
+       "P1": [
+        "available"
+       ],
+       "P2": [
+        "available",
+        "limited"
+       ],
+       "unit": "unique_registered_asset",
+       "deduplication": "verified_canonical_reference",
+       "defaultAvailablePolicy": "P1"
+      },
+      "documentKey": "atcis:EX-01",
+      "title": "가용 전력 집계 정책",
+      "dependsOn": [
+       "AVAIL-LAND-01",
+       "AVAIL-NAVAL-01",
+       "FORCE-SCOPE-01"
+      ]
+     },
+     {
+      "ruleId": "ENTITY-LINK-01",
+      "systemId": "knccs",
+      "section": "mapping",
+      "definition": {
+       "requiredFields": [
+        "originator",
+        "trackNo",
+        "refSystem",
+        "refEquipment",
+        "documentId"
+       ],
+       "method": "explicit_exercise_association"
+      },
+      "documentKey": "knccs:EX-01",
+      "title": "접촉-장비 명시적 동일성",
+      "dependsOn": []
+     },
+     {
+      "ruleId": "UNIT-IDENTITY-01",
+      "systemId": "atcis",
+      "section": "organization",
+      "definition": {
+       "method": "same_native_unit_code",
+       "nameChangeIsNewUnit": false
+      },
+      "documentKey": "atcis:ORG-01",
+      "title": "부대 동일성(개명 포함)",
+      "dependsOn": []
+     },
+     {
+      "ruleId": "ORG-ROLE-01",
+      "systemId": "atcis",
+      "section": "organization",
+      "definition": {
+       "separateRelations": [
+        "ORG",
+        "ATT",
+        "SUP",
+        "CTRL",
+        "RECEIVER"
+       ]
+      },
+      "documentKey": "atcis:ORG-01",
+      "title": "편성 관계 구분",
+      "dependsOn": []
+     },
+     {
+      "ruleId": "REPORT-LINEAGE-01",
+      "systemId": "atcis",
+      "section": "incident",
+      "definition": {
+       "relayIsIndependentObservation": false,
+       "ackIsCompletion": false
+      },
+      "documentKey": "atcis:SOP-01",
+      "title": "보고 계보(전달·재전송)",
+      "dependsOn": []
+     },
+     {
+      "ruleId": "REPORT-REVISION-01",
+      "systemId": "atcis",
+      "section": "incident",
+      "definition": {
+       "method": "explicit_supersedes",
+       "timeField": "knownAt"
+      },
+      "documentKey": "atcis:SOP-01",
+      "title": "보고 정정",
+      "dependsOn": [
+       "REPORT-LINEAGE-01"
+      ]
+     },
+     {
+      "ruleId": "ACTIVITY-STEP-01",
+      "systemId": "atcis",
+      "section": "incident",
+      "definition": {
+       "steps": [
+        "SITE_CHECK",
+        "IDENTIFICATION",
+        "REVIEW"
+       ],
+       "condition": {
+        "op": "AND",
+        "args": [
+         {
+          "field": "state",
+          "op": "EQ",
+          "value": "DONE"
+         },
+         {
+          "field": "evidenceReport",
+          "op": "EXISTS"
+         }
+        ]
+       },
+       "closure": "all_steps_have_completion_evidence"
+      },
+      "documentKey": "atcis:SOP-01",
+      "title": "사고 처리 절차 단계",
+      "dependsOn": []
+     },
+     {
+      "ruleId": "LOG-LINK-01",
+      "systemId": "logistics",
+      "documentKey": "logistics:LOG-01",
+      "title": "군수 자산 동일성과 정비·부품·수송 연결",
+      "definition": {
+       "identity": "assets.externalSystem/externalId within registration validFrom..validTo",
+       "reservationIsWorkOrderSpecific": true,
+       "incomingRequiresDelivery": true
+      },
+      "dependsOn": []
+     }
+    ],
+    "terms": {
+     "가용": [
+      "AVAIL-LAND-01",
+      "AVAIL-NAVAL-01",
+      "AGGREGATION-POLICY-01"
+     ],
+     "가용성": [
+      "AVAIL-LAND-01",
+      "AVAIL-NAVAL-01",
+      "AGGREGATION-POLICY-01"
+     ],
+     "availability": [
+      "AVAIL-LAND-01",
+      "AVAIL-NAVAL-01",
+      "AGGREGATION-POLICY-01"
+     ],
+     "available": [
+      "AVAIL-LAND-01",
+      "AVAIL-NAVAL-01",
+      "AGGREGATION-POLICY-01"
+     ],
+     "전차": [
+      "ASSET-TYPE-01"
+     ],
+     "tank": [
+      "ASSET-TYPE-01"
+     ],
+     "탱크": [
+      "ASSET-TYPE-01"
+     ],
+     "함정": [
+      "ASSET-TYPE-NAVAL-01"
+     ],
+     "무인기": [
+      "ASSET-TYPE-01"
+     ],
+     "조직": [
+      "UNIT-IDENTITY-01",
+      "ORG-ROLE-01"
+     ],
+     "보고": [
+      "REPORT-LINEAGE-01",
+      "REPORT-REVISION-01"
+     ],
+     "절차": [
+      "ACTIVITY-STEP-01"
+     ],
+     "전력": [
+      "FORCE-SCOPE-01",
+      "AGGREGATION-POLICY-01"
+     ],
+     "통합": [
+      "ENTITY-LINK-01",
+      "UNIT-IDENTITY-01"
+     ],
+     "정비": [
+      "LOG-LINK-01"
+     ],
+     "부품": [
+      "LOG-LINK-01"
+     ],
+     "수송": [
+      "LOG-LINK-01"
+     ]
+    },
+    "businessQueries": [
+     {
+      "queryId": "asset-availability-summary",
+      "operator": "asset_status_summary",
+      "title": "부대 범위 자산 가용 현황",
+      "description": "부대(예하 포함) 범위의 고유 등록 자산을 유형·가용 상태별로 집계하고, 기본 가용 집계 기준(AGGREGATION-POLICY-01.defaultAvailablePolicy)으로 가용 수를 산출한다. 공동지원 자산은 검증된 동일성으로 한 번만 센다. 상태 미상은 0이나 가용으로 바꾸지 않는다.",
+      "params": {
+       "unit": {
+        "type": "string",
+        "required": true,
+        "description": "부대 코드 또는 명칭(현 명칭/이전 명칭)"
+       },
+       "kind": {
+        "type": "string",
+        "required": false,
+        "description": "tank|armored_vehicle|support_vehicle|uav|naval_vessel"
+       }
+      },
+      "rules": [
+       "FORCE-SCOPE-01",
+       "ORG-ROLE-01",
+       "ASSET-TYPE-01",
+       "ASSET-TYPE-NAVAL-01",
+       "AVAIL-LAND-01",
+       "AVAIL-NAVAL-01",
+       "AGGREGATION-POLICY-01"
+      ],
+      "relations": [
+       "SUBORDINATE_TO",
+       "ASSIGNED_TO"
+      ],
+      "examples": [
+       {
+        "unit": "D1",
+        "kind": "tank"
+       },
+       {
+        "unit": "D1"
+       },
+       {
+        "unit": "F1"
+       }
+      ]
+     },
+     {
+      "queryId": "asset-maintenance-chain",
+      "operator": "asset_dependency_chain",
+      "title": "자산 정비·부품·수송 의존 체인",
+      "description": "장비/함정/군수 자산 하나에서 등록 동일성(SAME_AS)→정비 작업→필요 부품→재고·예약→보급 요청→화물→수송까지 검증된 연결과 고정 시점 원천 기록을 함께 반환한다. 예약은 해당 작업 전용이며 도착 예정만으로 복구 완료를 확정하지 않는다.",
+      "params": {
+       "systemId": {
+        "type": "string",
+        "required": true,
+        "description": "atcis|knccs|logistics"
+       },
+       "nativeId": {
+        "type": "string",
+        "required": true,
+        "description": "원천 식별자(예: L-T02, EQ-781)"
+       }
+      },
+      "rules": [
+       "LOG-LINK-01"
+      ],
+      "relations": [
+       "SAME_AS",
+       "MAINTAINS",
+       "REQUIRES",
+       "STOCK_OF",
+       "RESERVES",
+       "FOR_WORK",
+       "FULFILLED_BY",
+       "CARRIED_BY"
+      ],
+      "examples": [
+       {
+        "systemId": "atcis",
+        "nativeId": "L-T02"
+       }
+      ]
+     },
+     {
+      "queryId": "part-supply-status",
+      "operator": "part_supply_status",
+      "title": "부품 수급 구분",
+      "description": "부품 하나의 창고별 보유·예약·비예약 수량, 작업별 예약 귀속, 입고 의존(보급 요청·화물·수송)을 구분해 반환한다. 다른 작업의 예약을 중복 배정하지 않는다.",
+      "params": {
+       "partId": {
+        "type": "string",
+        "required": true,
+        "description": "부품 ID(예: P-08)"
+       }
+      },
+      "rules": [
+       "LOG-LINK-01"
+      ],
+      "relations": [
+       "STOCK_OF",
+       "RESERVES",
+       "FOR_WORK",
+       "REQUIRES",
+       "FULFILLED_BY",
+       "CONTAINS_PART",
+       "CARRIED_BY"
+      ],
+      "examples": [
+       {
+        "partId": "P-08"
+       }
+      ]
+     }
+    ],
+    "editable": [
+     {
+      "path": "rules.AGGREGATION-POLICY-01.definition.defaultAvailablePolicy",
+      "label": "기본 가용 집계 기준",
+      "type": "enum",
+      "options": {
+       "P1": "가용(FMC)만 가용으로 집계",
+       "P2": "가용+제한(PMC)을 가용으로 집계"
+      },
+      "description": "'가용 전력'을 물을 때 기본으로 적용하는 집계 기준. 원래 상태 분류(available/limited)는 바꾸지 않는다."
+     }
+    ],
+    "screens": [
+     {
+      "screenId": "object-detail",
+      "label": "객체 상세(C)",
+      "rules": [
+       "AVAIL-LAND-01",
+       "AVAIL-NAVAL-01",
+       "LOG-LINK-01"
+      ]
+     },
+     {
+      "screenId": "semantic-map",
+      "label": "의미 상황판",
+      "rules": [
+       "ENTITY-LINK-01",
+       "LOG-LINK-01"
+      ]
+     },
+     {
+      "screenId": "availability-answer",
+      "label": "C 가용 현황 답변",
+      "rules": [
+       "AGGREGATION-POLICY-01"
+      ]
+     }
+    ],
+    "sourceDocuments": [
+     "atcis:REF-01",
+     "atcis:ORG-01",
+     "atcis:EX-01",
+     "atcis:SOP-01",
+     "knccs:REF-01",
+     "knccs:ORG-01",
+     "knccs:EX-01",
+     "knccs:SOP-01",
+     "fabric:POLICY-01",
+     "logistics:LOG-01",
+     "fabric:DISPLAY-01"
+    ]
+   },
+   "hash": "9e8b5bd34bab2ae43294a084c8c84a8d59b55b8de214e3ff0cff23484e3367f8"
+  }
+ }
+]

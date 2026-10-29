@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-현재 기준: c2-logistics-demo-v5, source/ontology/adapter5.0.0, 비교 정책5-logistics-abc. v4(두 원천 A/B/C)·v3(문서 허용 OFF/ON)는 호환 이력으로 보존한다. 기술 설계의 단일 기준이다. 요구사항·데모는 [PRD](PRD.md), 화면은 [UI_GUIDE](UI_GUIDE.md), 실측·한계는 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md), 선택 이유는 [ADR](ADR.md)에 둔다.
+현재 기준: c2-logistics-demo-v5 원천 + v6 지식 계층(선언적 온톨로지·업무 질의, 비교 정책6-ontology-abc, `--ontology-profile 6` 기본), source/ontology/adapter5.0.0. v5 지식 계층(정책5-logistics-abc)은 `--ontology-profile 5`로 보존한다. v4(두 원천 A/B/C)·v3(문서 허용 OFF/ON)는 호환 이력으로 보존한다. 기술 설계의 단일 기준이다. 요구사항·데모는 [PRD](PRD.md), 화면은 [UI_GUIDE](UI_GUIDE.md), 실측·한계는 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md), 선택 이유는 [ADR](ADR.md)에 둔다.
 
 ## 1. 구성과 책임
 
@@ -238,6 +238,20 @@ platform_api/run_log.py가 UTF-8 var/logs/agent/<runId>.log에 준비→discover
 
 AGENT_LOG_ENABLED=false로 끄고 AGENT_LOG_DIR로 경로를 변경한다. 설정 후 플랫폼을 재시작한다. 비밀값/중첩 credential/JSON 문자열을 마스킹한 뒤 필드별8,000자에서 생략한다. private reasoning·SDK 전체 요청·전체 대화는 기록하지 않는다. 전체 근거는 DB/UI trace가 기준이다. append lock·thread offload·flush를 사용하고 취소 시 진행 중 쓰기를 정리한다. I/O 실패는 stderr Agent log failure 경고로 격리한다. 자동 retention·비용 환산은 없다.
 
+## v6 선언적 온톨로지·업무 질의 (정책6-ontology-abc)
+
+원천 3체계·schema5.0.0·dataset은 v5와 같고 지식 계층만 바뀐다. `C4I_CONTRACT_VERSION=5`와 `C4I_ONTOLOGY_PROFILE=6`일 때 동작하며 `scripts/dev.py`의 기본값이다. 플랫폼 DB는 `var/platform-v6.db`로 분리한다.
+
+**단일 원천.** `packages/ontology/.../ontology_v6.json`이 개념·관계 유형·규칙(기존12+LOG-LINK-01)과 명시적 의존·용어→시작 규칙·업무 질의 정의·편집 가능 항목·영향 화면을 선언한다. `declaration.py`가 검증(미정의 참조·의존 순환·중복 거부)·렌더링·편집·diff·영향 분석을 담당한다. 선언은 Fabric 문서 `fabric:ONTOLOGY-01`로 지식 집합에 들어간다. 이 문서의 `text`는 B가 읽는 렌더링 본문, `declaration`은 같은 내용의 구조화 원본이다. 지식 집합 version/hash 하나가 B 문서와 C Graph를 함께 고정한다. 기본 집합은 `scripts/render_ontology.py`가 v5 문서11개+ONTOLOGY-01로 생성한다(`knowledge_documents_v6.json`, archive `knowledge-52b73da405a6e1cd0a83f8bb`).
+
+**컴파일.** `build_domain`은 ONTOLOGY-01이 있으면 코드의 `domain_rules.json` 대신 선언 규칙으로 InterpretationRule을 만들고 각 규칙의 documentRefs에 ONTOLOGY-01을 더한다. OntologyDeclaration·BusinessQuery 노드와 BusinessQuery→규칙 `APPLIES_RULE` 간선을 추가한다. v6 `interpret_concept`는 Graph의 선언 노드에서 용어·의존을 읽는다. 렌더링 문서와 Graph의 규칙/업무 질의 ID 집합은 테스트로 일치를 검사한다.
+
+**업무 질의.** `semantic_core/business_queries.py`의 연산자 3개(`asset_status_summary`, `asset_dependency_chain`, `part_supply_status`)가 선언된 업무 질의(asset-availability-summary, asset-maintenance-chain, part-supply-status)를 실행한다. 범위·동일성·의존 연결은 Graph에서, 상태·수량·시각은 같은 Graph build에 고정된 원천 snapshot(`Fabric.capture(inputSnapshotSet)`)에서 읽는다. 규칙·정책 값은 질의 시점에 선언에서 읽으므로 정의 변경에 코드 수정이 필요 없다. 연산자 종류 자체는 코드다. 응답은 Graph 도장(graphVersion·inputStableHashes·ontology/mapping/resolution 버전), declarationVersion, appliedRules, graphEvidence, sourceRecords, unknowns/completeness를 싣는다. 복구 전망은 인도 예정+작업 경과 시간(laborHours)의 조건부 값이며 가정과 함께 반환하고 다른 고장 여부가 미확인이면 산출하지 않는다. Semantic API `GET /v1/business-queries`, `POST /v1/business-queries/{queryId}`와 Semantic MCP `list_business_queries`, `run_business_query`(선택 문자열 인자만, strict 변환 가능)로 노출하며 C만 사용한다. 업무 질의 근거를 인용한 주장은 구조화 ruleId로 규칙 근거가 검증되어 미확인 경고로 답변이 partial로 강등되지 않는다.
+
+**Fabric 정의 변경.** `semantic_core/ontology_store.py`와 Semantic API `/v1/ontology`, `/v1/ontology/drafts`, `/v1/ontology/drafts/{id}/approve`가 초안→검증→diff·영향 분석·업무 질의 전후 미리보기→작성자와 다른 승인자의 승인→발행을 제공한다. 편집은 선언의 `editable` 항목(현재 `AGGREGATION-POLICY-01.defaultAvailablePolicy` P1/P2)만 허용한다. 영향 분석은 선언된 의존·참조를 따른 결정론적 계산이다. 발행은 새 지식 집합 파일을 `FABRIC_KNOWLEDGE_STORE`(기본 `var/fabric-knowledge`)의 `sets/`에 쓰고 `current.json`을 바꾸며 `history.json`에 작성자·승인자·diff·영향을 남긴다. 기존 집합·Graph·완료 run은 수정하지 않는다. `KnowledgeCatalog(version)`은 패키지 archive 다음 store를 조회하므로 Fabric·Graph Builder·플랫폼이 같은 경로로 새 버전을 검증한다. 발행 직후 현재 snapshot의 새 Graph를 백그라운드로 미리 빌드한다. 진행 중인 대화는 기존 정책대로 시작 시 지식 버전을 유지하고 새 대화부터 새 버전을 쓴다. 승인은 데모 capability이며 운영 인증이 아니다. Agent에는 편집 도구가 없다.
+
+**Neo4j 역할.** 소규모 데모에서는 Semantic API가 버전 Graph 전체를 읽어 Python에서 순회하는 기존 방식을 유지한다. Neo4j는 현재 버전 고정 의미 저장소이며 규모 확장 시 Cypher 순회 전환을 재검토한다.
+
 ## 8. 설치와 실행
 
 Python3.12, uv, UI 빌드용 Node20.19+ 또는22.12+, Docker Desktop을 사용한다. .env.example을 참고해 로컬 .env에 OPENAI_API_KEY, OPENAI_MODEL, NEO4J_PASSWORD와 각 읽기/제어/MCP/내부 Builder 토큰을 설정한다. 키를 문서/UI/로그에 넣지 않는다. 기존 Neo4j volume 비밀번호를 유지한다.
@@ -305,6 +319,16 @@ uv run python scripts/evaluate_knowledge.py --dry-run --contract-version 5 --sce
 uv run python scripts/evaluate_knowledge.py --live --contract-version 5 --manifest artifacts/pilot-manifest.json --scenario L0 --scenario L2 --scenario L3 --max-runs 9 --max-model-responses 216 --output artifacts/pilot-results.json
 uv run python scripts/evaluation_metrics.py artifacts/pilot-results.json --export-review --output artifacts/pilot-review.json
 ```
+
+v6 평가는 `tests/fixtures/c2-ontology-demo-v6/expected.json`의 K1~K9(포함·조합·미포함·대조군·정의 변경 그룹, hold-out K5·K7)를 쓴다. 정의 변경 그룹은 Fabric 화면에서 발행한 지식 집합을 `--variant-knowledge-set`으로 지정해 같은 pins로 다시 실행하고 `variantGold`로 판정한다. 결과에는 run별 `autoGrade`(핵심 사실·금지 결론 정규식, 참고용)와 `summaryV6`(그룹×조건별 판정·금지 결론·반복 일관성·추적 완결성·업무 질의 선택 정확도·새 정의 준수율)를 저장하며 전체 평균 하나를 만들지 않는다.
+
+```powershell
+uv run python scripts/evaluate_knowledge.py --dry-run --contract-version 5 --ontology-profile 6 --max-runs 27 --output artifacts/v6-manifest.json
+# 유료: 승인 후. 정의 변경 그룹은 Fabric 발행 버전으로 추가 실행
+uv run python scripts/evaluate_knowledge.py --live --contract-version 5 --ontology-profile 6 --manifest artifacts/v6-manifest.json --variant-knowledge-set <발행된 knowledge-...> --repeat 3 --max-runs 99 --output artifacts/v6-results.json
+```
+
+UI 변경은 `cd frontend; npm run build` 후 `uv run python scripts/build_ui.py`로 반영한다. `build_ui.py`는 빌드 결과를 복사만 한다.
 
 `--repeat 3 --phase formal`은 별도 본 측정이며 pilot과 합산하지 않는다. 순서는 회전하고 대화는 격리한다. 최대 runs/모델 응답 예약 한도와 ABC 사이의 관측 token 중단 기준을 적용한다. 후자는 진행 중인 ABC의 하드 비용 상한이 아니다. SDK transport 재시도(max_retries=1)의 별도 과금/누락 usage까지 응답 수로 추정하지 않는다. 누락 usage는 unavailable/partial로 표시하고 다음 비교를 중단한다. 실패도 분모에 포함하며 자연어 정답/근거 지지는 독립 gold와 사람이 검토한다. 오프라인 metrics/검토 양식은 새 파일에 출력한다. 실제 모델 우열은 미측정이다.
 

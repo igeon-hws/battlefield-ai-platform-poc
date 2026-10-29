@@ -47,6 +47,8 @@ SEMANTIC_TOOLS = {
     "get_semantic_evidence",
     "query_relations",
     "get_procedure_definition",
+    "list_business_queries",
+    "run_business_query",
 }
 
 

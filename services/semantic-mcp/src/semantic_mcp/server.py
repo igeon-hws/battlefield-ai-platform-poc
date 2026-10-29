@@ -150,6 +150,41 @@ def create_app():
         async def get_display_metadata(graphVersion: str) -> dict:
             return await request("/v1/semantic-metadata", {"graphVersion": graphVersion})
 
+    from battlefield_ontology.declaration import profile6
+
+    if profile6():
+
+        @server.tool(
+            description="List the business queries published in this graph's ontology declaration: queryId, title, definition, parameters, rules and relations. Business queries execute the same reviewed definitions that the Fabric ontology document describes. Prefer them over composing primitive Semantic tools when a query matches the question."
+        )
+        async def list_business_queries(graphVersion: str) -> dict:
+            return await request("/v1/business-queries", {"graphVersion": graphVersion})
+
+        @server.tool(
+            description="Run one declared business query at pinned graphVersion in a single call. asset-availability-summary(unit, kind?): unique registered assets in a unit and its subordinates by kind and availability with the declared default availability policy, joint support counted once, unknown kept. asset-maintenance-chain(systemId, nativeId): identity, owner unit chain, work orders, part allocation (reserved/unreserved/incoming), transport delivery and conditional earliest completion with assumptions. part-supply-status(partId): warehouse on-hand/reserved/unreserved, work-order reservations, requirements and incoming cargo. Results carry appliedRules, graphEvidence and pinned sourceRecords; cite this evidence for rules. Live values come from the run's pinned source snapshot. Use primitive Semantic or source tools only for questions no business query covers."
+        )
+        async def run_business_query(
+            graphVersion: str,
+            queryId: str,
+            unit: str | None = None,
+            kind: str | None = None,
+            systemId: str | None = None,
+            nativeId: str | None = None,
+            partId: str | None = None,
+        ) -> dict:
+            params = {
+                "unit": unit,
+                "kind": kind,
+                "systemId": systemId,
+                "nativeId": nativeId,
+                "partId": partId,
+            }
+            return await request(
+                "/v1/business-queries/" + quote(queryId, safe=""),
+                {"graphVersion": graphVersion, "params": params},
+                post=True,
+            )
+
     app = server.streamable_http_app()
     app.state.tool_server = server
     app.add_middleware(TokenMiddleware, token=os.getenv("SEMANTIC_MCP_TOKEN", ""))

@@ -1,6 +1,6 @@
 # STEP — Spec-Driven Development
 
-**현재 STEP: 4. Review (Human).** 2026-10-28 Semantic 조회 범위·run 내 근거 재사용 구현/무과금 검증 완료, Human Review 대기.
+**현재 STEP: 4. Review (Human).** 2026-10-29 지식베이스 효용 시연(v6 선언적 온톨로지·업무 질의·Fabric 정의 발행·근거 추적·평가 도구) 구현/무과금 검증 완료, Human Review 대기.
 
 ## 단계와 산출물
 

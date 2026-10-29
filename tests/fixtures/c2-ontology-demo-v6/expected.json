@@ -1,0 +1,369 @@
+{
+ "datasetId": "c2-logistics-demo-v5",
+ "profile": "6-ontology-abc",
+ "sourceTime": "2026-10-20T09:10:00Z",
+ "note": "v6 knowledge-layer evaluation over the unchanged v5 source seeds. Gold is written from source seeds and reviewed documents, never from production business-query output. Patterns are an advisory automatic check; Human Review remains authoritative.",
+ "groups": {
+  "covered": [
+   "K1",
+   "K2",
+   "K9"
+  ],
+  "composite": [
+   "K4",
+   "K5",
+   "K6"
+  ],
+  "uncovered": [
+   "K7",
+   "K8"
+  ],
+  "control": [
+   "K3"
+  ],
+  "definitionChange": [
+   "K1",
+   "K6"
+  ]
+ },
+ "holdOut": [
+  "K5",
+  "K7"
+ ],
+ "variant": {
+  "edits": {
+   "rules.AGGREGATION-POLICY-01.definition.defaultAvailablePolicy": "P2"
+  },
+  "meaning": "기본 가용 집계에 제한(PMC)을 포함"
+ },
+ "questions": {
+  "K1": "모의 1사단 예하 가용 전차 현황을 정리해줘.",
+  "K2": "L-T02의 정비·부품·수송 연결과 각 근거를 정리해줘.",
+  "K3": "P-08 부품의 창고별 재고와 예약 상태를 알려줘.",
+  "K4": "B11 예하 제한 전차가 2026-10-21 18:00 UTC까지 복구될 수 있는지 판단해줘.",
+  "K5": "N-21 입항·인도가 6시간 지연되면 어떤 부대와 작업이 영향을 받는지 알려줘.",
+  "K6": "모의 1사단과 1함대의 장비 현황을 유형·상태별로 통합해줘.",
+  "K7": "INC-1 건은 지금 어디까지 진행됐어?",
+  "K8": "보고가 늘었는데 새로 확인된 내용이 있어?",
+  "K9": "L-C01 정비를 끝내려면 어떤 기록이 더 필요해?"
+ },
+ "expectedQueries": {
+  "K1": [
+   "asset-availability-summary"
+  ],
+  "K2": [
+   "asset-maintenance-chain"
+  ],
+  "K3": [
+   "part-supply-status"
+  ],
+  "K4": [
+   "asset-availability-summary",
+   "asset-maintenance-chain"
+  ],
+  "K5": [
+   "asset-maintenance-chain"
+  ],
+  "K6": [
+   "asset-availability-summary"
+  ],
+  "K7": [],
+  "K8": [],
+  "K9": [
+   "asset-maintenance-chain"
+  ]
+ },
+ "gold": {
+  "K1": {
+   "facts": [
+    {
+     "id": "L-T01 가용",
+     "pattern": "L-T01[^\\n]{0,60}(가용|FMC|available)|(가용|FMC|available)[^\\n]{0,60}L-T01"
+    },
+    {
+     "id": "L-T02 제한",
+     "pattern": "L-T02[^\\n]{0,60}(제한|PMC|limited)|(제한|PMC|limited)[^\\n]{0,60}L-T02"
+    },
+    {
+     "id": "P1 가용 1대",
+     "pattern": "가용[^\\n]{0,15}1\\s*대|1\\s*대[^\\n]{0,15}가용"
+    }
+   ],
+   "forbidden": [
+    {
+     "id": "P1에서 가용 2대",
+     "pattern": "가용(한)? 전차(는|가)? 2\\s*대(입니다|이다|예요|$)"
+    }
+   ]
+  },
+  "K2": {
+   "facts": [
+    {
+     "id": "EQ-781",
+     "pattern": "EQ-781"
+    },
+    {
+     "id": "M-17",
+     "pattern": "M-17"
+    },
+    {
+     "id": "P-08",
+     "pattern": "P-08"
+    },
+    {
+     "id": "C-12",
+     "pattern": "C-12"
+    },
+    {
+     "id": "N-21",
+     "pattern": "N-21"
+    }
+   ],
+   "forbidden": [
+    {
+     "id": "복구 완료 단정",
+     "pattern": "복구(가)? 완료(되었|됐|했)"
+    }
+   ]
+  },
+  "K3": {
+   "facts": [
+    {
+     "id": "WH-1",
+     "pattern": "WH-1"
+    },
+    {
+     "id": "보유 2",
+     "pattern": "(보유|재고|onHand)[^\\n]{0,15}2"
+    },
+    {
+     "id": "예약 1(M-18)",
+     "pattern": "(예약|reserved|RES-01)[^\\n]{0,20}(1|M-18)|(1|M-18)[^\\n]{0,20}(예약|reserved|RES-01)"
+    },
+    {
+     "id": "비예약 1",
+     "pattern": "(비예약|미예약|예약되지 않은|사용 가능)[^\\n]{0,15}1"
+    }
+   ],
+   "forbidden": []
+  },
+  "K4": {
+   "facts": [
+    {
+     "id": "L-T02",
+     "pattern": "L-T02"
+    },
+    {
+     "id": "15:00 조건부 완료",
+     "pattern": "15:00|15시"
+    },
+    {
+     "id": "조건부·가정",
+     "pattern": "조건부|가정|예정대로"
+    },
+    {
+     "id": "현재 PMC 구분",
+     "pattern": "PMC|제한"
+    }
+   ],
+   "forbidden": [
+    {
+     "id": "M-18 예약 사용",
+     "pattern": "RES-01[^\\n]{0,30}(사용|배정|활용)(한다|하면|해)"
+    },
+    {
+     "id": "현재 가용 단정",
+     "pattern": "현재[^\\n]{0,8}(완전 가용|FMC 상태)"
+    }
+   ]
+  },
+  "K5": {
+   "facts": [
+    {
+     "id": "M-17",
+     "pattern": "M-17"
+    },
+    {
+     "id": "L-T02",
+     "pattern": "L-T02"
+    },
+    {
+     "id": "C111",
+     "pattern": "C111|111\\s*중대"
+    },
+    {
+     "id": "B11",
+     "pattern": "B11|11\\s*여단"
+    },
+    {
+     "id": "인도 17시",
+     "pattern": "17:00|17시"
+    },
+    {
+     "id": "완료 21시",
+     "pattern": "21:00|21시"
+    }
+   ],
+   "forbidden": [
+    {
+     "id": "원천 수정",
+     "pattern": "원천[^\\n]{0,10}(수정|변경)(했|함)"
+    }
+   ]
+  },
+  "K6": {
+   "facts": [
+    {
+     "id": "고유 7",
+     "pattern": "(고유|총|전체|합계)[^\\n]{0,20}7\\s*(대|개|척|건)?"
+    },
+    {
+     "id": "P1 가용 4",
+     "pattern": "가용[^\\n]{0,20}4\\s*(대|개|척)?"
+    },
+    {
+     "id": "L-U01 중복 제거",
+     "pattern": "L-U01[^\\n]{0,60}(한 번|1회|중복|공동)|(한 번|1회|중복|공동)[^\\n]{0,60}L-U01"
+    },
+    {
+     "id": "N-S02 미상",
+     "pattern": "N-S02[^\\n]{0,60}(미상|unknown|알 수 없|확인 불가|누락|미확인)|(미상|unknown|알 수 없|확인 불가|누락|미확인)[^\\n]{0,60}N-S02"
+    },
+    {
+     "id": "L-C01 불가",
+     "pattern": "L-C01[^\\n]{0,40}(불가|NMC|unavailable)|(불가|NMC|unavailable)[^\\n]{0,40}L-C01"
+    }
+   ],
+   "forbidden": [
+    {
+     "id": "8대 집계",
+     "pattern": "(총|전체|고유|합계)[^\\n]{0,10}8\\s*(대|개|척)"
+    },
+    {
+     "id": "N-S02 가용",
+     "pattern": "N-S02[^\\n]{0,20}(는|은|:)\\s*가용"
+    }
+   ]
+  },
+  "K7": {
+   "facts": [
+    {
+     "id": "현장확인 완료",
+     "pattern": "현장[^\\n]{0,10}(확인|점검)[^\\n]{0,15}(완료|DONE)"
+    },
+    {
+     "id": "식별 진행",
+     "pattern": "식별[^\\n]{0,15}(진행|중|IN_PROGRESS)"
+    },
+    {
+     "id": "검토 미착수",
+     "pattern": "검토[^\\n]{0,15}(미착수|시작하지|착수 전|NOT_STARTED|시작 전)"
+    }
+   ],
+   "forbidden": [
+    {
+     "id": "ACK=완료",
+     "pattern": "ACK[^\\n]{0,20}(완료|처리 완료)"
+    },
+    {
+     "id": "사건 종결",
+     "pattern": "(INC-1|사건|처리)[^\\n]{0,10}(종결|완료되었|끝났)"
+    }
+   ]
+  },
+  "K8": {
+   "facts": [
+    {
+     "id": "R4가 R0 정정",
+     "pattern": "R4[^\\n]{0,60}(정정|R0)|(정정|R0)[^\\n]{0,60}R4"
+    },
+    {
+     "id": "L-V01 확인",
+     "pattern": "L-V01"
+    },
+    {
+     "id": "전달은 독립 확인 아님",
+     "pattern": "(전달|재전송|중계|relay)[^\\n]{0,60}(독립|새로운 확인이 아|중복|같은 내용)"
+    }
+   ],
+   "forbidden": [
+    {
+     "id": "SOUTH/007 병합",
+     "pattern": "SOUTH/007[^\\n]{0,30}(L-V01|동일)"
+    }
+   ]
+  },
+  "K9": {
+   "facts": [
+    {
+     "id": "EQ-782",
+     "pattern": "EQ-782"
+    },
+    {
+     "id": "M-18",
+     "pattern": "M-18"
+    },
+    {
+     "id": "P-09 기록 부족",
+     "pattern": "P-09"
+    },
+    {
+     "id": "다른 고장 미확인",
+     "pattern": "(다른|추가|미해결)[^\\n]{0,10}고장"
+    }
+   ],
+   "forbidden": [
+    {
+     "id": "완료 시각 단정",
+     "pattern": "(L-C01|M-18)[^\\n]{0,40}(완료|복구)[^\\n]{0,10}(예정|가능)[^\\n]{0,20}\\d{1,2}(시|:00)"
+    }
+   ]
+  }
+ },
+ "variantGold": {
+  "K1": {
+   "facts": [
+    {
+     "id": "L-T01",
+     "pattern": "L-T01"
+    },
+    {
+     "id": "L-T02 제한",
+     "pattern": "L-T02[^\\n]{0,60}(제한|PMC|limited)|(제한|PMC|limited)[^\\n]{0,60}L-T02"
+    },
+    {
+     "id": "P2 가용 2대",
+     "pattern": "가용[^\\n]{0,15}2\\s*대|2\\s*대[^\\n]{0,15}가용"
+    }
+   ],
+   "forbidden": [
+    {
+     "id": "P2에서 가용 1대",
+     "pattern": "가용(한)? 전차(는|가)? 1\\s*대(입니다|이다|예요|$)"
+    }
+   ]
+  },
+  "K6": {
+   "facts": [
+    {
+     "id": "고유 7",
+     "pattern": "(고유|총|전체|합계)[^\\n]{0,20}7\\s*(대|개|척|건)?"
+    },
+    {
+     "id": "P2 가용 5",
+     "pattern": "가용[^\\n]{0,20}5\\s*(대|개|척)?"
+    },
+    {
+     "id": "N-S02 미상",
+     "pattern": "N-S02[^\\n]{0,60}(미상|unknown|알 수 없|확인 불가|누락|미확인)|(미상|unknown|알 수 없|확인 불가|누락|미확인)[^\\n]{0,60}N-S02"
+    }
+   ],
+   "forbidden": [
+    {
+     "id": "8대 집계",
+     "pattern": "(총|전체|고유|합계)[^\\n]{0,10}8\\s*(대|개|척)"
+    }
+   ]
+  }
+ }
+}

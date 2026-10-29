@@ -1185,3 +1185,6 @@
     scroll-behavior: auto !important;
   }
 }
+.bf-shell .next-trace-edges a {
+  color: #8fc8ef;
+}

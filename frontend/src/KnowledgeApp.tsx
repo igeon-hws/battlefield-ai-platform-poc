@@ -585,6 +585,7 @@ export default function KnowledgeApp({
               <h4>{names[m]}</h4>
               <RunPanel
                 run={runs.find((r) => r.runId === current.runIds[m])}
+                fabricUrl={fabricUrl}
                 onSelect={select}
                 loadEvidence={demoAPI}
               />
@@ -999,7 +1000,12 @@ export default function KnowledgeApp({
                         {progress(run)}
                       </p>
                     )}
-                    <RunPanel run={run} onSelect={select} loadEvidence={demoAPI} />
+                    <RunPanel
+                      run={run}
+                      onSelect={select}
+                      loadEvidence={demoAPI}
+                      fabricUrl={fabricUrl}
+                    />
                     <details className="bf-conditions">
                       <summary>실행 조건·버전</summary>
                       <pre>

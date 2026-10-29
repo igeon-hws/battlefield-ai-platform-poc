@@ -181,6 +181,13 @@ class DomainService:
         dependencies = {
             "AGGREGATION-POLICY-01": ("AVAIL-LAND-01", "AVAIL-NAVAL-01"),
         }
+        declaration = next(
+            (n["payload"] for n in nodes if n["label"] == "OntologyDeclaration"), None
+        )
+        if declaration:
+            # v6 graphs carry the published declaration; its terms replace the v5 code table.
+            starts = {k.lower(): tuple(v) for k, v in declaration["terms"].items()}
+            dependencies = {k: tuple(v) for k, v in declaration["dependsOn"].items()}
         normalized = term.strip().lower()
         ids = (
             [rule["ruleId"] for rule in rules]
@@ -199,6 +206,7 @@ class DomainService:
             supportedTerms=[*starts, "all"],
             selectedRuleIds=[r["ruleId"] for r in selected],
             evidenceRefs=[r["ruleId"] for r in selected],
+            **({"declarationVersion": declaration["declarationVersion"]} if declaration else {}),
         )
 
     def resolve_unit_scope(self, version, term, max_depth=8):

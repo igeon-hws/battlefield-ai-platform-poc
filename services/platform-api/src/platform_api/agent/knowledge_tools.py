@@ -1,5 +1,6 @@
 """A/B/C capabilities over the existing single native tool loop."""
 
+from battlefield_ontology.declaration import comparison_policy
 from platform_api.agent.domain_tools import DomainToolRunner
 from platform_api.mcp.schema import native_definition, normalize_arguments
 from semantic_core.knowledge import hash_value
@@ -30,9 +31,7 @@ class KnowledgeToolRunner(DomainToolRunner):
         self.snapshot.pop("semanticMode", None)
         self.snapshot.update(
             knowledgeMode=mode,
-            semanticPolicyVersion="5-logistics-abc"
-            if "logistics" in snapshots
-            else "4-knowledge-abc",
+            semanticPolicyVersion=comparison_policy("5" if "logistics" in snapshots else "4"),
         )
         if self.knowledge:
             self.snapshot.update(
