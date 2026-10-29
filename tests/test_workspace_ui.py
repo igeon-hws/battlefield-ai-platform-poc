@@ -227,7 +227,7 @@ async def test_ime_duplicate_errors_and_late_response_keep_user_context():
                 await expect(
                     page.get_by_text("원천 갱신 지연 · 마지막 객체 정보 유지", exact=True)
                 ).to_be_visible()
-                await expect(page.get_by_text("표시 객체 1", exact=True)).to_be_visible()
+                await expect(page.get_by_text("표시 관측 1", exact=True)).to_be_visible()
                 await page.screenshot(path="artifacts/battlefield-chat-source-error.png")
             finally:
                 if state["gate"]:

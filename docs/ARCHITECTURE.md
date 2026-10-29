@@ -84,7 +84,7 @@ v5는 기존 v4 경로를 확장하되 별도 seed/DB/dataset/policy로 실행�
 
 원천 MCP는 ATCIS7·KNCCS10·LOGISTICS8 도구이며 모두 공개 HTTP 읽기만 한다. source ID는 `logistics`, 기본 :4120/:4220이다. 군수 API는 assets/work-orders/parts/inventory/reservations/supply-requests/cargo를 snapshotId·offset·limit로 읽는다. KNCCS transports는 기존 continuation envelope를 따른다. 수정은 별도 control 토큰의 work-orders PATCH와 transports PATCH(delayHours), 기존 simulation 제어다. Agent에 수정 도구를 노출하지 않는다.
 
-`knowledge_documents_v5.json`과 불변 archive는 기존9개+군수 LOG-01의10개 문서다. 기본 catalog 선택은 contract5에서만 바뀌고 명시적 archive 읽기는 유지한다. B/C는 같은 manifest/hash를 고정한다. `battlefield_ontology/logistics.py`는 검토된 문서와 명시적 등록·업무 참조를 검증해 SAME_AS/MAINTAINS/REQUIRES/STOCK_OF/RESERVES/FOR_WORK/FULFILLED_BY/CARRIED_BY/CONTAINS_PART를 만든다. 신규 노드는 LogisticsAsset/WorkOrder/Part/Inventory/Reservation/SupplyRequest/Cargo/Transport다. 상태·재고·ETA는 stable Graph에 현재값으로 복제하지 않는다.
+`knowledge_documents_v5.json`과 불변 archive는 기존9개+군수 LOG-01+표시 DISPLAY-01의11개 문서다. 이전10개 archive는 보존한다. 기본 catalog 선택은 contract5에서만 바뀌고 명시적 archive 읽기는 유지한다. B/C는 같은 manifest/hash를 고정한다. `battlefield_ontology/logistics.py`는 검토된 문서와 명시적 등록·업무 참조를 검증해 SAME_AS/MAINTAINS/REQUIRES/STOCK_OF/RESERVES/FOR_WORK/FULFILLED_BY/CARRIED_BY/CONTAINS_PART를 만든다. 신규 노드는 LogisticsAsset/WorkOrder/Part/Inventory/Reservation/SupplyRequest/Cargo/Transport다. 상태·재고·ETA는 stable Graph에 현재값으로 복제하지 않는다.
 
 Semantic의 동일성 조회는 군수 등록 기간·복수 후보/충돌을 확인하고 같은 sourceRef 의미를 UI와 MCP가 재사용한다. `SourceSnapshotSetV5`는 세 원천을 요구한다. Builder는 공개 stable-export·지식 API를 검증하고 세 입력 hash·지식·catalog에 고정된 READY Graph를 발행한다. v4의 두 원천 snapshot 계약은 별도 타입으로 보존한다.
 
@@ -158,6 +158,8 @@ JSON+Python 조건 DSL(AND/OR/EQ/EXISTS/BEFORE 등), 타입 매핑·정책·절�
 
 Semantic core→API→MCP로 나누어 Agent 밖에서도 재사용한다. 7개 도구는 interpret_concept, resolve_unit_scope, find_equipment_refs, resolve_entity, get_semantic_evidence, query_relations, get_procedure_definition이다. graphVersion 고정·bounded 읽기만 제공하며 임의 Cypher/Graph 쓰기는 없다.
 
+`interpret_concept`는 정규화된 용어에서 검토된 시작 ruleId와 명시적 의존 ruleId만 반환한다. 예외적으로 `all`은 구형 전체 규칙 조회를 명시적으로 요청한 경우에만 사용한다. `query_relations`는 요청한 relationTypes만 순회하고 간선의 원래 방향을 유지한다. ATCIS 장비에서 군수 관계를 찾으려면 `SAME_AS`를 포함해 깊이2 이상을 지정하거나 군수 자산 key부터 조회한다. 절차 도구는 사고 보고/활동 완료 SOP-01만 지원하며 정비·복구 절차가 아니다.
+
 사단 전차 질문은 Semantic에서 조직 범위·배정·정의 근거를 읽고 현재 상태는 ATCIS MCP에서 읽는다. Graph가 현재 가용 목록을 대신 확정하지 않는다. Fabric 콘솔은 공통 선택기로 실제 READY v3/v4/v5 graphVersion을 고정한다. active는 /v1/builds/active 조회 별칭이며 모든 의미 조회에서 쓰는 버전 별칭은 아니다.
 
 ### Fabric Graph 탐색 읽기 API
@@ -214,9 +216,21 @@ C 집계는 완결 scope·조직별 identity 조회·원천 전체 페이지·�
 
 v3/v4 예산은 model24/tool20/loop120초이며 준비 시간은 별도다. legacy model 기본12다. 반복 guard·오류 관찰·출력 교정1회·취소/timeout을 둔다. claims의 observation/inference/semantic/calculation 성격과 현재 근거 참조를 검사하지만 문장 의미의 정확성을 완전히 판정하지는 않는다.
 
+원천 MCP의 동일한 읽기 요청은 run 안에서 서버/도구/정규화 인자와 sourceSnapshotSet 핀을 키로 원래 evidenceId까지 재사용한다. 실패/partial 응답은 재사용하지 않는다. 다른 run의 결과는 재사용하지 않는다. run의 toolCalls에는 호출 기록과 cacheHit를 남겨 모델 호출 수와 실제 원천 조회 절감을 구분한다. 도구/반복 한도 마지막 응답은 도구 없이 요청해 이미 확보한 근거로 답변 또는 partial을 작성하게 한다. 예산 종료 안내는 출력 교정이 이어져도 한 번만 추가한다. 캐시 적중도 모델의 도구 호출이므로 도구 예산에 포함된다. 이때 모델이 답변을 완성하지 못하거나 deadline을 넘기면 실패 상태를 유지한다. A/B/C 공통 프롬프트에는 Fabric 문서 전용 `laborHours` 해석을 넣지 않는다.
+
 컨텍스트는 instructions+질문+짧은 대화 맥락+현재 run의 model output/도구 결과다. 이전 질문/최종 답변/선택은 참고이며 새 턴 사실은 새 snapshot에서 읽는다. 대화·run·근거·trace·방책/선택·비교 manifest는 플랫폼 SQLite에 저장한다. 방책 선택은 C4I 명령 실행이 아니다.
 
 서버가 영속 큐/worker와 진행 SSE를 소유한다. 재시작 시 미완료 run은 interrupted로 복구한다. 없는 대화는 전용 conversation_not_found이며 UI는 그 경우에만 질문/모드를 보존해 새 대화로 한 번 복구한다. 일반404/500은 자동 재요청하지 않는다.
+
+### 주장 분류와 서버 출처 — provenance1
+
+v4/v5 A/B/C의 모델 출력과 서버 응답 계약을 분리한다. 모델에는 기존 AnalysisResult의 claim.kind 중 observation/inference/calculation만 요청한다. 이것은 모델이 분류한 주장 성격이며 정답 판정이 아니다. 이전 응답의 semantic 표기는 호환 처리로 inference에 두고 원래 reportedKind를 보존한다. v3/legacy의 기존 출력 검증 경로와 과거 run은 변경하지 않는다.
+
+AgentLoop는 먼저 JSON·필드·이번 run의 evidenceId·방책 수/ID를 검사한다. A/B가 실제 Semantic 근거를 인용하거나 A가 Knowledge 근거를 인용하면 계속 거부한다. non-inference의 빈 근거도 거부한다. 이 제한과 MCP capability 경계는 모델의 kind 표기에 의존하지 않는다.
+
+`agent/provenance.py`는 실제 인용한 runner.evidence의 systemId에서 source/document/semantic/calculation 출처를 산출한다. 문서는 실제 documentKey·지식 집합·문서 version/hash를 연결한다. C의 Semantic/계산 도구 결과에 구조화된 ruleId가 있는 경우에만 해당 ruleRefs를 확인한다. 문서 본문의 정확한 규칙 이름 표기는 documentRuleRefs로 분리하며, 그 문장을 지지하거나 규칙을 실행했다고 판정하지 않는다. 확인되지 않은 표기는 unverifiedRuleRefs·한계 경고로 보존하고 answer를 partial로 낮춘다. 답변을 null로 폐기하거나 가짜 규칙을 검증된 근거로 승격하지 않는다.
+
+서버만 ProvenancedAnalysisResult/ClaimProvenance를 추가한다. 원래 모델 응답 스키마에는 provenance 필드가 없고 모델이 보내면 extra 필드로 거부된다. 결과의 provenanceVersion=1과 claim_provenance 로그가 모델 분류·실제 출처·문서 표기·미확인 참조를 구분한다. 실제 없는 evidenceId 같은 오류는 기존1회 교정 후 실패 종료를 유지한다. 자연어 주장과 근거 사이의 논리적 지지·도메인 정답은 이 구조 검사로 검증하지 않는다.
 
 ## 7. 실행 로그
 
@@ -269,6 +283,32 @@ uv run mypy services packages scripts
 실제 GPT는 비용이 발생하는 opt-in: uv run pytest tests/test_domain_live.py -m "live and neo4j" -q -s. scripts/grade_domain.py <입력.json> --output <새-평가.json>으로 평가하고 원본을 보존한다. 정상 .venv에서는 uv를 사용한다. 이전 별도 검증 환경은 STATUS를 참고한다.
 
 ## 9. 호환과 공개 참고 자료
+
+### 업무 view·메타데이터·의미 관측
+
+`semantic_core.metadata.MetadataCatalog`는 고정 knowledgeSetVersion의 `fabric:DISPLAY-01` 본문 JSON을 읽는다. 현재 문서1.1/review-display-2, schemaVersion display-1/locale ko-KR이며 체계·자원·field별 displayName/description/aliases/values/unit/quantityKind·namespace/sourceSchemaVersion/validFrom/validTo와 문서 version/hash/knownAt을 보존한다. 미지원 검토 revision은 거부한다. ruleId와 표시 설명은 분리하며 aliases를 동일성 판정에 사용하지 않는다. laborHours는 elapsed_time/h다. 미정의 코드는 미확인, 누락은 정보 없음이다. 과거 archive에 표시 문서가 없으면 available=false다.
+
+`GET /v1/semantic-metadata?graphVersion=...`와 C의 Semantic MCP `get_display_metadata`는 같은 MetadataCatalog를 사용한다. Graph·지식·원천 stable hash·ontology/mapping/resolution rule stamp를 반환한다. B는 같은 문서를 Knowledge MCP로 읽는다. 원천 UI의 NativePresentation은 로컬 표시용이며 Agent 입력과 원천 API를 변경하지 않는다.
+
+ObjectService는 검증된 연결 범위에서 소속 참조를 추가 조회하고, C의 business에 현재 원천 상태/소속/제약·작업별 정비/부품·관련 재고·수송·기록별 시점/queriedAt을 결정론적으로 구성한다. 원본 records/links/시각은 유지한다. sourceSnapshotSet/stale/metadata도 반환한다. 오래된 Graph 또는 미확정 동일성에서는 business=null이다.
+
+`POST /v1/semantic-map`은 graphVersion/sourceSnapshotSet을 선택적으로 받는다. 최초 전체 원천 준비 후 고정 Graph를 재사용하며 stable hash/epoch 불일치 시 연결 확정을 보류한다. observations는 원천10개 위치를 유지하고 groups는 유효한 명시적 동일성만 묶는다. counts는 관측/확인된 고유 자산/미확정 관측, coverage는 원천 상태다. 대표 위치 선정·근접 병합·LLM 호출은 없다. platform의 동명 proxy와 metadata proxy는 C/비교 context만, 객체 상세는 C만 허용한다.
+
+### 반복 평가 실행과 한계
+
+`POST /api/v1/evaluation-context`는 모델 호출 없이 immutable pins·B/C 지식·모델/설정·prompt hash·loop budget을 고정한다(v5 비교 context 전용). 비교 요청의 fixedContext로 반복 간 같은 pins/knowledge를 재사용한다. `--manifest`는 모델/예산/prompt/설정 변경을 거부하며 각 run의 원천·지식·금지 registry를 검사한다. 새 output만 허용하고 checkpoint에 원본 comparison/run과 요청·중단 상태를 남긴다.
+
+```powershell
+# full 서버에서 준비만 실행: 모델 비용 없음. 기존 파일을 덮어쓰지 않음.
+uv run python scripts/evaluate_knowledge.py --dry-run --contract-version 5 --scenario L0 --scenario L2 --scenario L3 --max-runs 9 --max-model-responses 216 --output artifacts/pilot-manifest.json
+# --live는 유료 실행이며 현재 코드/평가 기준에서 새 manifest를 만든 뒤 별도 batch로 실행.
+uv run python scripts/evaluate_knowledge.py --live --contract-version 5 --manifest artifacts/pilot-manifest.json --scenario L0 --scenario L2 --scenario L3 --max-runs 9 --max-model-responses 216 --output artifacts/pilot-results.json
+uv run python scripts/evaluation_metrics.py artifacts/pilot-results.json --export-review --output artifacts/pilot-review.json
+```
+
+`--repeat 3 --phase formal`은 별도 본 측정이며 pilot과 합산하지 않는다. 순서는 회전하고 대화는 격리한다. 최대 runs/모델 응답 예약 한도와 ABC 사이의 관측 token 중단 기준을 적용한다. 후자는 진행 중인 ABC의 하드 비용 상한이 아니다. SDK transport 재시도(max_retries=1)의 별도 과금/누락 usage까지 응답 수로 추정하지 않는다. 누락 usage는 unavailable/partial로 표시하고 다음 비교를 중단한다. 실패도 분모에 포함하며 자연어 정답/근거 지지는 독립 gold와 사람이 검토한다. 오프라인 metrics/검토 양식은 새 파일에 출력한다. 실제 모델 우열은 미측정이다.
+
+run에는 modelLoopStartedAt/loopFinishedAt/loopDurationSeconds, iterations별 실제 응답 model/usage/durationSeconds, validationFailures/correctionAttempts를 저장한다. metrics는 loop 시간, createdAt~finishedAt 전체 시간, startedAt~첫 모델 요청의 준비 시간, knowledgePreparationSeconds를 구분한다. 기존 run의 없는 시간·교정 횟수는 null로 남긴다. 반응/근거 경고와 토큰 지표는 자연어 정확도 점수가 아니다.
 
 legacy 단일 C4I, v2 semantic-demo-v2는 호환·역사 기록이다. legacy 접경120개/연안 시나리오를 현재 고유7개 기대값과 혼용하지 않는다. 과거 다중 Agent 제안·전체 SQLite 한정·v1 상태 충돌 시연은 현행 기준이 아니다.
 

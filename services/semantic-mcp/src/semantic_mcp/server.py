@@ -47,7 +47,7 @@ def create_app():
             return response.json()
 
     @server.tool(
-        description="Interpret a reviewed concept at pinned graphVersion. Known terms include availability, available, 가용, 가용성, tank, 탱크, 함정, 무인기, 전력. Unresolved responses return supportedTerms; use a supported term instead of guessing synonyms repeatedly. Returns versioned sourceMappings (native type/state fields and explicit code interpretation) and rule provenance. For common availability aggregation pass its evidenceId as conceptEvidenceIds, with Semantic identity/reference evidence. Mappings are interpretation rules, not live observations; read state from source MCP."
+        description="Interpret a reviewed concept at pinned graphVersion. Known terms include availability, available, 가용, 가용성, tank, 탱크, 함정, 무인기, 전력. Returns only matching reviewed rules and explicitly required dependencies; unresolved responses return supportedTerms. For common availability aggregation pass its evidenceId as conceptEvidenceIds with Semantic identity/reference evidence. Mappings are interpretation rules, not live observations; read state from source MCP."
     )
     async def interpret_concept(graphVersion: str, term: str) -> dict:
         return await request("/v1/concepts", {"graphVersion": graphVersion, "term": term})
@@ -109,7 +109,7 @@ def create_app():
     if os.getenv("C4I_CONTRACT_VERSION") in ("3", "4", "5"):
 
         @server.tool(
-            description="Explore verified organization/report/incident/activity relations at graphVersion. subject is a canonical key returned by Semantic tools. relationTypes allowed: SUBORDINATE_TO,ASSIGNED_TO,REFERS_TO,DERIVED_FROM,SUPERSEDES. Bounded traversal returns source/document/rule proofs and partial coverage when truncated. No live state inference."
+            description="Explore verified organization/report/incident/activity relations at graphVersion. subject is a graph key returned by Semantic tools. Traverse ONLY requested relationTypes; to reach logistics relations from an ATCIS equipment key, include SAME_AS and depth >= 2 or resolve the logistics asset first. relationTypes allowed: SUBORDINATE_TO,ASSIGNED_TO,REFERS_TO,DERIVED_FROM,SUPERSEDES. Bounded traversal preserves edge direction and returns proofs/partial coverage. No live state inference."
             + (
                 " V5 also allows SAME_AS,MAINTAINS,REQUIRES,STOCK_OF,RESERVES,FOR_WORK,FULFILLED_BY,CARRIED_BY,CONTAINS_PART. Use resolve_entity to obtain a source record graph key, then traverse explicit dependencies."
                 if os.getenv("C4I_CONTRACT_VERSION") == "5"
@@ -135,12 +135,20 @@ def create_app():
             )
 
         @server.tool(
-            description="Read versioned synthetic procedure definitions and native evidence selectors at graphVersion. Read required source activities/reports before evaluating completion. Does not fetch live values or treat receipt as completion."
+            description="Read the reviewed incident reporting/activity completion procedure SOP-01 only. This tool does not define equipment repair, parts allocation, transport delivery or restoration forecasts. Provide documentId explicitly; read source activities/reports before evaluating incident completion."
         )
-        async def get_procedure_definition(graphVersion: str, documentId: str = "SOP-01") -> dict:
+        async def get_procedure_definition(graphVersion: str, documentId: str) -> dict:
             return await request(
                 "/v1/procedures", {"graphVersion": graphVersion, "documentId": documentId}
             )
+
+    if os.getenv("C4I_CONTRACT_VERSION") == "5":
+
+        @server.tool(
+            description="Read reviewed Korean displayName, description, aliases, native code labels and units at this pinned graphVersion. Same content is in Fabric document fabric:DISPLAY-01 available to B. Presentation metadata is not an executed availability/identity rule. Unknown values remain unknown. Use original native IDs in tools and concise meaningful Korean in the answer."
+        )
+        async def get_display_metadata(graphVersion: str) -> dict:
+            return await request("/v1/semantic-metadata", {"graphVersion": graphVersion})
 
     app = server.streamable_http_app()
     app.state.tool_server = server

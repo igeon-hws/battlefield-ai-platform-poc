@@ -18,7 +18,7 @@ class OpenAIProvider:
                     instructions=instructions,
                     input=inputs,
                     tools=tools or [],
-                    tool_choice="auto",
+                    tool_choice="auto" if tools else "none",
                     parallel_tool_calls=False,
                     text={"format": result_format},
                     store=False,

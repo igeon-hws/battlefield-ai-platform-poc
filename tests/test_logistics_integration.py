@@ -59,7 +59,91 @@ async def test_v5_transport_reference_and_dependency_are_available_over_mcp(tmp_
             )
             assert detail.status_code == 200, detail.text
             version = detail.json()["graphVersion"]
+            assert detail.json()["business"]["asset"]["status"] == "운용 제한"
+            for mode in ("native", "documents"):
+                sid = (await c.post("/api/v1/demo-sessions", json={"mode": mode})).json()[
+                    "sessionId"
+                ]
+                denied = await c.post(
+                    "/api/v1/semantic-map", json={}, headers={"x-demo-session": sid}
+                )
+                assert denied.status_code == 403
+                denied = await c.get(
+                    "/api/v1/semantic-metadata",
+                    params={"graphVersion": version},
+                    headers={"x-demo-session": sid},
+                )
+                assert denied.status_code == 403
+            scene = await c.post(
+                "/api/v1/semantic-map",
+                json={"graphVersion": version},
+                headers={"x-demo-session": session["sessionId"]},
+            )
+            assert scene.status_code == 200, scene.text
+            assert scene.json()["counts"]["observations"] == 10
+            assert len([o for o in scene.json()["observations"] if o["source"] == "knccs"]) == 5
+            assert all("nativeStatus" in o for o in scene.json()["observations"])
+            metadata = (
+                await c.get(
+                    "/api/v1/semantic-metadata",
+                    params={"graphVersion": version},
+                    headers={"x-demo-session": session["sessionId"]},
+                )
+            ).json()
+            compare_session = (
+                await c.post("/api/v1/demo-sessions", json={"mode": "compare"})
+            ).json()["sessionId"]
+            evaluation = await c.post(
+                "/api/v1/evaluation-context", headers={"x-demo-session": compare_session}
+            )
+            assert evaluation.status_code == 200, evaluation.text
+            assert evaluation.json()["sourceSnapshotSet"] == detail.json()["sourceSnapshotSet"]
+            import subprocess
+            import sys
+
+            output = tmp_path / "dry-run.json"
+            dry = await asyncio.to_thread(
+                subprocess.run,
+                [
+                    sys.executable,
+                    "scripts/evaluate_knowledge.py",
+                    "--dry-run",
+                    "--contract-version",
+                    "5",
+                    "--url",
+                    url,
+                    "--scenario",
+                    "L0",
+                    "--scenario",
+                    "L2",
+                    "--scenario",
+                    "L3",
+                    "--max-runs",
+                    "9",
+                    "--max-model-responses",
+                    "216",
+                    "--output",
+                    str(output),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+            assert dry.returncode == 0, dry.stdout + dry.stderr
+            manifest = json.loads(output.read_text(encoding="utf-8"))
+            assert manifest["plannedRuns"] == 9 and not manifest["records"]
+            assert (
+                manifest["fixedContext"]["sourceSnapshotSet"]
+                == evaluation.json()["sourceSnapshotSet"]
+            )
+            assert not (
+                await c.get("/api/v1/comparisons", headers={"x-demo-session": compare_session})
+            ).json()["items"]
         async with MCPClient(env["SEMANTIC_MCP_URL"]) as mcp:
+            shared = await mcp.call("get_display_metadata", {"graphVersion": version})
+            assert shared["metadataVersion"] == metadata["metadataVersion"]
+            assert shared["knowledgeSetVersion"] == detail.json()["knowledgeSetVersion"]
             resolved = await mcp.call(
                 "resolve_entity", {"graphVersion": version, "systemId": "knccs", "nativeId": "N-21"}
             )
@@ -98,6 +182,47 @@ async def test_v5_a_b_without_semantic_services(tmp_path, mode):
             assert not any(n.startswith("semantic__") for n in run["registryBindings"])
             if mode == "native":
                 assert not any(n.startswith("knowledge__") for n in run["registryBindings"])
+
+
+@pytest.mark.neo4j
+async def test_v5_fixed_comparison_reuses_inputs_after_source_tick(tmp_path):
+    with v4_stack(tmp_path, graph=True, version="5") as (url, env):
+        async with httpx.AsyncClient(base_url=url, timeout=60) as c:
+            session = (await c.post("/api/v1/demo-sessions", json={"mode": "compare"})).json()
+            c.headers["x-demo-session"] = session["sessionId"]
+            response = await c.post("/api/v1/evaluation-context")
+            assert response.status_code == 200, response.text
+            context = response.json()
+            fixed = {k: context[k] for k in ("sourceSnapshotSet", "knowledgeSetVersion")}
+            for repeat, first in enumerate(("native", "documents")):
+                response = await c.post(
+                    "/api/v1/comparisons",
+                    json={
+                        "question": "fixed input integration",
+                        "firstKnowledgeMode": first,
+                        "fixedContext": fixed,
+                    },
+                )
+                assert response.status_code == 202, response.text
+                cid = response.json()["comparisonId"]
+                for _ in range(1800):
+                    comparison = (await c.get("/api/v1/comparisons/" + cid)).json()
+                    if comparison["status"] not in ("preparing", "running"):
+                        break
+                    await asyncio.sleep(0.1)
+                assert comparison["status"] == "completed", comparison
+                assert comparison["manifest"]["sourceSnapshotSet"] == fixed["sourceSnapshotSet"]
+                for mode, rid in comparison["runIds"].items():
+                    run = (await c.get("/api/v1/analyses/" + rid)).json()
+                    assert run["sourceSnapshotSet"] == fixed["sourceSnapshotSet"]
+                    assert run["loopDurationSeconds"] >= 0
+                    if mode != "native":
+                        assert run["knowledgeSetVersion"] == fixed["knowledgeSetVersion"]
+                if repeat == 0:
+                    response = await c.post(env["ATCIS_BASE_URL"] + "/api/v1/simulation/step")
+                    assert response.status_code == 200, response.text
+                    raw = (await c.get(env["ATCIS_BASE_URL"] + "/api/v1/snapshot")).json()
+                    assert raw["snapshotId"] != fixed["sourceSnapshotSet"]["atcis"]["snapshotId"]
 
 
 @pytest.mark.neo4j
@@ -224,7 +349,7 @@ async def test_v5_actual_three_sources_detail_and_comparison(tmp_path):
                     await expect(
                         page.get_by_role("heading", name="Mock LOGISTICS", exact=True)
                     ).to_be_visible()
-                    await page.get_by_role("button", name="work-orders", exact=True).click()
+                    await page.get_by_role("button", name="정비 작업", exact=True).click()
                     await page.get_by_role("button", name="M-17", exact=True).click()
                     await expect(
                         page.get_by_role("heading", name="원천 레코드", exact=True)

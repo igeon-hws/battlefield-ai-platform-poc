@@ -1,6 +1,7 @@
 """Run-scoped capability registry. Knowledge is read only through discovered MCP."""
 
 import asyncio
+import json
 from copy import deepcopy
 from typing import Literal
 from uuid import uuid4
@@ -94,6 +95,8 @@ class MultiToolRunner:
             "graphVersion": graph_info["graphVersion"] if mode == "on" else None,
         }
         self.evidence: dict[str, dict] = {}
+        self.source_response_cache: dict[str, str] = {}
+        self.last_cache_hit = False
         self.calls: list[dict] = []
         self.registry: dict[str, dict] = {}
         self.definitions = deepcopy(LOCAL_TOOL_DEFINITIONS) + [deepcopy(AGGREGATE_TOOL)]
@@ -168,6 +171,8 @@ class MultiToolRunner:
 
     async def execute(self, name, arguments):
         await self.prepare()
+        self.last_cache_hit = False
+        cache_key = None
         args: EvidenceArgs | GeoArgs | AggregateArgs
         if name == "read_evidence":
             args = EvidenceArgs.model_validate(arguments)
@@ -235,6 +240,15 @@ class MultiToolRunner:
                     if raw.get("throughSequence") is None:
                         raw["throughSequence"] = snapshot["sequence"]
             args_dict = normalize_arguments(binding["definition"]["inputSchema"], raw)
+            if system in self.snapshots:
+                cache_key = json.dumps(
+                    [system, original, self.snapshots[system], args_dict],
+                    sort_keys=True,
+                    ensure_ascii=False,
+                )
+                if cache_key in self.source_response_cache:
+                    self.last_cache_hit = True
+                    return self.evidence[self.source_response_cache[cache_key]]
             data = await self.clients[system].call(original, args_dict)
             if system == "semantic":
                 if (
@@ -270,6 +284,12 @@ class MultiToolRunner:
             "data": data,
         }
         self.evidence[eid] = evidence
+        if (
+            cache_key
+            and data.get("completeness", "complete") == "complete"
+            and not data.get("error")
+        ):
+            self.source_response_cache[cache_key] = eid
         return evidence
 
     def aggregate(self, args):

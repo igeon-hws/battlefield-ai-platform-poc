@@ -210,6 +210,45 @@ export default function KnowledgeApp({
   );
   const [selected, setSelected] = useState<string | null>(initial.selected || null);
   const [entities, setEntities] = useState<MapEntity[]>([]);
+  const [semanticView, setSemanticView] = useState(false);
+  const [scene, setScene] = useState<any>(null);
+  const [sceneError, setSceneError] = useState('');
+  const [domainFilter, setDomainFilter] = useState('');
+  const sceneVersion = useRef<string | null>(null);
+  useEffect(() => {
+    if (!v5 || fixedMode !== 'structured' || !semanticView) {
+      setScene(null);
+      setSceneError('');
+      return;
+    }
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      try {
+        const value = await api(
+          'semantic-map',
+          sceneVersion.current ? { graphVersion: sceneVersion.current } : {},
+        );
+        if (active) {
+          setScene(value);
+          sceneVersion.current = value.graphVersion;
+          setSceneError('');
+        }
+      } catch (e) {
+        if (active) {
+          setScene(null);
+          setSceneError(String(e));
+        }
+      } finally {
+        if (active) timer = setTimeout(refresh, 3000);
+      }
+    };
+    void refresh();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [v5, fixedMode, semanticView]);
   const [sources, setSources] = useState<Record<string, { connected?: boolean; error?: string }>>(
     {},
   );
@@ -494,7 +533,9 @@ export default function KnowledgeApp({
     }
     return [...map.values()].reverse();
   }, [runs]);
-  const visible = entities.filter((e) => !filter || e.affiliation === filter);
+  const visible = entities.filter(
+    (e) => (!filter || e.affiliation === filter) && (!domainFilter || e.source === domainFilter),
+  );
   const selectedEntity = entities.find((e) => e.entityId === selected);
   const comparisonContent = (large = false) =>
     current ? (
@@ -639,8 +680,33 @@ export default function KnowledgeApp({
             <div>
               <Compass size={15} />
               <strong>통합 상황</strong>
-              <span>표시 객체 {visible.length}</span>
+              <span>
+                표시 관측 {visible.length}
+                {semanticView && scene
+                  ? ` · 고유 자산 ${scene.counts.canonicalAssets} · 미확정 ${scene.counts.unresolvedObservations}`
+                  : ''}
+              </span>
             </div>
+            <select
+              aria-label="지상·해상 관측 필터"
+              value={domainFilter}
+              onChange={(e) => setDomainFilter(e.target.value)}
+            >
+              <option value="">지상·해상 전체</option>
+              <option value="atcis">지상 관측</option>
+              <option value="knccs">함정·해상 접촉</option>
+            </select>
+            {v5 && fixedMode === 'structured' && (
+              <button
+                aria-pressed={semanticView}
+                onClick={() => {
+                  setSemanticView((v) => !v);
+                  setObjectsOpen(true);
+                }}
+              >
+                {semanticView ? '원천 관측 보기' : '의미 객체 보기'}
+              </button>
+            )}
             <button
               aria-label="객체 목록"
               aria-expanded={objectsOpen}
@@ -698,6 +764,59 @@ export default function KnowledgeApp({
                 </select>
               </label>
               <div className="bf-object-rows">
+                {semanticView && (
+                  <section aria-label="검증된 관측 연결">
+                    <p>
+                      원천 관측을 유지하며 검증된 동일성만 묶어 표시합니다. 대표 위치는 확정하지
+                      않습니다.
+                    </p>
+                    {sceneError && <p role="alert">의미 연결 조회 불가 · {sceneError}</p>}
+                    {scene && (
+                      <>
+                        <p>
+                          관측 {scene.counts.observations} · 고유 자산{' '}
+                          {scene.counts.canonicalAssets} · 미확정 관측{' '}
+                          {scene.counts.unresolvedObservations}
+                        </p>
+                        {scene.stale && (
+                          <p role="alert">
+                            연결 기준이 현재 원천과 다릅니다. 의미 연결을 확정하지 않습니다.
+                          </p>
+                        )}
+                        {scene.groups.map((g: any, i: number) => (
+                          <details key={g.canonicalId}>
+                            <summary>
+                              검증된 자산 {i + 1} · 관측 {g.observationIds.length}개
+                            </summary>
+                            {g.observationIds.map((id: string) => (
+                              <button
+                                key={id}
+                                onClick={() => {
+                                  setSelected(id);
+                                  setDetailOpen(true);
+                                  setObjectsOpen(false);
+                                }}
+                              >
+                                {id}
+                              </button>
+                            ))}
+                            <details>
+                              <summary>동일성 식별자·근거</summary>
+                              <pre>
+                                {pretty({
+                                  canonicalId: g.canonicalId,
+                                  observations: scene.observations.filter(
+                                    (o: any) => o.canonicalId === g.canonicalId,
+                                  ),
+                                })}
+                              </pre>
+                            </details>
+                          </details>
+                        ))}
+                      </>
+                    )}
+                  </section>
+                )}
                 {visible.map((e) => (
                   <button
                     key={e.entityId}

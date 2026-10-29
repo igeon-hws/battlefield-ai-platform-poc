@@ -4,6 +4,11 @@ import GraphExplorer from './GraphExplorer';
 import './Domain.css';
 
 const pretty = (value: unknown) => JSON.stringify(value, null, 2);
+const titles: Record<string, string> = {
+  Catalog: '데이터 목록',
+  'Graph build': '연결 지식 생성 이력',
+  'Graph 탐색': '연결 지식 탐색',
+};
 export default function FabricApp() {
   const [catalog, setCatalog] = useState<{ datasetId?: string; layers?: string[] }>({});
   const [knowledgeTarget, setKnowledgeTarget] = useState<{ key: string; version: string } | null>(
@@ -117,7 +122,7 @@ export default function FabricApp() {
                 );
               }}
             >
-              {label}
+              {titles[label] || label}
             </button>
           ))}
           <h2>검증 층</h2>
@@ -128,7 +133,7 @@ export default function FabricApp() {
           ))}
         </aside>
         <section>
-          <h2>{tab}</h2>
+          <h2>{titles[tab] || tab}</h2>
           {tab !== '지식 문서' && (
             <GraphExplorer
               get={get}
@@ -162,7 +167,15 @@ export default function FabricApp() {
             <button onClick={() => void query()}>조회</button>
           )}
           {error && <p role="alert">{error}</p>}
-          {data !== null && <pre>{pretty(data)}</pre>}
+          {data !== null && (
+            <>
+              <p role="status">조회 완료 · 원천·규칙의 상세와 적용 버전을 확인할 수 있습니다.</p>
+              <details>
+                <summary>조회 결과·원본 필드·버전</summary>
+                <pre>{pretty(data)}</pre>
+              </details>
+            </>
+          )}
           <p>
             원천·문서 버전, 매핑/규칙, 관계 assertion의 출처를 조회합니다. 분석형 AI 실행은
             플랫폼에서 진행합니다.

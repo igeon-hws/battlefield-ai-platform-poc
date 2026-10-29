@@ -65,9 +65,13 @@ async def test_standalone_logistics_control_refreshes_selected_record(tmp_path):
             page = await browser.new_page()
             try:
                 await page.goto(url, wait_until="domcontentloaded")
-                await page.get_by_role("button", name="work-orders", exact=True).click()
+                await page.get_by_role("button", name="정비 작업", exact=True).click()
                 await page.get_by_role("button", name="M-17", exact=True).click()
                 await page.get_by_label("정비 상태 변경", exact=True).select_option("DONE")
+                await expect(
+                    page.locator("article dd").filter(has_text="정비 완료")
+                ).to_be_visible()
+                await page.get_by_text("전체 원본 기록·식별자", exact=True).click()
                 await expect(page.locator(".fabric-grid article pre")).to_contain_text(
                     '"status": "DONE"'
                 )

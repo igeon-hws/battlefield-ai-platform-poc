@@ -4,7 +4,7 @@
 
 ## 현재 단계와 작업 순서
 
-- **현재 STEP: 3. Implement (AI).** 2026-10-28 주장 분류·출처 검증 오류 수정 진행 중.
+- **현재 STEP: 4. Review (Human).** 2026-10-28 Semantic 조회 범위·run 내 근거 재사용 구현/무과금 검증 완료, Human Review 대기.
 - 작업 시작 시 STEP을 먼저 읽고 요청을 단계 수행 / 단순 질의 / 특정 파일 변경으로 구분한다. 명시한 단계까지만 수행한다. 단순 질의는 답변만, 특정 파일 변경은 해당 범위만 한다.
 - SDD 작업에는 [battlefield-sdd SKILL](.agents/skills/battlefield-sdd/SKILL.md)을 읽고 적용한다. 초기 Design 이후 Plan→Implement→Review→Reflect를 따른다.
 - Plan/Reflect는 **IMPLEMENTATION_PLAN만** 수정한다. PLAN은 현재 유효한 다음 작업만 유지하며 완료 내역은 STATUS에 둔다. Implement는 테스트 먼저 작성→실패 확인→구현→관련 검사 통과까지 수행한다.

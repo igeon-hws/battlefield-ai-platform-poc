@@ -56,11 +56,14 @@ def install_demo(app, repo, runtime):
         request.state.demo_mode = mode
         if (
             path == "/api/v1/events"
-            or path == "/api/v1/semantic/status"
+            or path
+            in ("/api/v1/semantic/status", "/api/v1/semantic-metadata", "/api/v1/semantic-map")
             and mode not in ("structured", "compare")
         ):
             return JSONResponse({"detail": "endpoint unavailable in this context"}, status_code=403)
         if "/comparisons" in path and mode != "compare":
+            return JSONResponse({"detail": "comparison page required"}, status_code=403)
+        if path == "/api/v1/evaluation-context" and mode != "compare":
             return JSONResponse({"detail": "comparison page required"}, status_code=403)
         if path.startswith("/api/v1/objects") and mode != "structured":
             return JSONResponse({"detail": "structured page required"}, status_code=403)
@@ -181,3 +184,13 @@ def install_demo(app, repo, runtime):
         return await runtime.fabric_request(
             "GET", "/v1/knowledge/" + path, params=dict(request.query_params)
         )
+
+    @app.get("/api/v1/semantic-metadata")
+    async def semantic_metadata(graphVersion: str):
+        return await runtime.fabric_request(
+            "GET", "/v1/semantic-metadata", params={"graphVersion": graphVersion}
+        )
+
+    @app.post("/api/v1/semantic-map")
+    async def semantic_scene(request: Request):
+        return await runtime.fabric_request("POST", "/v1/semantic-map", json=await request.json())

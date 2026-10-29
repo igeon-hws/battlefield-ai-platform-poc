@@ -161,24 +161,43 @@ class DomainService:
     def interpret_concept(self, version, term):
         info, nodes, _ = self.model(version)
         rules = [n["payload"] for n in nodes if n["label"] == "InterpretationRule"]
-        supported = [
-            "가용",
-            "availability",
-            "전차",
-            "tank",
-            "조직",
-            "보고",
-            "절차",
-            "전력",
-            "통합",
-            "all",
-        ]
-        selected = rules if term in supported else [r for r in rules if r["ruleId"] == term]
+        # Reviewed rule IDs, rather than a broad keyword match, define retrieval scope.
+        starts = {
+            "가용": ("AVAIL-LAND-01", "AVAIL-NAVAL-01", "AGGREGATION-POLICY-01"),
+            "가용성": ("AVAIL-LAND-01", "AVAIL-NAVAL-01", "AGGREGATION-POLICY-01"),
+            "availability": ("AVAIL-LAND-01", "AVAIL-NAVAL-01", "AGGREGATION-POLICY-01"),
+            "available": ("AVAIL-LAND-01", "AVAIL-NAVAL-01", "AGGREGATION-POLICY-01"),
+            "전차": ("ASSET-TYPE-01",),
+            "tank": ("ASSET-TYPE-01",),
+            "탱크": ("ASSET-TYPE-01",),
+            "함정": ("ASSET-TYPE-NAVAL-01",),
+            "무인기": ("ASSET-TYPE-01",),
+            "조직": ("UNIT-IDENTITY-01", "ORG-ROLE-01"),
+            "보고": ("REPORT-LINEAGE-01", "REPORT-REVISION-01"),
+            "절차": ("ACTIVITY-STEP-01",),
+            "전력": ("FORCE-SCOPE-01", "AGGREGATION-POLICY-01"),
+            "통합": ("ENTITY-LINK-01", "UNIT-IDENTITY-01"),
+        }
+        dependencies = {
+            "AGGREGATION-POLICY-01": ("AVAIL-LAND-01", "AVAIL-NAVAL-01"),
+        }
+        normalized = term.strip().lower()
+        ids = (
+            [rule["ruleId"] for rule in rules]
+            if normalized == "all"
+            else list(starts.get(normalized, (normalized,)))
+        )
+        for rule_id in ids.copy():
+            ids.extend(dependencies.get(rule_id, ()))
+        ids = list(dict.fromkeys(ids))
+        selected_ids = {rule_id.lower() for rule_id in ids}
+        selected = [r for r in rules if r["ruleId"].lower() in selected_ids]
         return self.response(
             info,
             status="resolved" if selected else "unresolved",
             rules=selected,
-            supportedTerms=supported,
+            supportedTerms=[*starts, "all"],
+            selectedRuleIds=[r["ruleId"] for r in selected],
             evidenceRefs=[r["ruleId"] for r in selected],
         )
 

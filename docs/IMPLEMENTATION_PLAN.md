@@ -1,11 +1,10 @@
 # IMPLEMENTATION_PLAN
 
-## Reflect — 주장 분류와 출처 검증 분리
+## 현재: 승인된 다음 Implement 없음
 
-2026-10-28 사용자 요청은 Reflect와 오류 수정까지 포함한다. 먼저 이 계획만 반영한 뒤 명시적으로 요청된 Implement를 진행한다. REVIEW 원문은 수정하지 않는다.
+Semantic 조회 정확도와 Agent 도구 사용 효율 계획의 구현·무과금 검증은 2026-10-28 완료했고 결과는 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md)에 있다. 다음 Human Review 이후 사용자의 Reflect 지시로 새 계획을 둔다.
 
-- 재현: B가 semantic으로 표기하거나 문서 본문의 규칙 이름을 ruleRefs로 인용하면 답변 전체가 폐기되는 문제.
-- 모델의 주장 종류와 서버가 확정하는 출처를 분리한다. 신규 A/B/C 출력은 observation/inference/calculation만 요청하고 기존 semantic 표기는 호환 해석으로 처리한다. 실제 출처는 이번 실행의 도구 근거·문서 version/hash·구조화 ruleId에서 산출한다.
-- 문서에 명시된 규칙 이름은 문서 내 표기로 기록하고 Semantic 규칙 적용으로 승격하지 않는다. 확인할 수 없는 규칙 표기는 경고/부분 결과로 보존한다. 없는 evidenceId와 A/B의 실제 Semantic 근거 접근은 계속 거부한다.
-- 먼저 B 두 오류·C 구조화 근거·없는 ID·가짜 규칙·모델의 출처 위조 반례를 실패시킨다. 테스트→구현→관련 회귀·타입/빌드·문서 정합화까지 완료한다.
-- UI는 모델의 주장 분류와 서버 출처/미확인 참조를 구분한다. 판단의 정답 여부를 검증했다고 주장하지 않는다. 기존 run은 수정하지 않으며 유료 모델 재호출 없이 재현한다.
+검토 시 결정이 필요한 남은 항목(승인 전 착수하지 않음):
+
+- 실제 모델 전후 측정: 동일 질문·스냅샷·예산에서 호출 수·중복률·반환 토큰·관계 조회 정답·최종 답변 유무·응답 시간. 유료 실행이므로 별도 승인 필요. 프롬프트 digest와 L3 gold가 바뀌어 이전 9-run과 같은 기준의 반복 비교가 아님을 함께 기록한다.
+- 기존 실패 `test_graph_sync.py::test_builder_queues_and_restart_recovery_are_scoped_to_source_endpoints`: 테스트 대체 함수와 `ensure_build(body, knowledge)` 시그니처 불일치. 이번 범위 밖으로 남겼다.

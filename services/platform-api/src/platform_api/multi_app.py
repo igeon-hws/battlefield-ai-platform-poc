@@ -35,6 +35,7 @@ class ComparisonInput(BaseModel):
     firstMode: Literal["off", "on"] = "off"
     firstKnowledgeMode: Literal["native", "documents", "structured"] = "native"
     baselineReportRef: Literal["atcis:report:R0"] | None = None
+    fixedContext: dict | None = None
 
 
 def create_multi_app(path=None, provider=None, sources=None, semantic=None):
@@ -204,11 +205,59 @@ def create_multi_app(path=None, provider=None, sources=None, semantic=None):
 
     @app.post("/api/v1/comparisons", status_code=202)
     async def compare(body: ComparisonInput):
+        from platform_api.knowledge_runtime import KnowledgeRepository
+
         if v4 and "firstMode" in body.model_fields_set:
             raise HTTPException(422, "v4 requires firstKnowledgeMode")
+        if body.fixedContext:
+            if not isinstance(repo, KnowledgeRepository) or set(body.fixedContext) != {
+                "sourceSnapshotSet",
+                "knowledgeSetVersion",
+            }:
+                raise HTTPException(
+                    422, "fixedContext requires v4/v5 sourceSnapshotSet and knowledgeSetVersion"
+                )
+            return await repo.create_comparison(
+                body.question,
+                body.firstKnowledgeMode,
+                body.baselineReportRef,
+                fixed_context=body.fixedContext,
+            )
         return await repo.create_comparison(
             body.question, body.firstKnowledgeMode if v4 else body.firstMode, body.baselineReportRef
         )
+
+    @app.post("/api/v1/evaluation-context")
+    async def evaluation_context():
+        from platform_api.knowledge_runtime import KnowledgeRuntime
+
+        if not isinstance(runtime, KnowledgeRuntime):
+            raise HTTPException(422, "evaluation context requires v4/v5")
+        pins = await runtime.capture(strict=True)
+        context = await runtime.fabric_request(
+            "POST",
+            "/v1/analysis-contexts",
+            json={"knowledgeMode": "documents", "sourceSnapshotSet": pins},
+        )
+        from battlefield_ontology import digest
+
+        from platform_api.agent.agent import INSTRUCTIONS
+
+        return {
+            "sourceSnapshotSet": pins,
+            "knowledgeSetVersion": context["knowledgeSetVersion"],
+            "knowledgeSetHash": context["knowledgeSetHash"],
+            "modelId": getattr(runtime.provider, "model", None),
+            "agentBudget": runtime.agent_limits,
+            "systemPromptVersion": digest(INSTRUCTIONS),
+            "modelSettings": {
+                "max_output_tokens": 4000,
+                "parallel_tool_calls": False,
+                "sampling": "provider default",
+                "sdkMaxRetries": 1,
+            },
+            "displayOnly": True,
+        }
 
     @app.get("/api/v1/comparisons")
     async def comparisons():

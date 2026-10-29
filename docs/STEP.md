@@ -1,6 +1,6 @@
 # STEP — Spec-Driven Development
 
-**현재 STEP: 3. Implement (AI).** 2026-10-28 주장 분류·출처 검증 오류 수정 진행 중.
+**현재 STEP: 4. Review (Human).** 2026-10-28 Semantic 조회 범위·run 내 근거 재사용 구현/무과금 검증 완료, Human Review 대기.
 
 ## 단계와 산출물
 

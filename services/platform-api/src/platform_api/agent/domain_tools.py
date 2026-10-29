@@ -40,6 +40,7 @@ NATIVE_TOOLS = {
 }
 SEMANTIC_TOOLS = {
     "interpret_concept",
+    "get_display_metadata",
     "resolve_unit_scope",
     "find_equipment_refs",
     "resolve_entity",
@@ -180,6 +181,7 @@ class DomainToolRunner(MultiToolRunner):
 
     async def execute(self, name, arguments):
         await self.prepare()
+        self.last_cache_hit = False
         if name == "evaluate_evidence":
             if self.mode == "off":
                 raise ValueError("semantic evaluation forbidden in off mode")

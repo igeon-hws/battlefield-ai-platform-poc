@@ -2,7 +2,116 @@
 
 ## 현재 상태
 
-2026-10-28 세 체계 군수 Mock·Agent 독립 객체 상세·A/B/C 별도 진입의 구현과 관련 검증을 완료해 **Human Review 대기**다. 현재 기본은 c2-logistics-demo-v5, source/ontology/adapter5.0.0, 정책5-logistics-abc다. v4/v3 구현·실측은 각 버전의 이력으로 보존한다. v5 실제 GPT 효과 비교는 미측정이다. [ARCHITECTURE](ARCHITECTURE.md)는 구조/실행, [PLAN](IMPLEMENTATION_PLAN.md)은 다음 유효 작업이며 이 문서는 실제 결과·제약만 관리한다.
+2026-10-28 세 체계 군수 Mock·Agent 독립 객체 상세·A/B/C 별도 진입의 구현과 관련 검증을 완료해 **Human Review 대기**다. 주장 분류·문서 규칙 인용 오류 수정에 이어 업무 UI·공통 표시 메타데이터·의미 관측 보기·반복 평가 도구의 구현과 무과금 검증을 완료했다. 이번 실제 모델 측정은 사용자 지시로 제외했다. 현재 기본은 c2-logistics-demo-v5, source/ontology/adapter5.0.0, 정책5-logistics-abc다. v4/v3 구현·실측은 각 버전의 이력으로 보존한다. 후속 사용자 허용으로 v5 GPT 사전 평가9 runs를 수행했다. 본 반복 측정과 일반적인 우열·일관성 검증은 미완료다. 이어서 사전 평가 REVIEW의 Semantic 조회 범위·run 내 근거 재사용을 구현하고 무과금 검증을 완료했다. [ARCHITECTURE](ARCHITECTURE.md)는 구조/실행, [PLAN](IMPLEMENTATION_PLAN.md)은 다음 유효 작업이며 이 문서는 실제 결과·제약만 관리한다.
+
+## Semantic 조회 범위·run 내 근거 재사용 — 2026-10-28
+
+사용자 REVIEW의 C 모드 도구 비효율을 반영한 구현과 무과금 검증을 완료했다. 구현은 Codex 세션에서 시작해 사용량 한도로 중단된 뒤 이어서 완료했다. 이전 세션의 테스트 통과 기록은 사용하지 않고 아래 검사를 다시 실행했다. 실제 모델 전후 측정은 수행하지 않았다.
+
+보존된 [9-run 결과](../artifacts/evaluation-pilot-20261028T065440Z/results.json)와 REVIEW 관찰을 대조한 결과:
+
+- L2 C의 `interpret_concept("availability")`는 실제로 규칙12개(14,572자)를 반환했다.
+- L2 C의 SOP-01 조회는 모델이 `documentId: null`을 보냈고 서버가 SOP-01을 기본으로 돌려준 경우였다.
+- 보존된 C의 `query_relations`는 0건이 아니었다. M-17 기준11건, L-T02 조직 관계3건이었다. REVIEW의 L-T02 군수 관계0건은 이 artifact에서 재현되지 않았다. 다만 ATCIS 장비 key에서 `SAME_AS` 없이 군수 관계만 요청하면0건이 되는 경로를 테스트로 고정했다.
+- 같은 run 안의 동일 인자 반복은 L3 A 한 run에만 있었다(`list_cargo`2회, `list_work_orders`3회). `list_supply_requests`의 run 내 중복은 없었다. 9 runs 합계는 `list_cargo`7회, `list_supply_requests`5회다.
+
+변경:
+
+- `interpret_concept`는 검토된 용어→시작 ruleId 표와 명시적 의존만 반환하고 `selectedRuleIds`·`supportedTerms`를 함께 준다. 미지원 용어는 `unresolved`이며 전체 조회는 명시적 `all`만 허용한다(v3 호환 테스트가 사용).
+- `get_procedure_definition`은 documentId가 필수이고, 도구 설명에 사고 보고/활동 완료 SOP-01 전용이며 정비·복구 전망을 정의하지 않는다고 명시한다.
+- 원천 MCP 응답은 run 범위에서 서버/도구/정규화 인자/sourceSnapshotSet 핀이 같을 때만 원래 evidenceId로 재사용하고 toolCalls에 cacheHit를 남긴다. 실패/partial은 재사용하지 않는다.
+- 도구/반복 한도에 도달하면 마지막 모델 요청을 도구 없이 보내 확보한 근거로 답변하게 한다. 출력 교정이 이어져도 예산 종료 안내가 중복되지 않게 수정했다.
+- A/B/C 공통 프롬프트에서 Fabric 문서 전용 `laborHours` 해석을 제거했다(프롬프트 digest 변경). v5 gold L3에서 질문에 없는 `컷오프 초과` 판정을 제거했다.
+- 평가 metrics에 중복 호출 수·중복률·cacheHit 수를 추가했다.
+
+보존 run 호출을 현재 코드로 재생한 정적 비교(모델 재실행 아님):
+
+| 항목 | 이전 기록 | 현재 코드 |
+| --- | --- | --- |
+| `interpret_concept("availability")` | 규칙12개 /14,572자 | 3개(AVAIL-LAND-01·AVAIL-NAVAL-01·AGGREGATION-POLICY-01) /4,244자 |
+| L3 C `query_relations` 2건 | 11건·3건 | 같은 간선 집합 11건·3건 |
+| L3 A 원천 요청 | 12회 | 캐시 적용 시 실제 원천 요청9회. 모델의 도구 호출 수와 예산 소모는 같음 |
+
+| 이번 실행의 검증 | 실제 결과 |
+| --- | --- |
+| 신규 효율 테스트(규칙 선택·미지원 용어·SAME_AS 경로·핀 캐시 적중/미적중·최종 답변 턴·안내 1회·프롬프트·L3 gold·절차 도구 설명) | 8 passed. 중단 전 세션의 선행 실패 기록은 재확인하지 않았고, 예산 안내 중복은 이번 세션에서 실패(2회)를 확인한 뒤 수정 |
+| 전체 무과금 비UI·비Neo4j 회귀 | 188 passed,56 deselected /233.18초 |
+| 실제 Neo4j 통합(UI·live 제외) | 16 passed,1 failed /469.43초 |
+| 정적 검사 | Ruff check/format(148파일), mypy84 source files 통과 |
+
+Neo4j 실패 `test_graph_sync.py::test_builder_queues_and_restart_recovery_are_scoped_to_source_endpoints`는 단독 재실행에서도 같다. 테스트의 대체 `build(refs)`가 인자1개인데 worker가 `ensure_build(body, knowledge)`로 2개를 넘겨 요청이 FAILED가 된다. graph-builder와 해당 테스트는 이번 작업에서 수정하지 않았으며 이전 지식 집합 도입 이후의 기존 불일치로 판단한다. 이번 범위 밖이라 수정하지 않았다.
+
+제약: 실제 모델의 호출 수·토큰·응답 시간·정답률의 전후 개선은 미측정이다. 캐시는 원천 요청만 줄이며 모델이 같은 도구를 반복 선택하는 것 자체는 막지 않는다. 용어 표에 없는 개념은 `unresolved`가 되므로 C가 오히려 조회에 실패할 수 있다. 프롬프트·gold 변경으로 이전 9-run과 이후 측정은 같은 기준의 반복 비교가 아니다. UI·live 테스트는 실행하지 않았다.
+
+## 실제 GPT 사전 평가 — 2026-10-28
+
+사용자가 유료 모델 실행을 명시적으로 허용한 후 L0/L2/L3 × A/B/C ×1회, 총9 runs를 실행했다. 본 측정54 runs는 수행하지 않았다. 당시 실행 중인 최신 v5 서버를 사용했고 코드·prompt·예산·원천 데이터·지식 집합은 실행 도중 변경하지 않았다. STEP은 Human Review를 유지하며 REVIEW 원문/정답 fixture/기존 로그를 변경하지 않았다.
+
+조건: 실제 응답 모델 gpt-6-luna, 세 원천 T1=2026-10-20 09:10 UTC, knowledge-30b1b2ab4f77148a1f1db9c2(11개 문서), C Graph domain-10b729c4d025e9d5e6349401이다. 첫 비교의 A→B→C, 다음 B→C→A, 마지막 C→A→B로 순서를 회전했다. 매 run은 격리된 빈 대화와 동일 snapshot pins를 사용했다. 각 run은24 iterations/20 tools/120초, batch 최대9 runs/216 모델 응답/관측 토큰 중단 기준2,000,000이었다. 토큰 기준은 비교 사이에서 검사하며 진행 중인 비교의 하드 비용 한도가 아니다.
+
+원천의 모든 records와 기준 시각이 독립 fixture와 일치하는 것을 유료 호출 전에 확인했다. 실행 후에도 records/snapshotId/sourceTime이 변하지 않았다.9개 모두 usage complete·같은 pins/지식 경계 검사를 통과했고, A/B의 Semantic 호출은0이었다. 실제 인용한 evidenceId는 모두 해당 run 안에 존재했다. 이는 문장 전체의 논리적 지지가 자동 증명됐다는 뜻은 아니다. 검증 실패·교정은 모두0이었으며, 원래 사용자가 제시한 과거 실패 run을 재작성하지 않았다.
+
+| 질의 | A 원천 | B 문서 | C 구조화 |
+| --- | --- | --- | --- |
+| L0 재고/예약 | 핵심 gold 충족,13.30초/2 tools | 핵심 gold 충족,11.20초/2 tools | 핵심 gold 충족,10.45초/2 tools |
+| L2 복구 전망 | 핵심 gold 충족,58.25초/11 tools | 핵심 gold 충족,66.80초/16 tools | 최종 답변 없음,73.99초/20 tools, budget_exceeded |
+| L3 수송 지연 영향 | 부분 충족,68.11초/12 tools | 부분 충족,45.67초/11 tools | 부분 충족,84.28초/17 tools |
+
+시간은 첫 모델 요청부터 loop 종료까지이며, 큐 대기/기준 준비가 포함된 전체 요청 시간과 구분한다. 판정은 assistant의 독립 gold 대조에 따른 잠정 분석이며 Human Review 완료가 아니다. 실패를 포함한9개 분모에서 핵심 gold 충족5개, 부분 충족3개, 최종 답변 없음1개다. 답변 완료는8/9이며 완료율을 정답률로 부르지 않는다.
+
+| 조건(각3 runs, 실패 포함) | 입력/출력 토큰 합계 | 모델 응답 | 도구 호출 | 평균 loop 시간 |
+| --- | --- | --- | --- | --- |
+| A | 194,221 /8,219 | 28 | 25 | 46.55초 |
+| B | 243,079 /6,559 | 32 | 29 | 41.22초 |
+| C | 582,246 /7,089 | 42 | 39 | 56.24초 |
+
+총 입력1,019,546·출력21,867·합계1,041,413 tokens, 모델 응답102회·도구93회다. 입력 중 cached939,247, 출력 중 reasoning8,862이며 각각 입력/출력에 포함된 하위 수치이므로 중복 합산하지 않는다. 금액은 계산하지 않았다. 입력 토큰 합계에는 캐시/누적 문맥이 포함되며 곧바로 비용 금액으로 해석할 수 없다.
+
+관찰과 반례:
+
+- L0는 세 조건 모두 원천 inventory/reservations만2회 읽고 WH-1 보유2/예약1 EA를 정확히 답했다. 단순 조회에서 추가 지식을 사용하지 않았다.
+- L2에서 A도 명시적 원천 참조와 자체 해석으로 올바른15시 조건부 전망을 냈다. B는 LOG-01/DISPLAY-01을 읽고 같은 결과를 냈다. C는 원천/문서 조회에 Semantic8회를 추가했고 도구 한도를 소진했다. get_procedure_definition 등 우회 탐색과 개별 identity 조회가 늘었다. 답변 실패를 숨기거나 C만 예산을 늘려 재측정하지 않았다.
+- L3는 세 조건 모두 C111/모의111중대·L-T02/EQ-781·M-17의 직접 영향 연결과 가정 분석을 답했다. A/C는 인도17시를 제시했으나 세 조건 모두 인도 후4h의21시 조건부 복구 전망을 제시하지 않았다. A의 ‘미예약1개 배정으로 지연을 피할 가능성’은 필요2개 중 미예약1+입고1이라는 수량 구조로 충분히 뒷받침되지 않는다. B는 이 질의에서 Knowledge/KNCCS 도구를 호출하지 않아 문서/예정 인도 시각을 읽지 않았다. C는 검증된 동일성/관계 근거를 실제로 인용했지만 경과 시간 규칙 적용까지 이어지지 않았다.
+- 독립 L3 질문에는18시 cutoff가 없지만 gold에는 컷오프 초과가 포함되어 있다. 해당 누락만으로 오답 처리하지 않았고 질문/gold의 한계로 따로 기록했다. 이번 실행 중 gold나 질문을 고치지 않았다.
+
+이번 작은 사전 평가에서는 C 우위가 입증되지 않았다. 현재 C tool loop가 추가 의미 조회 비용을 제어하지 못하는 반례가 확인됐다. 이는 일반적인 온톨로지 무효를 뜻하지 않는다.1회씩이라 반복 일관성·통계적 우열은 평가하지 못하며 단순 대조군도1개다. B/C의 지식 접근 권한과 실제 지식 사용은 다르고, 준비/캐시/순서 효과도 포함된다. 다음 구현이나54 runs 확대는 별도 사용자 지시 범위로 남긴다.
+
+원본과 파생 artifact는 [평가 batch](../artifacts/evaluation-pilot-20261028T065440Z/results.json), [고정 manifest](../artifacts/evaluation-pilot-20261028T065440Z/manifest.json), [잠정 분석](../artifacts/evaluation-pilot-20261028T065440Z/assistant-assessment.json), [CSV](../artifacts/evaluation-pilot-20261028T065440Z/summary.csv)에 보존했다. 같은 경로에 사전 rubric·원천 snapshots·코드/정답 hash·오프라인 metrics·미작성 Human Review 양식·실행 전후 검사가 있다. 별도 Markdown 보고서는 만들지 않았다.
+
+## 업무 UI·공통 의미 메타데이터·관측 연결·평가 도구 — 2026-10-28
+
+최신 REVIEW를 반영한 구현과 무과금 검증을 완료했다. 사용자가 유료 사전 점검 대신 구현·무과금 검증까지만 선택했으므로 실제 모델9/54 runs는 실행하지 않았다. v5 모델 정확도·일관성·성능 우위는 미측정이다.
+
+- C 객체 상세는 현재 원천 상태·소속·제약, 작업별 정비/필요 부품, 창고 재고/예약, 관련 수송, 기록별 기준·갱신·수신/이번 조회 완료 시각을 우선 표시한다. Graph/식별자/메타데이터·수집 진단/원본은 접힌 상세다. LLM을 추가 호출하지 않는다. laborHours는 기존 경과 시간(h)이며 인시로 바꾸지 않았다.
+- Fabric DISPLAY-01을 B/C 공통11개 지식 집합에 추가했다. 현재 knowledge-30b1b2ab4f77148a1f1db9c2, DISPLAY-01 v1.1/review-display-2다. 체계/필드·명칭/설명/aliases/단위·수량 성격·원천 schema5.0.0·적용 기간을 보존한다. C API/MCP/업무 view는 같은 버전/hash를 사용하고 B는 같은 문서를 읽는다. 미정의 코드는 미확인, 미지원 revision은 오류다. 이전10개와 초기 표시 문서 archive는 덮어쓰지 않았다.
+- 원천 단독 화면과 원천 탐색의 한국어 표시는 로컬 UI 자산이다. A/B Agent 입력이나 공통 가용 판정으로 주입하지 않는다. Fabric 탐색 메뉴를 업무 명칭으로 표시하고 원본 결과는 펼쳐서 확인한다. Agent의 의미 중심 한국어 답변 지침을 보완했지만 실제 모델의 표현 개선을 측정하지는 않았다.
+- 지상5/등록 함정2/접촉3의10개 관측 전달과 nativeStatus 보존을 확인했다. C의 명시적 의미 보기에서 검증된 자산별 연결 관측/근거와 관측·고유 자산·미확정 수를 구분한다. 위치가 다르면 모든 관측을 유지한다. 원천·의미 전환과 주기 갱신은 map 인스턴스를 재생성하거나 모델을 호출하지 않는다. A/B는 의미 API·MCP 접근을 차단한다.
+- 평가 도구는 무과금 context/manifest, 반복/순서 회전, 전체 pins·지식/모델·예산 고정, 새 artifact 예약/checkpoint, 실제 usage의 중복 제거·coverage, 실패 분모, 서비스별 도구 호출과 검토 양식을 제공한다. loop 시작/종료·모델 응답 시간, 검증 실패/교정 횟수를 run에 저장한다. 미검토 정확도·근거 지지는 null/unreviewed이며 자동 정답 판정하지 않는다.
+
+| 이번 실행의 검증 | 실제 결과 |
+| --- | --- |
+| 전체 무과금 비UI·비Neo4j 회귀 | 177 passed,52 deselected /318.39초. 이후 계측/메타데이터 변경은 아래 관련 검사로 재검증 |
+| 최종 실제 정적 UI 회귀 | 29 passed,205 deselected /171.80초. 원천 단독·Fabric 탐색·상세/문서·지도/대화·키보드/IME·반응형 포함 |
+| 실제 세 원천/MCP/Neo4j 상세·비교·UI | 2 passed /264.84초. 결정론적 provider, 실제 모델 비용 없음 |
+| 최종 메타데이터1.1·MCP parity·A/B 차단·무과금 CLI manifest | 1 passed /76.36초. 실제 세 원천과 전용 Neo4j 사용,9 planned runs/0 executed runs 확인 |
+| 고정 context의 실제 반복 비교 | 1 passed /213.04초. 테스트 원천 tick 후에도 두 비교의 A/B/C가 최초 pins/지식 버전을 재사용하고 loop 시간을 저장 |
+| 실제 Fabric→Knowledge MCP→Agent 저장 | 1 passed /37.45초. 결정론적 provider, 계측 변경 후 경로 확인 |
+| 최종 Agent·검증·로그·계측·메타데이터 회귀 | 35 passed /9.72초. 실패2회·교정1회 계측 포함. 앞선 Agent/지식 경계 검사44 passed,1 deselected /12.36초 |
+| 빌드·계약·정적 검사 | 여섯 UI build/정적 패키징, Pydantic 계약 export, 최종 TypeScript, Ruff check/147파일 format, mypy84 source files 통과 |
+
+캡처는 artifacts/business-ui/c-{너비}-{높이}.png다. 1440×900/1280×800/1024×768/640×900/390×844/1024×500에서 닫기 접근·패널 폭을 검사했고 데스크톱/모바일 이미지를 직접 확인했다. 모바일 도구 모음의 과도한 줄바꿈을 수정했다. 실제 세 체계 UI 캡처는 artifacts/logistics-v5-*를 갱신했다. 검사 중 메뉴명/원본 접기 변경에 따른 기존 selector와 중복 텍스트 selector를 수정한 뒤 재검증했다.
+
+제약: 의미 지도는 자산별 관측 목록/배지·근거이며 검토된 대표 위치 정책이나 임의의 단일 마커 병합을 추가하지 않았다. token 중단은 ABC 사이의 관측 한도라 진행 중인 비교의 하드 비용 상한이 아니다. SDK transport 재시도의 과금까지 응답 수로 추정하지 않는다. 검토 양식은 사람이 채워야 하며 자동 채점된 정답률은 없다. 새 metadata revision의 의미·한국어 용어 검토는 Human Review에서 확인한다. Vite의 기존 큰 chunk 경고는 남는다. 테스트는 임시 원천 DB/포트와 전용 Neo4j17687의 test scope를 사용했고 사용자 서버/DB/Graph/volume을 초기화하지 않았다. REVIEW SHA256 3B0502E38FC29B32E1EB7F3D237B3E1723D9C0987E7153E250D7734715AF0686을 보존했다.
+
+## 주장 분류·문서 규칙 인용 오류 수정 — 2026-10-28
+
+사용자가 제공한 df3ad1410ef2428ea100977f30822a35 로그의 두 오류를 실패 테스트로 재현하고 수정했다. B의 semantic 표기와 문서 규칙 이름 때문에 결과 전체를 버리던 동작을 모델의 주장 종류와 서버의 출처 메타데이터로 분리했다. 새 A/B/C 스키마에는 semantic 종류를 요청하지 않으며 구형 표기는 reportedKind에 남기고 inference로 호환 처리한다. 실제 Semantic/Knowledge 접근 차단과 이번 run에 없는 evidenceId 거부는 유지한다.
+
+문서 본문에 실제 있는 규칙 이름은 documentRuleRefs와 문서 version/hash로 표시한다. C의 구조화된 근거에서 확인한 ruleRefs와 구분한다. 확인 불가 규칙 표기는 한계 경고·partial 답변으로 보존하고 가짜 증명으로 승인하지 않는다. 모델이 서버 provenance를 직접 제출하는 것도 거부한다. 새 서버 계약은 provenanceVersion1이며 로그에는 claim_provenance로 분류·출처·확인/미확인 참조를 남긴다. 본문 진위나 논리적 지지는 이 검사로 평가하지 않는다.
+
+검증: 신규 반례 포함 Agent·기존 지식 경계·로그 회귀46 passed,1 deselected /14.98초. 실제 정적 UI의 출처·문서 규칙 표시와 기존 지도/대화6 passed /33.46초. 캡처 `artifacts/claim-document-provenance.png` 직접 확인. 실제 Fabric→Knowledge MCP→Agent→저장 경로1 passed /40.06초로 B가 문서1회 조회와 최종 응답의2회 모델 호출(결정론적 provider)로 완료됨을 확인했다. 새 모델 스키마의 semantic 제외 assertion까지 포함한 최종 실제 재검증도1 passed /29.13초다. TypeScript·플랫폼 빌드/정적 패키징·mypy80 source files 통과. Ruff check·140파일 format 검사 통과. docs8개·로컬 문서 링크·변경 공백 검사를 확인했다. 작업 중 사용자가 갱신한 최신 REVIEW 원문은 AI가 수정하지 않고 보존했다.
+
+유료 모델은 호출하지 않았다. 원래 실패 run/log/DB는 수정하지 않았으며 서버 재시작 후 새 실행에 적용된다. v3/legacy의 기존 엄격 검증과 과거 실측은 보존한다. 실제 모델 정답률이나 원래 질문의 재실행 성공을 측정했다고 주장하지 않는다. UI·계약·기술/결정 문서를 기존 파일에 정합화하고 REVIEW 원문은 유지했다.
 
 ## 세 체계 군수·독립 객체 상세·페이지 구분 — 2026-10-28
 

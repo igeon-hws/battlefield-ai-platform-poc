@@ -34,7 +34,9 @@ class KnowledgeRepository(MultiRepository):
                     )
         await super().open()
 
-    async def create_comparison(self, question, first_mode="native", baseline_report_ref=None):
+    async def create_comparison(
+        self, question, first_mode="native", baseline_report_ref=None, fixed_context=None
+    ):
         if first_mode not in MODES:
             raise ValueError("knowledgeMode required")
         index = MODES.index(first_mode)
@@ -45,6 +47,7 @@ class KnowledgeRepository(MultiRepository):
             "status": "preparing",
             "createdAt": datetime.now(UTC).isoformat(),
             "manifest": None,
+            "fixedContext": fixed_context,
             "runIds": {},
             "error": None,
             "executionOrder": list(MODES[index:] + MODES[:index]),
@@ -225,11 +228,18 @@ class KnowledgeRuntime(DomainRuntime):
         cid = item["comparisonId"]
         started = monotonic()
         try:
-            pins = await self.capture(strict=True)
+            fixed = item.get("fixedContext") or {}
+            pins = await self.capture(strict=True, overrides=fixed.get("sourceSnapshotSet"))
+            if fixed and pins != fixed["sourceSnapshotSet"]:
+                raise ValueError("fixed evaluation requires the complete immutable snapshot set")
             docs = await self.fabric_request(
                 "POST",
                 "/v1/analysis-contexts",
-                json={"knowledgeMode": "documents", "sourceSnapshotSet": pins},
+                json={
+                    "knowledgeMode": "documents",
+                    "sourceSnapshotSet": pins,
+                    "knowledgeSetVersion": fixed.get("knowledgeSetVersion"),
+                },
             )
             manifest = {
                 "question": item["question"],

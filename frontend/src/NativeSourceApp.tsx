@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { NativeRecord, nativeValue } from './NativePresentation';
 import { SituationMap, type EntityView } from './App';
 import './Domain.css';
 
@@ -283,7 +284,7 @@ export default function NativeSourceApp({ system }: { system: 'atcis' | 'knccs' 
           <h2>원천 레코드</h2>
           {record ? (
             <>
-              <pre>{pretty(record)}</pre>
+              <NativeRecord record={record} />
               {tab === 'transports' && (
                 <button
                   onClick={() =>
@@ -306,7 +307,9 @@ export default function NativeSourceApp({ system }: { system: 'atcis' | 'knccs' 
                         ? ['FMC', 'PMC', 'NMC', 'UNK']
                         : ['GO', 'HOLD', 'UNKNOWN']
                       ).map((code) => (
-                        <option key={code}>{code}</option>
+                        <option key={code} value={code}>
+                          {nativeValue(system === 'atcis' ? 'maintenanceCode' : 'mission', code)}
+                        </option>
                       ))}
                     </select>
                   </label>

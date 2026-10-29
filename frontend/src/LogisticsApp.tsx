@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import './Domain.css';
+import { NativeRecord, nativeValue, resourceNames } from './NativePresentation';
 const resources = [
   'assets',
   'work-orders',
@@ -102,12 +103,12 @@ export default function LogisticsApp() {
                 setSelected(null);
               }}
             >
-              {r}
+              {resourceNames[r] || r}
             </button>
           ))}
         </aside>
         <section>
-          <h2>{resource}</h2>
+          <h2>{resourceNames[resource] || resource}</h2>
           <p>원천 ID·업무 기록을 표시합니다. 다른 체계의 해석·Graph·LLM 연결 없이 동작합니다.</p>
           {(snapshot?.records[resource] || []).map((r: any, i: number) => (
             <button className="domain-record" key={i} onClick={() => setSelected(r)}>
@@ -117,7 +118,7 @@ export default function LogisticsApp() {
           {selected && (
             <article>
               <h3>원천 레코드</h3>
-              <pre>{JSON.stringify(selected, null, 2)}</pre>
+              <NativeRecord record={selected} />
               {resource === 'work-orders' && (
                 <label>
                   정비 상태
@@ -134,7 +135,9 @@ export default function LogisticsApp() {
                     }
                   >
                     {['WAIT_PART', 'IN_PROGRESS', 'DONE', 'UNKNOWN'].map((v) => (
-                      <option key={v}>{v}</option>
+                      <option key={v} value={v}>
+                        {nativeValue('status', v)}
+                      </option>
                     ))}
                   </select>
                 </label>

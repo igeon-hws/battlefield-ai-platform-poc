@@ -37,7 +37,10 @@ class AgentLoop:
             "toolCalls": [],
             "evidence": [],
             "iterations": [],
+            "validationFailures": 0,
+            "correctionAttempts": 0,
         }
+        first_model_started = None
 
         async def publish():
             state["toolCalls"] = self.runner.calls
@@ -74,6 +77,8 @@ class AgentLoop:
         corrected = False
         repeats = 0
         last_signature = None
+        final_only = False
+        final_notice_added = False
         try:
             async with asyncio.timeout(self.deadline):
                 await self.runner.prepare()
@@ -108,14 +113,30 @@ class AgentLoop:
                         }
                     )
                 for iteration in range(self.max_iterations):
+                    final_only = (
+                        final_only
+                        or len(self.runner.calls) >= self.max_tools
+                        or iteration == self.max_iterations - 1
+                    )
+                    if final_only and not final_notice_added:
+                        final_notice_added = True
+                        inputs.append(
+                            {
+                                "role": "developer",
+                                "content": "도구 조회 예산이 끝났습니다. 지금까지 확보한 근거로 답변하세요. 확인하지 못한 항목은 한계로 명시하고 필요한 경우 partial로 표시하세요. 추가 도구를 호출하지 마세요.",
+                            }
+                        )
                     requested = time.monotonic()
+                    if first_model_started is None:
+                        first_model_started = requested
+                        state["modelLoopStartedAt"] = datetime.now(UTC).isoformat()
                     await self.event(
                         "model_started", {"iteration": iteration + 1, "historyItems": len(inputs)}
                     )
                     response = await self.provider.respond(
                         inputs,
                         instructions=INSTRUCTIONS,
-                        tools=self.runner.definitions,
+                        tools=[] if final_only else self.runner.definitions,
                         result_format=result_format,
                     )
                     await self.event(
@@ -140,6 +161,7 @@ class AgentLoop:
                             "iteration": iteration + 1,
                             "responseId": response.get("id"),
                             "model": response.get("model"),
+                            "durationSeconds": round(time.monotonic() - requested, 4),
                             "usage": response.get("usage"),
                             "time": datetime.now(UTC).isoformat(),
                         }
@@ -154,8 +176,15 @@ class AgentLoop:
                     if calls:
                         for item in calls:
                             if len(self.runner.calls) >= self.max_tools:
-                                state["status"] = "budget_exceeded"
-                                return state
+                                inputs.append(
+                                    {
+                                        "type": "function_call_output",
+                                        "call_id": item["call_id"],
+                                        "output": json.dumps({"error": "tool_budget_exceeded"}),
+                                    }
+                                )
+                                final_only = True
+                                continue
                             started = datetime.now(UTC).isoformat()
                             record = {
                                 "name": item["name"],
@@ -175,6 +204,9 @@ class AgentLoop:
                                 record["arguments"] = args
                                 result = await self.runner.execute(item["name"], args)
                                 record["status"] = "completed"
+                                record["cacheHit"] = bool(
+                                    getattr(self.runner, "last_cache_hit", False)
+                                )
                             except Exception as exc:  # noqa: BLE001 - tool boundary records any adapter error
                                 result = {"error": type(exc).__name__, "detail": str(exc)[:1500]}
                                 record["status"] = "failed"
@@ -208,8 +240,7 @@ class AgentLoop:
                             )
                             await publish()
                             if repeats >= 2:
-                                state["status"] = "budget_exceeded"
-                                return state
+                                final_only = True
                         continue
                     refusal = any(
                         c.get("type") == "refusal"
@@ -271,7 +302,21 @@ class AgentLoop:
                             annotate_result(
                                 result, self.runner.evidence, self.runner.knowledge_mode
                             )
-                            await self.event('claim_provenance',{'version':'1','claims':[{'kind':c['kind'],'evidenceRefs':c['evidenceRefs'],'ruleRefs':c['ruleRefs'],**c['provenance']} for c in result['claims']]})
+                            await self.event(
+                                "claim_provenance",
+                                {
+                                    "version": "1",
+                                    "claims": [
+                                        {
+                                            "kind": c["kind"],
+                                            "evidenceRefs": c["evidenceRefs"],
+                                            "ruleRefs": c["ruleRefs"],
+                                            **c["provenance"],
+                                        }
+                                        for c in result["claims"]
+                                    ],
+                                },
+                            )
                         if result["courses"] and len({c["id"] for c in result["courses"]}) != 3:
                             raise ValueError("course IDs must be unique")
                         state["result"] = result
@@ -280,6 +325,7 @@ class AgentLoop:
                         )
                         break
                     except (ValueError, TypeError) as exc:
+                        state["validationFailures"] += 1
                         await self.event(
                             "validation_failed",
                             {
@@ -294,6 +340,7 @@ class AgentLoop:
                             break
                         # One repair is allowed; repeated invalid output stops the loop.
                         corrected = True
+                        state["correctionAttempts"] += 1
                         inputs.append(
                             {
                                 "role": "developer",
@@ -314,6 +361,12 @@ class AgentLoop:
                 "loop_failed", {"error": state["error"], "errorType": type(exc).__name__}
             )
         finally:
+            state["loopDurationSeconds"] = (
+                round(time.monotonic() - first_model_started, 4)
+                if first_model_started is not None
+                else None
+            )
+            state["loopFinishedAt"] = datetime.now(UTC).isoformat()
             for record in self.runner.calls:
                 if record["status"] == "running":
                     record["status"] = state["status"]

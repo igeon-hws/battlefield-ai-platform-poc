@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import KnowledgeDocuments from './KnowledgeDocuments';
+import { formatTime } from './time';
+import { NativeRecord, resourceNames } from './NativePresentation';
 export type DemoAPI = (path: string, body?: unknown) => Promise<any>;
 const resources: Record<string, string[]> = {
   atcis: ['equipment', 'units', 'reports', 'activities', 'relations'],
@@ -119,7 +121,9 @@ export function NativeBrowser({ api, onClose }: { api: DemoAPI; onClose: () => v
           onChange={(e) => setResource(e.target.value)}
         >
           {resources[system].map((r) => (
-            <option key={r}>{r}</option>
+            <option key={r} value={r}>
+              {resourceNames[r] || r}
+            </option>
           ))}
         </select>
       </label>
@@ -145,7 +149,7 @@ export function NativeBrowser({ api, onClose }: { api: DemoAPI; onClose: () => v
               {(Object.entries(r).find(([k]) => /Id$|Code$|pennant/.test(k))?.[1] as string) ||
                 '기록 ' + i}
             </summary>
-            <pre>{JSON.stringify(r, null, 2)}</pre>
+            <NativeRecord record={r} />
           </details>
         ))}
       {next != null && <button onClick={() => void load(String(next))}>다음 원천 페이지</button>}
@@ -228,60 +232,164 @@ export function ObjectContext({
       <button onClick={() => setRetry((n) => n + 1)}>상세 새로고침</button>
       {data && (
         <>
-          <p>
-            동일성: {data.identityStatus} ·{' '}
-            {data.partial ? '일부 원천 조회 불가' : '원천 조회 완료'}
-          </p>
-          <p>Graph {data.graphVersion}</p>
-          <p>원천 상태 {JSON.stringify(data.coverage)}</p>
-          {data.records.map((r: any, i: number) => (
-            <section key={i}>
-              <h3>
-                {r.systemId} · {r.recordType} · {r.nativeId}
-              </h3>
-              <small>
-                기준: {r.sourceTime || '정보 없음'}
-                <br />
-                상태 변경: {r.recordUpdatedAt || '정보 없음'}
-                <br />
-                최종 수신: {r.lastReceivedAt || '정보 없음'}
-              </small>
-              <dl>
-                {Object.entries(r.record)
-                  .filter(([, v]) => v === null || typeof v !== 'object')
-                  .map(([k, v]) => (
-                    <div key={k}>
-                      <dt>
-                        {(
-                          {
-                            assetId: '군수 자산',
-                            equipmentId: '원천 장비',
-                            workOrderId: '정비 작업',
-                            status: '원천 상태',
-                            partId: '부품',
-                            onHand: '보유 수량',
-                            reserved: '예약 수량',
-                            laborHours: '정비 소요 시간(h)',
-                            arrivalAt: '입항 예정',
-                            deliveryAt: '인도 예정',
-                            transportId: '수송편',
-                            quantity: '수량',
-                            unit: '단위',
-                            otherFaults: '다른 미해결 고장',
-                            ownerCode: '소속 코드',
-                          } as Record<string, string>
-                        )[k] || k}
-                      </dt>
-                      <dd>{v === null ? '정보 없음' : String(v)}</dd>
-                    </div>
-                  ))}
-              </dl>
-              <details>
-                <summary>전체 원천 기록</summary>
-                <pre>{JSON.stringify(r.record, null, 2)}</pre>
-              </details>
-            </section>
-          ))}
+          <p role="status">{data.partial ? '일부 정보만 조회되었습니다.' : '원천 조회 완료'}</p>
+          {data.stale && (
+            <p role="alert">연결 근거와 현재 원천의 기준이 달라 업무 요약을 보류했습니다.</p>
+          )}
+          {!data.business && (
+            <p>
+              {(
+                {
+                  ambiguous: '같은 객체로 연결할 후보가 여러 개입니다.',
+                  conflict: '동일성 근거가 서로 충돌합니다.',
+                  unresolved: '확정된 동일성 연결이 없습니다.',
+                } as Record<string, string>
+              )[data.identityStatus] || '확정된 업무 요약이 없습니다.'}{' '}
+              연결 상태와 원본 기록을 확인하세요.
+            </p>
+          )}
+          {data.business && (
+            <>
+              <section aria-label="현재 상태">
+                <h3>
+                  {data.business.asset.name} · {nativeId}
+                </h3>
+                <dl>
+                  <div>
+                    <dt>현재 원천 상태</dt>
+                    <dd>{data.business.asset.status}</dd>
+                  </div>
+                  <div>
+                    <dt>소속</dt>
+                    <dd>{data.business.asset.unit}</dd>
+                  </div>
+                  <div>
+                    <dt>제약 사항</dt>
+                    <dd>{data.business.asset.limitation || '기록 없음'}</dd>
+                  </div>
+                </dl>
+              </section>
+              <section aria-label="정비 현황">
+                <h3>정비 현황</h3>
+                {!data.business.maintenance.length && <p>연결된 정비 작업이 없습니다.</p>}
+                {data.business.maintenance.map((w: any) => (
+                  <article key={w.id}>
+                    <h4>정비 작업 {w.id}</h4>
+                    <p>{w.status}</p>
+                    <p>
+                      정비 소요 시간: {w.durationHours ?? '정보 없음'} h · {w.otherFaults}
+                    </p>
+                    <p>
+                      필요 부품:{' '}
+                      {w.requirements
+                        .map((q: any) => `${q.partId} · ${q.quantity} ${q.unit || ''}`)
+                        .join(', ') || '기록 없음'}
+                    </p>
+                  </article>
+                ))}
+              </section>
+              <section>
+                <h3>관련 부품 재고</h3>
+                <p>보유·예약 수량은 특정 작업에 배정 가능한 수량과 다를 수 있습니다.</p>
+                {data.business.inventory.map((r: any, i: number) => (
+                  <p key={i}>
+                    {r.partId} · {r.warehouse} · 보유 {r.onHand ?? '정보 없음'} / 예약{' '}
+                    {r.reserved ?? '정보 없음'} {r.unit}
+                  </p>
+                ))}
+                {!data.business.inventory.length && <p>연결된 재고 기록이 없습니다.</p>}
+              </section>
+              <section>
+                <h3>관련 수송</h3>
+                {data.business.transport.map((r: any) => (
+                  <article key={r.id}>
+                    <h4>{r.id}</h4>
+                    <p>{r.status}</p>
+                    <p>
+                      입항 예정 {formatTime(r.arrivalAt)}
+                      <br />
+                      인도 예정 {formatTime(r.deliveryAt)}
+                    </p>
+                  </article>
+                ))}
+                {!data.business.transport.length && <p>연결된 수송 기록이 없습니다.</p>}
+              </section>
+              <section>
+                <h3>정보 시점</h3>
+                {data.business.sourceTimes.map((r: any, i: number) => (
+                  <p key={i}>
+                    {r.source.toUpperCase()} · {r.nativeId || '원천 기록'}
+                    <br />
+                    데이터 기준 {formatTime(r.sourceTime)}
+                    <br />
+                    기록 갱신 {formatTime(r.recordUpdatedAt)}
+                    <br />
+                    최근 수신 {formatTime(r.lastReceivedAt)}
+                  </p>
+                ))}
+                <p>이번 조회 완료 {formatTime(data.business.queriedAt)}</p>
+              </section>
+            </>
+          )}
+          <details>
+            <summary>원천 식별자·버전·수집 진단</summary>
+            <p>동일성: {data.identityStatus}</p>
+            <p>Graph {data.graphVersion}</p>
+            <pre>
+              {JSON.stringify({ coverage: data.coverage, metadata: data.metadata }, null, 2)}
+            </pre>
+          </details>
+          <details>
+            <summary>원본 기록 ({data.records.length})</summary>
+            {data.records.map((r: any, i: number) => (
+              <section key={i}>
+                <h3>
+                  {r.systemId} · {r.recordType} · {r.nativeId}
+                </h3>
+                <small>
+                  기준: {r.sourceTime || '정보 없음'}
+                  <br />
+                  상태 변경: {r.recordUpdatedAt || '정보 없음'}
+                  <br />
+                  최종 수신: {r.lastReceivedAt || '정보 없음'}
+                </small>
+                <dl>
+                  {Object.entries(r.record)
+                    .filter(([, v]) => v === null || typeof v !== 'object')
+                    .map(([k, v]) => (
+                      <div key={k}>
+                        <dt>
+                          {(
+                            {
+                              assetId: '군수 자산',
+                              equipmentId: '원천 장비',
+                              workOrderId: '정비 작업',
+                              status: '원천 상태',
+                              partId: '부품',
+                              onHand: '보유 수량',
+                              reserved: '예약 수량',
+                              laborHours: '정비 소요 시간(h)',
+                              arrivalAt: '입항 예정',
+                              deliveryAt: '인도 예정',
+                              transportId: '수송편',
+                              quantity: '수량',
+                              unit: '단위',
+                              otherFaults: '다른 미해결 고장',
+                              ownerCode: '소속 코드',
+                            } as Record<string, string>
+                          )[k] || k}
+                        </dt>
+                        <dd>{v === null ? '정보 없음' : String(v)}</dd>
+                      </div>
+                    ))}
+                </dl>
+                <details>
+                  <summary>전체 원천 기록</summary>
+                  <pre>{JSON.stringify(r.record, null, 2)}</pre>
+                </details>
+              </section>
+            ))}
+          </details>
           <details>
             <summary>연결 규칙·근거·버전 ({data.links.length})</summary>
             {data.links.map((link: any) => (

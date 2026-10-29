@@ -169,6 +169,20 @@
   }
 }
 @media (max-width: 600px) {
+  .bf-shell.has-demo .bf-map-toolbar > div {
+    display: none;
+  }
+  .bf-shell.has-demo .bf-map-toolbar {
+    gap: 5px;
+  }
+  .bf-shell.has-demo .bf-map-toolbar > select {
+    min-width: 0;
+    max-width: 130px;
+    font-size: 11px;
+  }
+  .bf-shell.has-demo .bf-map-toolbar > button {
+    white-space: nowrap;
+  }
   .bf-shell.has-demo .bf-brand,
   .bf-shell.has-demo .bf-brand-mark,
   .bf-shell.has-demo .bf-connections {

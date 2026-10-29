@@ -7,7 +7,12 @@ from test_agent import FakeMCP, FakeProvider, final
 
 
 async def run_claim(
-    kind="semantic", rule="LOG-LINK-01", ref="doc", mode="documents", system="knowledge"
+    kind="semantic",
+    rule="LOG-LINK-01",
+    ref="doc",
+    mode="documents",
+    system="knowledge",
+    forged=False,
 ):
     runner = ToolRunner(FakeMCP())
     runner.knowledge_mode = mode
@@ -34,6 +39,8 @@ async def run_claim(
     payload["claims"] = [
         {"kind": kind, "text": "문서를 해석한 주장", "evidenceRefs": [ref], "ruleRefs": [rule]}
     ]
+    if forged:
+        payload["claims"][0]["provenance"] = {"sources": ["semantic"]}
     reply["output"][0]["content"][0]["text"] = json.dumps(payload)
     return await AgentLoop(FakeProvider([reply, reply]), runner).run("test")
 
@@ -72,3 +79,7 @@ async def test_c_provenance_comes_from_evidence_not_reported_kind():
 
 async def test_native_cannot_cite_document_evidence():
     assert (await run_claim(mode="native"))["status"] == "validation_failed"
+
+
+async def test_model_cannot_supply_server_provenance():
+    assert (await run_claim(forged=True))["status"] == "validation_failed"

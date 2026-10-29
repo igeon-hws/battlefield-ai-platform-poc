@@ -70,6 +70,7 @@ class KnowledgeToolRunner(DomainToolRunner):
 
     async def execute(self, name, arguments):
         await self.prepare()
+        self.last_cache_hit = False
         if name.startswith("knowledge__"):
             if not self.knowledge or name not in self.registry:
                 raise ValueError("knowledge tool forbidden")

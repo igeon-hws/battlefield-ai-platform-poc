@@ -27,4 +27,4 @@ export type SourceSnapshotSetV5 = { atcis: SnapshotRef; knccs: SnapshotRef; logi
 export type SessionInput = { mode: string };
 export type ObjectRequest = { systemId: string; recordType: string; nativeId: string; graphVersion?: string | null; sourceSnapshotSet?: {  } | null };
 export type Question = { question: string; semanticMode?: "off" | "on"; knowledgeMode?: "native" | "documents" | "structured" | null; conversationId?: string | null; baselineReportRef?: "atcis:report:R0" | null };
-export type ComparisonInput = { question: string; firstMode?: "off" | "on"; firstKnowledgeMode?: "native" | "documents" | "structured"; baselineReportRef?: "atcis:report:R0" | null };
+export type ComparisonInput = { question: string; firstMode?: "off" | "on"; firstKnowledgeMode?: "native" | "documents" | "structured"; baselineReportRef?: "atcis:report:R0" | null; fixedContext?: {  } | null };

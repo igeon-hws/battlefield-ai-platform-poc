@@ -147,6 +147,8 @@ class ObjectService:
                             "SAME_AS",
                             "REFERS_TO",
                             "REQUIRES",
+                            "ASSIGNED_TO",
+                            "SUBORDINATE_TO",
                             "FULFILLED_BY",
                             "RESERVES",
                             "CARRIED_BY",
@@ -199,6 +201,8 @@ class ObjectService:
             resource, idfield = (
                 ("own-forces", "pennant")
                 if s == "knccs" and record_type == "equipment"
+                else ("formations", "formationRef")
+                if s == "knccs" and record_type == "unit"
                 else RESOURCE_FIELDS[record_type]
             )
             row = next(
@@ -240,10 +244,26 @@ class ObjectService:
                     "snapshotId": snapshots[system]["snapshotId"],
                 }
             ]
-        return {
+        result = {
             "identityStatus": "stale" if stale else identity["status"],
             "canonicalId": None if stale else identity["canonicalId"],
             "graphVersion": graph_version,
+            "stale": stale,
+            "sourceSnapshotSet": {
+                s: {
+                    k: r[k]
+                    for k in (
+                        "datasetId",
+                        "epochId",
+                        "snapshotId",
+                        "sequence",
+                        "sourceTime",
+                        "stableDataHash",
+                    )
+                    if k in r
+                }
+                for s, r in snapshots.items()
+            },
             "knowledgeSetVersion": info.get("knowledgeSetVersion"),
             "knowledgeSetHash": info.get("knowledgeSetHash"),
             "adapterVersion": info.get("mappingVersion"),
@@ -255,3 +275,19 @@ class ObjectService:
             "limits": {"nodes": 200, "links": 300, "depth": 7},
             "displayOnly": True,
         }
+
+        try:
+            from semantic_core.business import business_summary
+            from semantic_core.metadata import MetadataCatalog
+
+            metadata = MetadataCatalog(info["knowledgeSetVersion"])
+            result["metadata"] = metadata.public()
+            result["business"] = (
+                business_summary(records, metadata, system, kind, native_id)
+                if not stale and identity["status"] == "resolved"
+                else None
+            )
+        except KeyError:
+            result["metadata"] = {"available": False, "fields": []}
+            result["business"] = None
+        return result

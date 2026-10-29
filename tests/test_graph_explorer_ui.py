@@ -130,9 +130,12 @@ async def test_explorer_distinct_version_labels_and_stale_responses():
                 await page.get_by_role("button", name="전체 버전 ID 복사", exact=True).click()
                 assert await page.evaluate("navigator.clipboard.readText()") == versions[1]
                 # Graph failure must leave source/catalog navigation usable.
-                await page.get_by_role("button", name="Catalog", exact=True).click()
+                await page.get_by_role("button", name="데이터 목록", exact=True).click()
                 await page.get_by_role("button", name="조회", exact=True).click()
-                await expect(page.locator("section > pre")).to_contain_text("c2-domain-demo-v3")
+                await page.get_by_text("조회 결과·원본 필드·버전", exact=True).click()
+                await expect(page.locator("section > details > pre")).to_contain_text(
+                    "c2-domain-demo-v3"
+                )
             finally:
                 release.set()
                 await browser.close()
@@ -168,9 +171,12 @@ async def test_explorer_empty_or_unavailable_keeps_catalog_usable(graph_status):
                     ).to_be_visible()
                 else:
                     await expect(page.get_by_role("alert")).to_contain_text(str(graph_status))
-                await page.get_by_role("button", name="Catalog", exact=True).click()
+                await page.get_by_role("button", name="데이터 목록", exact=True).click()
                 await page.get_by_role("button", name="조회", exact=True).click()
-                await expect(page.locator("section > pre")).to_contain_text("c2-domain-demo-v3")
+                await page.get_by_text("조회 결과·원본 필드·버전", exact=True).click()
+                await expect(page.locator("section > details > pre")).to_contain_text(
+                    "c2-domain-demo-v3"
+                )
                 assert await page.get_by_label("조회할 Graph 버전", exact=True).input_value() == ""
             finally:
                 await browser.close()
@@ -201,11 +207,11 @@ async def test_late_fabric_catalog_does_not_override_user_navigation():
             await page.route("**/v1/**", route_api)
             try:
                 await page.goto(url, wait_until="domcontentloaded")
-                await page.get_by_role("button", name="Graph 탐색", exact=True).click()
+                await page.get_by_role("button", name="연결 지식 탐색", exact=True).click()
                 release.set()
                 await expect(page.get_by_text("c2-domain-demo-v4", exact=True)).to_be_visible()
                 await expect(
-                    page.get_by_role("heading", name="Graph 탐색", exact=True)
+                    page.get_by_role("heading", name="연결 지식 탐색", exact=True)
                 ).to_be_visible()
             finally:
                 release.set()

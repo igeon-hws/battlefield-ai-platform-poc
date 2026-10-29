@@ -193,6 +193,9 @@ def create_app(repository=None, token=None):
             from semantic_api.objects import install_objects
 
             install_objects(app, read, service)
+            from semantic_api.business import install_business
+
+            install_business(app, read, service)
         from battlefield_source_runtime.ledger import mount_ui
 
         mount_ui(app, Path(__file__).parent / "web_static")

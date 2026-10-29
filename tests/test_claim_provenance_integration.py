@@ -8,7 +8,10 @@ from test_knowledge_integration import v4_stack, wait_run
 
 class DocumentClaimProvider:
     async def respond(self, inputs, **kwargs):
-        assert 'semantic' not in kwargs['result_format']['schema']['$defs']['Claim']['properties']['kind']['enum']
+        assert (
+            "semantic"
+            not in kwargs["result_format"]["schema"]["$defs"]["Claim"]["properties"]["kind"]["enum"]
+        )
         outputs = [
             json.loads(i["output"]) for i in inputs if i.get("type") == "function_call_output"
         ]
