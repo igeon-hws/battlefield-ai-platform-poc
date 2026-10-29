@@ -16,6 +16,91 @@ def rule_ids(value):
     return set()
 
 
+QUANTITY = re.compile(r"(\d+)\s*(대|개|척|건|명)")
+HOURS = re.compile(r"(\d+)\s*(h|시간)(?![가-힣])")
+CLOCK = re.compile(r"(?<!\d)(\d{2}:\d{2})(?!\d)")
+# ASCII boundaries: Korean particles ("L-T02는") count as \w in Python and must not block a match.
+IDENT = re.compile(r"(?<![A-Za-z0-9-])([A-Z]{1,4}-[A-Z]?\d{2,4})(?![A-Za-z0-9-])")
+# Integers under these keys are counts a "N대/개" claim may restate; laborHours etc. are not.
+COUNT_KEYS = {
+    "total",
+    "available",
+    "quantity",
+    "onHand",
+    "reserved",
+    "unreserved",
+    "required",
+    "shortfall",
+    "reservedForThisWork",
+    "unreservedAvailable",
+    "allocatedFromUnreserved",
+    "allocatedFromIncoming",
+}
+
+
+# Display-only or definition fields: their numbers (step counts, maxDepth) are not answer values.
+SKIP_KEYS = {
+    "steps",
+    "excluded",
+    "graphNodes",
+    "graphEvidence",
+    "relationLabels",
+    "roleLabels",
+    "appliedRules",
+}
+
+
+def _scan(value, key=None, under_counts=False, out=None):
+    out = out if out is not None else {"counts": set(), "hours": set(), "text": []}
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if k in SKIP_KEYS:
+                continue
+            _scan(v, k, under_counts or k in ("counts", "byStatus", "byKindStatus"), out)
+    elif isinstance(value, list):
+        for v in value:
+            _scan(v, key, under_counts, out)
+    elif isinstance(value, bool):
+        pass
+    elif isinstance(value, int):
+        if under_counts or key in COUNT_KEYS:
+            out["counts"].add(value)
+        if key == "laborHours":
+            out["hours"].add(value)
+    elif isinstance(value, str):
+        out["text"].append(value)
+    return out
+
+
+def claim_class(claim, cited):
+    """Deterministic: a fact restates values present in cited computed evidence."""
+    if claim["kind"] == "inference":
+        return "judgment", "모델이 추론으로 분류한 주장"
+    computed = [e for e in cited if e.get("systemId") in ("semantic", "computed")]
+    if not computed:
+        return "judgment", "업무 질의·계산 도구 근거 없이 쓴 주장"
+    found = _scan([e["data"] for e in cited])
+    text = " ".join(found["text"])
+    claim_text = claim["text"]
+    missing = [
+        m.group(0) for m in QUANTITY.finditer(claim_text) if int(m[1]) not in found["counts"]
+    ]
+    missing += [m.group(0) for m in HOURS.finditer(claim_text) if int(m[1]) not in found["hours"]]
+    missing += [m[1] for m in CLOCK.finditer(claim_text) if m[1] not in text]
+    missing += [m[1] for m in IDENT.finditer(claim_text) if m[1] not in text]
+    if missing:
+        return "judgment", "근거에 없는 값: " + ", ".join(dict.fromkeys(missing))
+    checked = (
+        QUANTITY.search(claim_text)
+        or HOURS.search(claim_text)
+        or CLOCK.search(claim_text)
+        or IDENT.search(claim_text)
+    )
+    if not checked:
+        return "judgment", "근거 값으로 확인할 수치·식별자가 없는 주장"
+    return "fact", "인용한 업무 질의·계산 근거의 값과 일치"
+
+
 def annotate_result(result, evidence, mode):
     cited = set(result["evidenceIds"])
     for item in result["findings"] + (result["courses"] or []):
@@ -80,6 +165,9 @@ def annotate_result(result, evidence, mode):
             "documentRuleRefs": sorted(mentions),
             "unverifiedRuleRefs": sorted(unknown),
         }
+        if mode == "structured":
+            kind, reason = claim_class(claim, [evidence[r] for r in claim["evidenceRefs"]])
+            claim["provenance"] |= {"claimClass": kind, "classReason": reason}
         if unknown:
             warnings.append(
                 "주장에 인용한 규칙 표기를 확인하지 못했습니다: " + ", ".join(sorted(unknown))

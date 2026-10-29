@@ -48,7 +48,16 @@ def _compile_declaration(declaration, declaration_version, nodes, edges, node, r
         if n["label"] == "InterpretationRule"
     }
     summary = {
-        k: declaration[k] for k in ("ontologyId", "version", "revision", "terms", "editable")
+        k: declaration[k]
+        for k in (
+            "ontologyId",
+            "version",
+            "revision",
+            "terms",
+            "editable",
+            "concepts",
+            "relationTypes",
+        )
     }
     key = "ontology:declaration"
     nodes[key] = {

@@ -16,6 +16,31 @@ def _iso(value):
     return value.isoformat().replace("+00:00", "Z")
 
 
+def _clock(value):
+    return value[5:16].replace("T", " ") if value else "시각 미상"
+
+
+# Display words for the analysis view only; judgments stay in the declaration rules.
+STATUS_LABELS = {"available": "가용", "limited": "제한", "unavailable": "불가", "unknown": "미상"}
+ROLE_LABELS = {
+    "ORG": "편제",
+    "ATT": "배속",
+    "SUP": "지원",
+    "ASSIGNED": "배정",
+    "SUPPORT": "지원",
+    "CTRL": "통제",
+    "RECEIVER": "수신",
+}
+KIND_LABELS = {
+    "tank": "전차",
+    "armored_vehicle": "장갑차",
+    "support_vehicle": "지원 차량",
+    "uav": "무인기",
+    "naval_vessel": "함정",
+    "unknown": "유형 미상",
+}
+
+
 def _holds(condition, row):
     op = condition["op"]
     if op == "OR":
@@ -58,6 +83,7 @@ class Context:
             self.rules = {r["ruleId"]: r for r in declaration["rules"]}
             self.queries = {q["queryId"]: q for q in declaration["businessQueries"]}
             self.version = f"{declaration['version']}-r{declaration['revision']}"
+            labels = declaration
         else:
             self.rules = {
                 n["payload"]["ruleId"]: n["payload"]
@@ -73,11 +99,56 @@ class Context:
             if declared is None:
                 raise ValueError("graph has no ontology declaration")
             self.version = declared["payload"]["declarationVersion"]
+            labels = declared["payload"]
+        self.concepts = {c["id"]: c["label"] for c in labels.get("concepts", [])}
+        self.relation_labels = {r["id"]: r["label"] for r in labels.get("relationTypes", [])}
         times = [r["sourceTime"] for r in info["inputSnapshotSet"].values() if r.get("sourceTime")]
         self.as_of = min(_time(t) for t in times) if times else None
         self.used_edges: dict[str, dict] = {}
         self.records: dict[tuple, dict] = {}
         self.unknowns: list[str] = []
+        self.steps: list[dict] = []
+        self.excluded: dict[str, dict] = {}
+        self.states: dict[str, str] = {}
+
+    def name(self, key):
+        node = self.by_key.get(key)
+        if node is None:
+            return key.rsplit(":", 1)[-1]
+        return node["payload"].get("name") or node.get("sourceRef", {}).get("nativeId") or key
+
+    def step(self, title, detail, rule_ids, count, node_keys):
+        self.steps.append(
+            {
+                "step": len(self.steps) + 1,
+                "title": title,
+                "detail": detail,
+                "ruleIds": list(rule_ids),
+                "count": count,
+                "nodeKeys": list(dict.fromkeys(node_keys)),
+            }
+        )
+
+    def exclude(self, key, reason, rule_id, step):
+        self.excluded.setdefault(
+            key,
+            {
+                "key": key,
+                "nativeId": key.rsplit(":", 1)[-1],
+                "name": self.name(key),
+                "reason": reason,
+                "ruleId": rule_id,
+                "step": step,
+            },
+        )
+        self.states[key] = "excluded"
+
+    def mark(self):
+        return len(self.used_edges)
+
+    def touched(self, mark):
+        edges = list(self.used_edges.values())[mark:]
+        return [k for e in edges for k in (e["start"], e["end"])]
 
     def valid(self, edge):
         if not self.as_of:
@@ -146,7 +217,37 @@ class Context:
             ],
             "unknowns": self.unknowns,
             "completeness": "partial" if self.unknowns else "complete",
+            "steps": self.steps,
+            "excluded": list(self.excluded.values()),
+            "graphNodes": self._graph_nodes(),
+            "relationLabels": {
+                kind: self.relation_labels.get(kind, kind)
+                for kind in dict.fromkeys(e["kind"] for e in self.used_edges.values())
+            },
+            "roleLabels": {
+                role: ROLE_LABELS.get(role, role)
+                for role in dict.fromkeys(
+                    e["role"] for e in self.used_edges.values() if e.get("role")
+                )
+            },
         }
+
+    def _graph_nodes(self):
+        keys = [k for e in self.used_edges.values() for k in (e["start"], e["end"])]
+        keys += [k for s in self.steps for k in s["nodeKeys"]] + list(self.excluded)
+        nodes = []
+        for key in dict.fromkeys(keys):
+            node = self.by_key.get(key)
+            label = node["label"] if node else None
+            nodes.append(
+                {
+                    "key": key,
+                    "name": self.name(key),
+                    "concept": self.concepts.get(label, label),
+                    "state": self.states.get(key),
+                }
+            )
+        return nodes
 
 
 def _unit_matches(node, term):
@@ -179,13 +280,24 @@ def asset_status_summary(ctx, query, params):
         if not children:
             break
         scope |= children
+    unit_node = units[0]
+    ctx.step(
+        "범위 정하기",
+        f"{ctx.name(unit_node['key'])}({unit_node['sourceRef']['nativeId']}) 기준, 예하 부대 "
+        f"{len(scope) - 1}개 포함",
+        ["FORCE-SCOPE-01"],
+        len(scope),
+        sorted(scope),
+    )
     definition = ctx.rules["FORCE-SCOPE-01"]["definition"]
     policy = ctx.rules["AGGREGATION-POLICY-01"]["definition"]
     included = policy[policy["defaultAvailablePolicy"]]
     items: dict[str, dict] = {}
+    role_excluded: dict[str, str] = {}
     for unit in sorted(scope):
         for e in ctx.links("ASSIGNED_TO", end=unit):
             if e.get("role") not in definition["includedRoles"]:
+                role_excluded.setdefault(e["start"], e.get("role") or "역할 없음")
                 continue
             equipment = ctx.by_key[e["start"]]
             system = equipment["sourceRef"]["systemId"]
@@ -200,6 +312,21 @@ def asset_status_summary(ctx, query, params):
                 },
             )
             item["roles"].append({"unit": unit, "role": e["role"]})
+    for key, role in role_excluded.items():
+        if key not in items:
+            ctx.exclude(
+                key, f"{ROLE_LABELS.get(role, role)} 배정은 전력 범위에서 제외", "FORCE-SCOPE-01", 2
+            )
+    roles = sorted({r["role"] for i in items.values() for r in i["roles"]})
+    ctx.step(
+        "장비 모으기",
+        f"{'·'.join(ROLE_LABELS.get(r, r) for r in roles) or '해당'} 배정 장비 {len(items)}대"
+        + (f", 역할로 제외 {len(ctx.excluded)}대" if ctx.excluded else ""),
+        ["FORCE-SCOPE-01", "ORG-ROLE-01"],
+        len(items),
+        [*items, *sorted(scope)],
+    )
+    wanted = params.get("kind")
     result_items = []
     for key, item in sorted(items.items()):
         equipment = ctx.by_key[key]
@@ -210,7 +337,13 @@ def asset_status_summary(ctx, query, params):
         kind = type_rule["definition"]["values"].get(
             native_row.get(type_rule["definition"]["typeField"]), "unknown"
         )
-        if params.get("kind") and kind != params["kind"]:
+        if wanted and kind != wanted:
+            ctx.exclude(
+                key,
+                f"{KIND_LABELS.get(kind, kind)}, {KIND_LABELS.get(wanted, wanted)} 아님",
+                type_rule["ruleId"],
+                3,
+            )
             continue
         if item["systemId"] == "atcis":
             row = ctx.record("atcis", "equipment", "equipmentId", item["nativeId"])
@@ -225,6 +358,7 @@ def asset_status_summary(ctx, query, params):
             ctx.unknowns.append(f"{item['nativeId']} 원천 상태 기록 없음")
         elif status == "unknown":
             ctx.unknowns.append(f"{item['nativeId']} 상태 미상: {native_status}")
+        ctx.states[key] = status
         result_items.append(
             {
                 **item,
@@ -237,6 +371,43 @@ def asset_status_summary(ctx, query, params):
                 "countedAsAvailable": status in included,
             }
         )
+    kept = [i["canonicalId"] for i in result_items]
+    if wanted:
+        type_rules = sorted({e["ruleId"] for e in ctx.excluded.values() if e["step"] == 3})
+        ctx.step(
+            "유형 거르기",
+            f"{KIND_LABELS.get(wanted, wanted)}만 남김: {len(items)} → {len(result_items)}대",
+            type_rules or ["ASSET-TYPE-01"],
+            len(result_items),
+            kept,
+        )
+
+    def shown(value):
+        if isinstance(value, dict):
+            return "/".join(f"{k}={v}" for k, v in value.items())
+        return value or "기록 없음"
+
+    ctx.step(
+        "상태 판정",
+        ", ".join(
+            f"{i['nativeId']} {shown(i['nativeStatus'])} → {STATUS_LABELS.get(i['status'])}"
+            for i in result_items
+        )
+        + (f" (원천 기준 {_clock(_iso(ctx.as_of))})" if ctx.as_of else ""),
+        sorted({i["statusRule"] for i in result_items}),
+        len(result_items),
+        kept,
+    )
+    available = [i for i in result_items if i["countedAsAvailable"]]
+    ctx.step(
+        "가용 집계",
+        f"기본 가용 기준 {policy['defaultAvailablePolicy']}: "
+        f"{'·'.join(STATUS_LABELS.get(s, s) for s in included)}만 셈 → "
+        f"가용 {len(available)}대 / 전체 {len(result_items)}대",
+        ["AGGREGATION-POLICY-01"],
+        len(available),
+        [i["canonicalId"] for i in available],
+    )
     by_status: dict[str, int] = {}
     by_kind: dict[str, dict[str, int]] = {}
     for item in result_items:
@@ -256,7 +427,7 @@ def asset_status_summary(ctx, query, params):
         },
         counts={
             "total": len(result_items),
-            "available": sum(i["countedAsAvailable"] for i in result_items),
+            "available": len(available),
             "byStatus": by_status,
             "byKindStatus": by_kind,
         },
@@ -277,10 +448,18 @@ def _allocation(ctx, work_id, requirement):
             reservation_id = reserve["start"].split(":", 2)[2]
             res = ctx.record("logistics", "reservations", "reservationId", reservation_id)
             target = ctx.links("FOR_WORK", start=reserve["start"])
+            owner_work = target[0]["end"].split(":", 2)[2] if target else None
+            if owner_work != work_id:
+                ctx.exclude(
+                    reserve["start"],
+                    f"다른 작업({owner_work or '미상'}) 전용 예약이라 이 작업에 쓰지 않음",
+                    "LOG-LINK-01",
+                    4,
+                )
             reservations.append(
                 {
                     "reservationId": reservation_id,
-                    "workOrderId": target[0]["end"].split(":", 2)[2] if target else None,
+                    "workOrderId": owner_work,
                     "quantity": (res or {}).get("quantity", 0),
                 }
             )
@@ -344,36 +523,71 @@ def asset_dependency_chain(ctx, query, params):
     else:
         assets = [e["start"] for e in ctx.links("SAME_AS", end=start)]
         equipment = start
+    ctx.step(
+        "동일 장비 연결",
+        f"{ctx.name(equipment)} = 군수 자산 {', '.join(a.split(':', 2)[2] for a in assets)} "
+        "(등록 동일성)"
+        if equipment and assets
+        else "검증된 동일 장비 연결 없음",
+        ["LOG-LINK-01"],
+        len(assets),
+        ([equipment] if equipment else []) + assets,
+    )
     owner = None
+    owner_keys: list[str] = []
     if equipment:
         scope = ctx.rules["FORCE-SCOPE-01"]["definition"]
-        assigned = [
-            e
-            for e in ctx.links("ASSIGNED_TO", start=equipment)
-            if e.get("role") in scope["includedRoles"]
-            and e.get("role") not in scope["supportRoles"]
-        ]
+        assigned = []
+        for e in ctx.links("ASSIGNED_TO", start=equipment):
+            role = e.get("role")
+            if role in scope["includedRoles"] and role not in scope["supportRoles"]:
+                assigned.append(e)
+            else:
+                ctx.exclude(
+                    e["end"],
+                    f"{ROLE_LABELS.get(role, role)} 배정은 소속 판단에서 제외",
+                    "FORCE-SCOPE-01",
+                    2,
+                )
         if assigned:
             unit, ancestors = assigned[0]["end"], []
             current = unit
+            owner_keys.append(unit)
             while parents := ctx.links("SUBORDINATE_TO", start=current):
                 current = parents[0]["end"]
+                owner_keys.append(current)
                 ancestors.append(current.split(":", 2)[2])
             owner = {
                 "unitCode": unit.split(":", 2)[2],
                 "role": assigned[0]["role"],
                 "ancestors": ancestors,
             }
+    ctx.step(
+        "소속 확인",
+        f"{owner['unitCode']} {ROLE_LABELS.get(owner['role'], owner['role'])} 배정"
+        + (f" · 상위 {' > '.join(owner['ancestors'])}" if owner["ancestors"] else "")
+        if owner
+        else "소속 배정 없음",
+        ["FORCE-SCOPE-01"],
+        len(owner_keys),
+        owner_keys,
+    )
     native_state = None
     if equipment and equipment.startswith("atcis:"):
         row = ctx.record("atcis", "equipment", "equipmentId", equipment.split(":", 2)[2])
         native_state = (row or {}).get("maintenanceCode")
     work_orders = []
+    part_keys: list[str] = []
+    work_keys: list[str] = []
+    forecasts: list[str] = []
     for asset in assets:
         for maintains in ctx.links("MAINTAINS", end=asset):
             work_id = maintains["start"].split(":", 2)[2]
+            work_keys.append(maintains["start"])
             work = ctx.record("logistics", "work-orders", "workOrderId", work_id) or {}
+            mark = ctx.mark()
             parts = [_allocation(ctx, work_id, r) for r in work.get("requirements", [])]
+            part_keys += ctx.touched(mark)
             assumptions = ["예정대로 인도", "다른 미해결 고장 없음", "부품 확보 즉시 작업 시작"]
             earliest = None
             if work.get("otherFaults") is not False:
@@ -389,6 +603,17 @@ def asset_dependency_chain(ctx, query, params):
                 base = max(ready) if ready else ctx.as_of
                 if base is not None and work.get("laborHours") is not None:
                     earliest = _iso(base + timedelta(hours=work["laborHours"]))
+                    forecasts.append(
+                        f"{work_id}: 부품 확보 {_clock(_iso(base))} + 작업 {work['laborHours']}h "
+                        f"→ {_clock(earliest)} (조건부)"
+                    )
+            if earliest is None:
+                reason = (
+                    "다른 고장 여부 미확인"
+                    if work.get("otherFaults") is not False
+                    else "부품 부족 또는 기록 없음"
+                )
+                forecasts.append(f"{work_id}: {reason}으로 계산하지 않음")
             work_orders.append(
                 {
                     "workOrderId": work_id,
@@ -406,6 +631,45 @@ def asset_dependency_chain(ctx, query, params):
                     },
                 }
             )
+    ctx.step(
+        "정비 작업",
+        ", ".join(
+            f"{w['workOrderId']}(상태 {w['status']}, 작업 {w['laborHours']}h)" for w in work_orders
+        )
+        or "정비 작업 없음",
+        ["LOG-LINK-01"],
+        len(work_orders),
+        work_keys,
+    )
+
+    def allocation(work_id, p):
+        incoming = ", ".join(
+            f"{i['transportId']} {_clock(i['deliveryAt'])} 도착" for i in p["incoming"]
+        )
+        shortfall = "기록 없음" if p["shortfall"] is None else p["shortfall"]
+        return (
+            f"{work_id} {p['partId']} 필요 {p['required']} = 이 작업 예약 "
+            f"{p['reservedForThisWork']} + 미예약 재고 {p['allocatedFromUnreserved']} + 입고 "
+            f"{p['allocatedFromIncoming']}"
+            + (f"({incoming})" if incoming else "")
+            + f" → 부족 {shortfall}"
+        )
+
+    ctx.step(
+        "부품 확보",
+        "; ".join(allocation(w["workOrderId"], p) for w in work_orders for p in w["parts"])
+        or "필요 부품 없음",
+        ["LOG-LINK-01"],
+        sum(len(w["parts"]) for w in work_orders),
+        part_keys,
+    )
+    ctx.step(
+        "완료 전망",
+        "; ".join(forecasts) or "정비 작업 없음",
+        ["LOG-LINK-01"],
+        sum(w["conditionalForecast"]["earliestCompletion"] is not None for w in work_orders),
+        work_keys,
+    )
     return ctx.result(
         query,
         params,
@@ -426,6 +690,7 @@ def part_supply_status(ctx, query, params):
     if part_key not in ctx.by_key:
         return {**ctx.result(query, params), "status": "unresolved", "warehouses": []}
     warehouses = []
+    mark = ctx.mark()
     for stock in ctx.links("STOCK_OF", end=part_key):
         inventory_id = stock["start"].split(":", 2)[2]
         row = ctx.record("logistics", "inventory", "inventoryId", inventory_id) or {}
@@ -455,10 +720,31 @@ def part_supply_status(ctx, query, params):
                 "reservations": reservations,
             }
         )
+    ctx.step(
+        "창고 재고",
+        ", ".join(
+            f"{w['warehouseId']}: 보유 {w['onHand']} · 예약 {w['reserved']} · 미예약 "
+            f"{w['unreserved']}"
+            for w in warehouses
+        )
+        or "재고 기록 없음",
+        ["LOG-LINK-01"],
+        len(warehouses),
+        ctx.touched(mark),
+    )
+    mark = ctx.mark()
     required = []
     for requires in ctx.links("REQUIRES", end=part_key):
         work_id = requires["start"].split(":", 2)[2]
         required.append({"workOrderId": work_id, "quantity": requires.get("quantity")})
+    ctx.step(
+        "작업 수요",
+        ", ".join(f"{r['workOrderId']} {r['quantity']}개" for r in required) or "수요 없음",
+        ["LOG-LINK-01"],
+        len(required),
+        ctx.touched(mark),
+    )
+    mark = ctx.mark()
     incoming = []
     for contains in ctx.links("CONTAINS_PART", end=part_key):
         cargo_id = contains["start"].split(":", 2)[2]
@@ -476,6 +762,18 @@ def part_supply_status(ctx, query, params):
                     "status": transport.get("status"),
                 }
             )
+    ctx.step(
+        "입고 예정",
+        ", ".join(
+            f"{i['cargoId']} {i['quantity']}개({i['transportId']} {_clock(i['deliveryAt'])} 도착, "
+            f"{i['status']})"
+            for i in incoming
+        )
+        or "입고 예정 없음",
+        ["LOG-LINK-01"],
+        len(incoming),
+        ctx.touched(mark),
+    )
     return ctx.result(query, params, warehouses=warehouses, requiredBy=required, incoming=incoming)
 
 

@@ -62,6 +62,20 @@ class V6Provider:
             )
         if not outputs:
             return call("atcis__list_equipment", {}, "src")
+        structured = outputs[0].get("tool") == "semantic__run_business_query"
+        if structured and len(outputs) == 1 and "evidenceId" in outputs[0]:
+            return call(
+                "semantic__run_business_query",
+                {
+                    "queryId": "asset-maintenance-chain",
+                    "unit": None,
+                    "kind": None,
+                    "systemId": "atcis",
+                    "nativeId": "L-T02",
+                    "partId": None,
+                },
+                "chain",
+            )
         if "evidenceId" not in outputs[0]:
             return message(
                 {
@@ -76,7 +90,39 @@ class V6Provider:
             )
         evidence = outputs[0]["evidenceId"]
         counts = (outputs[0].get("data") or {}).get("counts") or {}
-        structured = outputs[0].get("tool") == "semantic__run_business_query"
+        if structured:
+            # Three claims share two evidences; the analysis view must still render twice.
+            chain = outputs[1]["evidenceId"]
+            return message(
+                {
+                    "outcome": "answer",
+                    "answer": f"가용 전차는 {counts.get('available', '?')}대입니다.",
+                    "findings": [],
+                    "claims": [
+                        {
+                            "kind": "calculation",
+                            "text": "모의 1사단 예하 전차 L-T01 가용, L-T02 제한(PMC)",
+                            "evidenceRefs": [evidence],
+                            "ruleRefs": ["AGGREGATION-POLICY-01"],
+                        },
+                        {
+                            "kind": "observation",
+                            "text": "L-T02는 10-21 15:00 정비 완료가 조건부로 전망됩니다.",
+                            "evidenceRefs": [chain],
+                            "ruleRefs": [],
+                        },
+                        {
+                            "kind": "inference",
+                            "text": "전망은 전제 조건부라 가용 전환으로 확정할 수 없습니다.",
+                            "evidenceRefs": [chain],
+                            "ruleRefs": [],
+                        },
+                    ],
+                    "evidenceIds": [evidence, chain],
+                    "limitations": ["test provider"],
+                    "courses": None,
+                }
+            )
         return message(
             {
                 "outcome": "answer",
@@ -141,6 +187,8 @@ async def test_v6_trace_and_fabric_publish_in_browser(tmp_path):
         assert result["outcome"] == "answer", result["answer"]
         assert result["claims"][0]["ruleRefs"] == ["AGGREGATION-POLICY-01"]
         assert result["claims"][0]["provenance"]["unverifiedRuleRefs"] == []
+        classes = [c["provenance"]["claimClass"] for c in result["claims"]]
+        assert classes == ["fact", "fact", "judgment"]
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page(viewport={"width": 1440, "height": 900})
@@ -152,7 +200,43 @@ async def test_v6_trace_and_fabric_publish_in_browser(tmp_path):
                 await box.press("Enter")
                 await expect(page.get_by_text("가용 전차는 1대입니다.").first).to_be_visible()
                 await page.get_by_text("주장별 해석·근거").last.click()
-                chain = page.get_by_label("근거 추적").last
+                # Two evidences cited by three claims: each analysis renders once.
+                await expect(page.get_by_label("분석 과정")).to_have_count(2)
+                await expect(page.get_by_label("주장 분류 요약")).to_contain_text(
+                    "계산된 사실 2 · 모델 판단 1"
+                )
+                await expect(page.get_by_label("모델 판단").first).to_contain_text("검토 필요")
+                await page.get_by_label("모델 판단").first.scroll_into_view_if_needed()
+                await page.screenshot(path=str(SHOTS / "c-claims-list.png"))
+                analysis = page.get_by_label("분석 과정").first
+                await expect(analysis).to_contain_text("1. 범위 정하기")
+                await expect(analysis).to_contain_text("전차만 남김: 5 → 2대")
+                await expect(analysis).to_contain_text("L-T02 PMC → 제한")
+                await expect(analysis).to_contain_text("가용 1대 / 전체 2대")
+                await expect(analysis.get_by_label("제외 항목")).to_contain_text("전차 아님")
+                graph = analysis.get_by_role("img", name="분석에 쓰인 지식그래프")
+                await expect(graph).to_contain_text("모의 1사단")
+                await expect(graph).to_contain_text("L-V01")
+                step = analysis.get_by_role("button", name="4. 상태 판정")
+                await step.click()
+                await expect(step).to_have_attribute("aria-pressed", "true")
+                await analysis.scroll_into_view_if_needed()
+                await page.screenshot(path=str(SHOTS / "c-analysis.png"))
+                await graph.scroll_into_view_if_needed()
+                await graph.screenshot(path=str(SHOTS / "c-analysis-graph.png"))
+                await page.set_viewport_size({"width": 390, "height": 844})
+                await analysis.scroll_into_view_if_needed()
+                width = await page.evaluate("document.documentElement.scrollWidth")
+                assert width <= 390
+                await page.screenshot(path=str(SHOTS / "c-analysis-mobile.png"))
+                await page.set_viewport_size({"width": 1440, "height": 900})
+                await page.get_by_role(
+                    "button", name="근거 2. 자산 정비·부품·수송 의존 체인"
+                ).first.click()
+                await expect(page.locator(".evidence-block.flash")).to_have_count(1)
+                await page.screenshot(path=str(SHOTS / "c-claims.png"))
+                await page.get_by_text("세부 근거 (업무 질의·선언·간선·원천 기록)").first.click()
+                chain = page.get_by_label("근거 추적").first
                 await expect(chain).to_contain_text("업무 질의")
                 await expect(chain).to_contain_text("선언 6.0.0-r1")
                 await expect(chain).to_contain_text("AGGREGATION-POLICY-01")

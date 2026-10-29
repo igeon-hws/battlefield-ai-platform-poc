@@ -185,3 +185,66 @@ def test_claim_citing_business_query_verifies_rule_refs(model):
 
     result = run(model, "asset-availability-summary", {"unit": "D1", "kind": "tank"})
     assert {"FORCE-SCOPE-01", "AVAIL-LAND-01", "AGGREGATION-POLICY-01"} <= rule_ids(result)
+
+
+def test_availability_explains_steps_exclusions_and_graph(model):
+    # The analysis view renders these deterministically; the model writes none of it.
+    result = run(model, "asset-availability-summary", {"unit": "D1", "kind": "tank"})
+    steps = result["steps"]
+    assert [s["title"] for s in steps] == [
+        "범위 정하기",
+        "장비 모으기",
+        "유형 거르기",
+        "상태 판정",
+        "가용 집계",
+    ]
+    assert [s["count"] for s in steps] == [3, 5, 2, 2, 1]
+    assert steps[0]["ruleIds"] == ["FORCE-SCOPE-01"]
+    assert set(steps[0]["nodeKeys"]) == {"atcis:unit:D1", "atcis:unit:B11", "atcis:unit:C111"}
+    assert "모의 1사단" in steps[0]["detail"]
+    assert "L-T02 PMC → 제한" in steps[3]["detail"]
+    assert "P1" in steps[4]["detail"] and "1대" in steps[4]["detail"]
+    excluded = {e["nativeId"]: e for e in result["excluded"]}
+    assert set(excluded) == {"L-V01", "L-C01", "L-U01"}
+    assert all(e["ruleId"] == "ASSET-TYPE-01" and e["step"] == 3 for e in excluded.values())
+    assert "전차 아님" in excluded["L-V01"]["reason"]
+    nodes = {n["key"]: n for n in result["graphNodes"]}
+    assert nodes["atcis:unit:D1"]["name"] == "모의 1사단"
+    assert nodes["atcis:unit:D1"]["concept"] == "부대"
+    assert nodes["atcis:equipment:L-T01"]["state"] == "available"
+    assert nodes["atcis:equipment:L-T02"]["state"] == "limited"
+    assert nodes["atcis:equipment:L-V01"]["state"] == "excluded"
+    # Every edge endpoint has a display node; labels come from the declaration.
+    assert {k for e in result["graphEvidence"] for k in (e["start"], e["end"])} <= set(nodes)
+    assert result["relationLabels"]["SUBORDINATE_TO"] == "예하"
+    assert result["roleLabels"]["ATT"] == "배속"
+
+
+def test_availability_steps_follow_published_policy(model):
+    from battlefield_ontology.declaration import apply_edits, load_base
+
+    changed = apply_edits(
+        load_base(), {"rules.AGGREGATION-POLICY-01.definition.defaultAvailablePolicy": "P2"}
+    )
+    result = run(model, "asset-availability-summary", {"unit": "D1", "kind": "tank"}, changed)
+    last = result["steps"][-1]
+    assert last["count"] == 2 and "P2" in last["detail"] and "2대" in last["detail"]
+
+
+def test_maintenance_chain_explains_allocation_and_forecast(model):
+    result = run(model, "asset-maintenance-chain", {"systemId": "atcis", "nativeId": "L-T02"})
+    titles = [s["title"] for s in result["steps"]]
+    assert titles == ["동일 장비 연결", "소속 확인", "정비 작업", "부품 확보", "완료 전망"]
+    assert "EQ-781" in result["steps"][0]["detail"]
+    assert "15:00" in result["steps"][4]["detail"]
+    reserved = next(e for e in result["excluded"] if e["nativeId"] == "RES-01")
+    assert "M-18" in reserved["reason"] and reserved["step"] == 4
+    nodes = {n["key"] for n in result["graphNodes"]}
+    assert {k for e in result["graphEvidence"] for k in (e["start"], e["end"])} <= nodes
+
+
+def test_part_supply_explains_steps(model):
+    result = run(model, "part-supply-status", {"partId": "P-08"})
+    assert [s["title"] for s in result["steps"]] == ["창고 재고", "작업 수요", "입고 예정"]
+    assert "WH-1" in result["steps"][0]["detail"]
+    assert result["excluded"] == []

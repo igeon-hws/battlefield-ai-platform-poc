@@ -54,6 +54,10 @@ class ClaimProvenance(Model):
     documents: list[DocumentCitation]
     document_rule_refs: list[str]
     unverified_rule_refs: list[str]
+    # Server-judged for structured answers only: values found in cited business-query or
+    # calculation evidence ("fact") versus anything the model added ("judgment").
+    claim_class: Literal["fact", "judgment"] | None = None
+    class_reason: str | None = None
 
 
 class ProvenancedClaim(Claim):

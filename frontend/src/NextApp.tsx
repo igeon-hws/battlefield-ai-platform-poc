@@ -7,6 +7,7 @@ import type {
   SourceSnapshotSet,
 } from '../generated/contracts';
 import { formatTime } from './time';
+import AnalysisView, { type AnalysisData } from './AnalysisView';
 import './style.css';
 import './NextApp.css';
 import { domainScenarios } from './domainScenarios';
@@ -101,14 +102,12 @@ function graphRefs(value: unknown): string[] {
     : [];
   return [...new Set([...direct, ...Object.values(object).flatMap(graphRefs)])];
 }
-type BusinessQueryData = {
+type BusinessQueryData = AnalysisData & {
   queryId: string;
   title: string;
   params: Record<string, string>;
   declarationVersion: string;
   graphVersion: string;
-  appliedRules: { ruleId: string; title?: string }[];
-  graphEvidence: { evidenceId: string; kind: string; start: string; end: string }[];
   sourceRecords: {
     systemId: string;
     recordType: string;
@@ -157,6 +156,62 @@ function TraceChain({ data, fabricUrl }: { data: BusinessQueryData; fabricUrl: s
     </ol>
   );
 }
+const KIND_LABELS: Record<string, string> = {
+  observation: '원천 관측',
+  inference: '모델 추론',
+  semantic: 'Semantic 해석',
+  calculation: '근거 계산',
+};
+const sourceLabel = (provenance: ClaimProvenance) =>
+  provenance.sources
+    .map(
+      (s) =>
+        ({ source: '원천', document: '문서', semantic: 'Semantic', calculation: '계산 도구' })[s] ||
+        s,
+    )
+    .join(' · ') || '인용 없음';
+function QueryEvidence({
+  anchor,
+  index,
+  evidenceId,
+  data,
+  flash,
+  fabricUrl,
+}: {
+  anchor: string;
+  index?: number;
+  evidenceId: string;
+  data: BusinessQueryData;
+  flash: boolean;
+  fabricUrl: string;
+}) {
+  return (
+    <section
+      id={anchor}
+      className={flash ? 'evidence-block flash' : 'evidence-block'}
+      aria-label={`근거 ${index ?? ''} ${data.title}`.replace(/\s+/g, ' ')}
+    >
+      <header>
+        <b>
+          {index ? `${index}. ` : ''}
+          {data.title}
+        </b>{' '}
+        <small>{evidenceId}</small>
+      </header>
+      {data.steps?.length ? (
+        <>
+          <AnalysisView data={data} />
+          <details className="next-trace-details">
+            <summary>세부 근거 (업무 질의·선언·간선·원천 기록)</summary>
+            <TraceChain data={data} fabricUrl={fabricUrl} />
+          </details>
+        </>
+      ) : (
+        <TraceChain data={data} fabricUrl={fabricUrl} />
+      )}
+    </section>
+  );
+}
 class ApiError extends Error {
   constructor(
     public status: number,
@@ -201,11 +256,32 @@ export function RunPanel({
   const [selectionError, setSelectionError] = useState('');
   const [proof, setProof] = useState<unknown>(null);
   const [proofError, setProofError] = useState('');
+  const [flash, setFlash] = useState('');
   if (!run) return <p className="next-muted">실행 준비 중</p>;
   const usage = run.iterations.reduce(
     (total, i) => total + (i.usage?.input_tokens || 0) + (i.usage?.output_tokens || 0),
     0,
   );
+  // Business-query evidence is shown once, in first-citation order; claims point at it.
+  const queries = run.evidence.flatMap((e) => {
+    const data = businessQuery(e);
+    return data ? [{ evidenceId: e.evidenceId, data }] : [];
+  });
+  const citedIds = [...new Set((run.result?.claims || []).flatMap((c) => c.evidenceRefs))];
+  const citedQueries = citedIds.flatMap((id) => queries.filter((q) => q.evidenceId === id));
+  const uncitedQueries = queries.filter((q) => !citedIds.includes(q.evidenceId));
+  const queryIndex = new Map(citedQueries.map((q, i) => [q.evidenceId, i + 1]));
+  const queryTitle = (id: string) => queries.find((q) => q.evidenceId === id)?.data.title || id;
+  const classCount = { fact: 0, judgment: 0 };
+  for (const c of run.result?.claims || []) {
+    if (c.provenance?.claimClass) classCount[c.provenance.claimClass] += 1;
+  }
+  const anchor = (id: string) => `evidence-${run.runId}-${id}`;
+  const showEvidence = (id: string) => {
+    setFlash(id);
+    document.getElementById(anchor(id))?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    window.setTimeout(() => setFlash((current) => (current === id ? '' : current)), 1600);
+  };
   return (
     <article className="next-run">
       <div className="next-meta">
@@ -232,43 +308,100 @@ export function RunPanel({
       {!!run.result?.claims?.length && (
         <details>
           <summary>주장별 해석·근거</summary>
+          {(classCount.fact > 0 || classCount.judgment > 0) && (
+            <p className="claim-summary" aria-label="주장 분류 요약">
+              계산된 사실 {classCount.fact} · 모델 판단 {classCount.judgment}
+            </p>
+          )}
+          {citedQueries.length > 0 && (
+            <section className="evidence-area" aria-label="근거">
+              <b>근거 — 업무 질의가 계산한 결과</b>
+              <small> 코드가 선언 규칙대로 계산했습니다. 아래 주장은 이 근거를 인용합니다.</small>
+              {citedQueries.map((e, i) => (
+                <QueryEvidence
+                  key={e.evidenceId}
+                  anchor={anchor(e.evidenceId)}
+                  index={i + 1}
+                  evidenceId={e.evidenceId}
+                  data={e.data}
+                  flash={flash === e.evidenceId}
+                  fabricUrl={fabricUrl}
+                />
+              ))}
+              {uncitedQueries.length > 0 && (
+                <details className="evidence-uncited">
+                  <summary>인용되지 않은 근거 {uncitedQueries.length}</summary>
+                  {uncitedQueries.map((e) => (
+                    <QueryEvidence
+                      key={e.evidenceId}
+                      anchor={anchor(e.evidenceId)}
+                      evidenceId={e.evidenceId}
+                      data={e.data}
+                      flash={false}
+                      fabricUrl={fabricUrl}
+                    />
+                  ))}
+                </details>
+              )}
+            </section>
+          )}
+          {citedQueries.length > 0 && <b className="claim-heading">주장</b>}
           {run.result.claims.map((claim, i) => (
-            <section className="next-evidence" key={i}>
-              <b>
-                {
-                  {
-                    observation: '원천 관측',
-                    inference: '모델 추론',
-                    semantic: 'Semantic 해석',
-                    calculation: '근거 계산',
-                  }[claim.kind]
-                }
-              </b>
-              {claim.provenance && (
+            <section
+              className={`next-evidence${claim.provenance?.claimClass ? ' claim-' + claim.provenance.claimClass : ''}`}
+              key={i}
+              aria-label={
+                claim.provenance?.claimClass
+                  ? claim.provenance.claimClass === 'fact'
+                    ? '계산된 사실'
+                    : '모델 판단'
+                  : undefined
+              }
+            >
+              {claim.provenance?.claimClass ? (
+                <div className="claim-head">
+                  <b className="claim-badge">
+                    {claim.provenance.claimClass === 'fact'
+                      ? '계산된 사실 · 코드가 결정'
+                      : '모델 판단 · LLM이 해석'}
+                  </b>
+                  {claim.provenance.claimClass === 'judgment' && (
+                    <span className="claim-review">검토 필요</span>
+                  )}
+                </div>
+              ) : (
+                <b>{KIND_LABELS[claim.kind]}</b>
+              )}
+              {claim.provenance && !claim.provenance.claimClass && (
                 <p>
-                  <small>
-                    모델의 주장 분류 · 서버 확인 출처:{' '}
-                    {claim.provenance.sources
-                      .map(
-                        (s) =>
-                          ({
-                            source: '원천',
-                            document: '문서',
-                            semantic: 'Semantic',
-                            calculation: '계산 도구',
-                          })[s] || s,
-                      )
-                      .join(' · ') || '인용 없음'}
-                  </small>
+                  <small>모델의 주장 분류 · 서버 확인 출처: {sourceLabel(claim.provenance)}</small>
                 </p>
               )}
               <p>{claim.text}</p>
-              {claim.evidenceRefs
-                .map((id) => businessQuery(run.evidence.find((e) => e.evidenceId === id)))
-                .filter((d): d is BusinessQueryData => d !== null)
-                .map((d, j) => (
-                  <TraceChain key={j} data={d} fabricUrl={fabricUrl} />
-                ))}
+              {claim.provenance?.classReason && (
+                <small
+                  className="claim-reason"
+                  title={`모델 분류: ${KIND_LABELS[claim.provenance.reportedKind]} · 서버 확인 출처: ${sourceLabel(claim.provenance)}`}
+                >
+                  {claim.provenance.classReason}
+                </small>
+              )}
+              {claim.evidenceRefs.some((id) => queryIndex.has(id)) && (
+                <div className="claim-chips">
+                  {claim.evidenceRefs
+                    .filter((id) => queryIndex.has(id))
+                    .map((id) => (
+                      <button
+                        type="button"
+                        key={id}
+                        className="claim-chip"
+                        onClick={() => showEvidence(id)}
+                      >
+                        근거 {queryIndex.get(id)}. {queryTitle(id)}
+                      </button>
+                    ))}
+                </div>
+              )}
               {claim.provenance &&
                 !claim.provenance.sources.includes('semantic') &&
                 claim.provenance.sources.includes('document') && (

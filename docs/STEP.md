@@ -1,6 +1,6 @@
 # STEP — Spec-Driven Development
 
-**현재 STEP: 4. Review (Human).** 2026-10-29 지식베이스 효용 시연(v6 선언적 온톨로지·업무 질의·Fabric 정의 발행·근거 추적·평가 도구) 구현/무과금 검증 완료, Human Review 대기.
+**현재 STEP: 3. Implement.** 2026-10-29 C 답변 근거 중심 표시(분석 과정 1회·주장 2분류·모델 판단 강조) 구현 중.
 
 ## 단계와 산출물
 

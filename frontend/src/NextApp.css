@@ -437,3 +437,261 @@
   font-size: 12px;
   opacity: 0.85;
 }
+.analysis-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 8px 0;
+  padding: 10px;
+  border-left: 3px solid #4d8fbf;
+  background: rgba(77, 143, 191, 0.08);
+}
+.analysis-steps small {
+  color: #8d9eac;
+  font-size: 11px;
+}
+.analysis-steps ol {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.analysis-steps button {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 7px 9px;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  background: #18212a;
+  border: 1px solid #303c47;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.analysis-steps button[aria-pressed='true'] {
+  border-color: #8fc8ef;
+  background: #1d2d3b;
+}
+.analysis-step-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.analysis-count {
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #2b4a63;
+  text-align: center;
+}
+.analysis-excluded {
+  margin-top: 10px;
+  font-size: 12px;
+}
+.analysis-excluded ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.analysis-excluded li span {
+  text-decoration: line-through;
+  color: #aab6c0;
+}
+.analysis-graph {
+  margin: 0;
+  min-width: 0;
+}
+.analysis-graph svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.analysis-edge line {
+  stroke: #6f8fa8;
+  stroke-width: 1.4;
+}
+.analysis-edge text {
+  fill: #9fb3c4;
+  font-size: 10px;
+}
+.analysis-node rect {
+  fill: #18212a;
+  stroke: #4d8fbf;
+  stroke-width: 1.6;
+}
+.analysis-node text {
+  fill: #e6edf3;
+  font-size: 12px;
+}
+.analysis-node .analysis-concept {
+  fill: #9fb3c4;
+  font-size: 10px;
+}
+.analysis-node.state-available rect {
+  stroke: #3fb27f;
+  fill: #173126;
+}
+.analysis-node.state-limited rect {
+  stroke: #e0a43a;
+  fill: #372b15;
+}
+.analysis-node.state-unavailable rect {
+  stroke: #e05a5a;
+  fill: #3a1d1d;
+}
+.analysis-node.state-unknown rect {
+  stroke: #8d9eac;
+}
+.analysis-node.state-excluded rect {
+  stroke: #6b7883;
+  stroke-dasharray: 4 3;
+  fill: #141a20;
+}
+.analysis-node.state-excluded text {
+  fill: #8d9eac;
+}
+.analysis-node.dim,
+.analysis-edge.dim {
+  opacity: 0.2;
+}
+.analysis-graph figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: #9fb3c4;
+}
+.analysis-legend::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border: 1.6px solid #4d8fbf;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+.analysis-legend.state-available::before {
+  border-color: #3fb27f;
+  background: #173126;
+}
+.analysis-legend.state-limited::before {
+  border-color: #e0a43a;
+  background: #372b15;
+}
+.analysis-legend.state-unavailable::before {
+  border-color: #e05a5a;
+  background: #3a1d1d;
+}
+.analysis-legend.state-excluded::before {
+  border-color: #6b7883;
+  border-style: dashed;
+}
+.next-trace-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: #8fc8ef;
+}
+.analysis-edge .analysis-edge-label {
+  paint-order: stroke;
+  stroke: #15202a;
+  stroke-width: 3px;
+}
+.claim-summary {
+  margin: 8px 0;
+  font-size: 12px;
+  color: #c9d6e0;
+}
+.evidence-area {
+  margin: 8px 0 14px;
+}
+.evidence-area > small {
+  color: #8d9eac;
+  font-size: 11px;
+}
+.evidence-block {
+  margin-top: 8px;
+  border-radius: 6px;
+  transition: box-shadow 0.3s;
+}
+.evidence-block > header {
+  margin-top: 6px;
+  font-size: 13px;
+}
+.evidence-block > header small {
+  color: #8d9eac;
+}
+.evidence-block.flash {
+  box-shadow: 0 0 0 2px #8fc8ef;
+}
+.evidence-uncited summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: #8d9eac;
+  margin-top: 8px;
+}
+.claim-heading {
+  display: block;
+  margin: 10px 0 4px;
+}
+.next-evidence.claim-fact {
+  border-left: 3px solid #4f6b80;
+}
+.next-evidence.claim-judgment {
+  border-left: 3px solid #e0a43a;
+  background: rgba(224, 164, 58, 0.08);
+}
+.claim-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.claim-judgment .claim-badge {
+  color: #f0c070;
+}
+.claim-fact .claim-badge {
+  color: #a5c5dc;
+}
+.claim-review {
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #1b1405;
+  background: #e0a43a;
+}
+.claim-reason {
+  display: block;
+  color: #9fb3c4;
+  font-size: 11px;
+}
+.claim-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.claim-chip {
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 11px;
+  color: #8fc8ef;
+  background: #18212a;
+  border: 1px solid #3a4651;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.next-evidence.claim-fact,
+.next-evidence.claim-judgment {
+  padding-left: 10px;
+}
+.next-evidence .claim-chip {
+  min-height: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 1.5;
+}

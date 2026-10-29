@@ -728,6 +728,34 @@
             },
             "title": "Unverifiedrulerefs",
             "type": "array"
+          },
+          "claimClass": {
+            "anyOf": [
+              {
+                "enum": [
+                  "fact",
+                  "judgment"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Claimclass"
+          },
+          "classReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Classreason"
           }
         },
         "required": [
