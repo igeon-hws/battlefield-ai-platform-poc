@@ -2,6 +2,8 @@
 
 ## 다음 Implement: C 답변의 근거 중심 표시 — 분석 과정 1회 표시·주장 2분류·모델 판단 강조
 
+> 진행 상태(2026-10-29): 구현·무과금 검증 완료, Human Review 대기. 결과는 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md).
+
 > 근거: [REVIEW](REVIEW.md) 2026-10-29 두 번째 항목과 하위 항목. 직전 Implement(분석 과정 보기: 단계별 설명·제외 항목·작은 그래프)는 완료되어 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md)에 있다.
 
 ### 문제 (실제 run `4cadb5fe…`, "21일까지 준비되는 1사단 장비")

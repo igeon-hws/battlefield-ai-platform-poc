@@ -1,6 +1,6 @@
 # STEP — Spec-Driven Development
 
-**현재 STEP: 3. Implement.** 2026-10-29 C 답변 근거 중심 표시(분석 과정 1회·주장 2분류·모델 판단 강조) 구현 중.
+**현재 STEP: 4. Review (Human).** 2026-10-29 C 답변 근거 중심 표시(분석 과정 1회·주장 2분류·모델 판단 강조) 구현/무과금 검증 완료, Human Review 대기.
 
 ## 단계와 산출물
 
